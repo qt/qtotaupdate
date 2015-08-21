@@ -1,0 +1,10 @@
+bootpart=0:1
+bootdir=/
+optargs=consoleblank=0 vt.global_cursor_default=0 quiet
+loadostreeenv=setenv bootenv loader/uEnv.txt; if run loadbootenv; then echo Loaded environment from ${bootenv}; run importbootenv; fi;
+mmcroot=/dev/mmcblk0p2
+loaduimage=run loadostreeenv; load mmc ${bootpart} ${loadaddr} ${kernel_image}
+loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}
+loadramdisk=load mmc ${mmcdev} ${rdaddr} ${ramdisk_image}
+mmcargs=setenv bootargs $bootargs console=${console} ${optargs} root=${mmcroot} rootfstype=${mmcrootfstype}
+mmcboot=run loadramdisk; echo Booting from mmc ....; run mmcargs; bootz ${loadaddr} ${rdaddr} ${fdtaddr}

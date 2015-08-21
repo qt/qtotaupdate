@@ -1,0 +1,118 @@
+Example 1 - nitrogen6x_max board.
+
+    On this board a default bootcmd contains:
+
+    bootcmd =
+      for dtype in ${bootdevs}; do
+         if itest.s "xusb" == "x${dtype}" ; then
+            usb start ;
+         fi;
+         for disk in 0 1 ; do
+            ${dtype} dev ${disk} ;
+            for fs in fat ext2 ; do
+               ${fs}load ${dtype} ${disk}:1 10008000 /6x_bootscript&& source 10008000 ;
+            done ;
+         done ;
+      done;
+      setenv stdout serial,vga ; echo ;
+      echo 6x_bootscript not found ; echo ;
+      echo serial console at 115200, 8N1 ; echo ;
+      echo details at http://boundarydevices.com/6q_bootscript ;
+      setenv stdin serial,usbkbd
+
+    From where we see that it uses a compiled bootscript to import
+    an additional environment. To enable OSTree on this board we
+    can modify the default boot script by adding:
+
+    # Source OSTree environment.
+    if ${fs}load ${dtype} ${disk}:1 10800000 loader/uEnv.txt ; then
+        env import -t 10800000 $filesize
+    fi
+
+    # Use kernel_image and ramdisk_image values that were imported from the loader/uEnv.txt
+    ${fs}load ${dtype} ${disk}:1 10800000 ${kernel_image}
+    setenv ramdisk_addr 0x40000000
+    ${fs}load ${dtype} ${disk}:1 ${ramdisk_addr} ${ramdisk_image}
+
+    bootm 10800000 ${ramdisk_addr} 12000000
+
+Example 2 - beaglebone black
+
+    Tested on a device where: printe ver = U-Boot 2013.04-dirty (Jun 19 2013 - 09:57:14)
+
+    On this board a default bootcmd contains:
+
+    bootcmd=
+        gpio set 53;
+        i2c mw 0x24 1 0x3e;
+        run findfdt;
+        mmc dev 0;
+
+        if mmc rescan ; then
+            echo micro SD card found;
+            setenv mmcdev 0;
+        else
+            echo No micro SD card found, setting mmcdev to 1;
+            setenv mmcdev 1;
+        fi;
+
+            setenv bootpart ${mmcdev}:2;
+            mmc dev ${mmcdev};
+
+        if mmc rescan; then
+            gpio set 54;
+            echo SD/MMC found on device ${mmcdev};
+            if run loadbootenv; then
+                echo Loaded environment from ${bootenv};
+                run importbootenv;
+            fi;
+
+            if test -n $uenvcmd; then
+                echo Running uenvcmd ...;
+                run uenvcmd;
+            fi;
+
+            gpio set 55;
+
+            if run loaduimage; then
+                gpio set 56;
+                run loadfdt;
+                run mmcboot;
+            fi;
+        fi;
+
+    From where we see that it uses loadbootenv to import an additional environment.
+    To see what this command contains execute the following from u-boot console:
+
+    printe loadbootenv
+    loadbootenv=load mmc ${mmcdev} ${loadaddr} ${bootenv}
+    printe bootenv
+    bootenv=uEnv.txt
+
+    Now we know that it sources /uEnv.txt. To enable OSTree on this board we will add
+    our custom commands in the /uEnv.txt file.
+
+    Default /uEnv.txt contains:
+
+    optargs=consoleblank=0 vt.global_cursor_default=0 quiet
+    # extra options to support older u-boot (2013)
+    bootfile=zImage
+    loadaddr=0x80200000
+    loaduimage=load mmc ${bootpart} ${loadaddr} ${bootdir}/${bootfile}
+    mmcboot=echo Booting from mmc ...; run mmcargs; bootz ${loadaddr} - ${fdtaddr}
+
+    After our changes it contains:
+
+    bootpart=0:1
+    bootdir=/
+    optargs=consoleblank=0 vt.global_cursor_default=0 quiet
+    loadostreeenv=setenv bootenv loader/uEnv.txt; if run loadbootenv; then echo Loaded environment from ${bootenv}; run importbootenv; fi;
+    mmcroot=/dev/mmcblk0p2
+    loaduimage=run loadostreeenv; load mmc ${bootpart} ${loadaddr} ${kernel_image}
+    loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}
+    loadramdisk=load mmc ${mmcdev} ${rdaddr} ${ramdisk_image}
+    mmcargs=setenv bootargs $bootargs console=${console} ${optargs} root=${mmcroot} rootfstype=${mmcrootfstype}
+    mmcboot=run loadramdisk; echo Booting from mmc ....; run mmcargs; bootz ${loadaddr} ${rdaddr} ${fdtaddr}
+
+    Notice how we insert the 'loadostreeenv' command before loading kernel and initramfs.
+
