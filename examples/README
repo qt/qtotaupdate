@@ -21,7 +21,7 @@ Example 1 - nitrogen6x_max board.
       setenv stdin serial,usbkbd
 
     From where we see that it uses a compiled bootscript to import
-    an additional environment. To enable OSTree on this board we
+    an additional environment.* To enable OSTree on this board we
     can modify the default boot script by adding:
 
     # Source OSTree environment.
@@ -35,6 +35,10 @@ Example 1 - nitrogen6x_max board.
     ${fs}load ${dtype} ${disk}:1 ${ramdisk_addr} ${ramdisk_image}
 
     bootm 10800000 ${ramdisk_addr} 12000000
+
+    * To extract editable text file from a compiled bootscript run:
+
+      dd if=<compiled bootscript> of=<recovered file> bs=64 skip=1
 
 Example 2 - beaglebone black
 

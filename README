@@ -4,13 +4,16 @@ SUMMARY
 
     This repository contains a script that takes embedded linux sysroot and converts it into
     a OTA Update ready sysroot. The same script can be used to generate all subsequent updates
-    for a OTA Update ready device in field or in an automated test system for a remote system update.
+    for a OTA Update ready device in field or in an automated testing system for a remote system update.
 
 REQUIREMENTS
 
     sudo apt-get install u-boot-tools
-    ### TODO Explain where in the toolchain to find the x86_64 ostree binary. For now build the
-    binary manually as described in the DOCS section.
+
+    To run scripts from this repository add 'ostree' binary to the PATH. The binary is
+    available in b2qt SDK under the following path:
+
+    SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin
 
 DOCS
 
@@ -48,20 +51,22 @@ QUICK START GUIDE
 
     ./prepare-update.sh --help
 
+    0) Download and Install the B2Qt SDK.
+
+        Later in the guide we will refer to this install directory as SDK_INSTALL_DIR.
+
+        Build your product on top of b2qt or a custom embedded linux image and when
+        the image is ready for a *first release* continue to the next step in this guide.
+
 CASE 1:
 
     When preparing a device for shipping (or an automated testing system) and
     subsequent updates to a device are planned to be delivered via OTA, you have
     to enable this feature in the sysroot first.
 
-    1) Download and Install the B2Qt SDK.
+    1) Add 'ostree' binary to the PATH.
 
-        Later in the guide we will refer to this install directory as SDK_INSTALL_DIR.
-
-        Build your product on top of b2qt or a custom embedded linux image and when
-        the image is ready for a *first* release continue to the next step.
-
-        Make sure that sysroot includes 'ostree' and 'dracut' binaries.
+        export SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin:$PATH
 
     2) Generate initramfs image.
 
@@ -71,18 +76,19 @@ CASE 1:
             machine from which you will run the dracut/generate-initramfs.sh script. Dracut generates
             initramfs based on the currently running kernel. You can of course provide your own initramfs
             (not necessarily dracut based) as long as you include the required ostree logic from dracut/
-            directory.
+            directory. If using dracut, make sure it is availalbe on your device when running this script.
 
         To generate the initramfs image run:
 
-        dracut/generate-initramfs.sh
+        cd dracut/
+        ./generate-initramfs.sh
 
         This will produce ota-initramfs.ub file in the dracut/ directory. We will need
         this file in the later steps.
 
     3) Add OSTree support in device's u-boot environment.
 
-        OSTree maintains environment file located at loader/uEnv.txt. Your u-boot script
+        OSTree maintains an environment file located at loader/uEnv.txt. Your u-boot script
         should import this environment.
 
         Important! Do not modify the loader/uEnv.txt file.
@@ -126,7 +132,7 @@ CASE 1:
         ./prepare-update.sh --sysroot-image-path ${SDK_INSTALL_DIR}/5.5/Boot2Qt/nitrogen6x-eLinux/images/ \
                             --create-initial-deployment \
                             --initramfs ../dracut/ota-initramfs.ub \
-                            --uboot-env-file ../examples/nitrogen6x_max/6x_bootscript.txt
+                            --uboot-env-file ../examples/nitrogen6x_max/b2qt-5.5/6x_bootscript.txt
 
         The --create-initial-deployment tells the script to prepare an initial deployment sysroot that you
         will have to deploy to an sdcard by placing it into your computer's sdcard slot (see step 5).
@@ -189,18 +195,28 @@ CASE 2:
         You can find the port number in the b2qt-ostree/httpd/httpd-port file.
         Entering this address in the web browser should list contents of your OSTree repository.
 
-
         Notes on the --initramfs parameter:
 
-        Usually you should be able to use the same initramfs which you generated when
-        preparing the initial deployment (when you run ./prepare-update with the --create-initial-deployment).
-        This update system allows you to update initramfs binary if desired, in which case you should
-        pass in PATH/TO/YOUR_NEW_INITRAMFS.
+            1) When doing a minor releases that do not update the kernel:
+
+                Use the same initramfs which you already generated when preparing the initial deployment or
+                if there already have been releases that update the kernel, use initramfs which was generated
+                for the currently running kernel version.
+
+            2) When doing a major release that updates a kernel:
+
+                It is advised to regenerate initramfs for each new kernel release so that that the kernel and
+                initramfs versions match. And if the new kernel/initramfs is *not compatible* with the boot
+                script on a device it *must* be updated as well.
 
         Notes on the --sysroot-image-path parameter:
 
-        Here you provide a path to the new version of your sysroot images (notice that earlier we used
-        a path that contains 5.5, but now we use 5.6).
+            Here you provide a path to the new version of your sysroot images. Notice that earlier we used
+            a path that contains 5.5, but now we use 5.6.
+
+        Notes on the --uboot-env-file:
+
+            Currently not supported! TODO - FIX THIS.
 
     On A Device:
 
@@ -208,7 +224,6 @@ CASE 2:
 
         Note: If you already have a remote repository configured on the device, this step can be skipped.
 
-        mkdir -p /etc/ostree/remotes.d/
         ostree remote add --no-gpg-verify b2qt http://${IP_OF_SERVER}:${PORT}/ostree qt/b2qt
 
         IP_OF_SERVER is the IP address of the server where you have stored your ostree-repo.
