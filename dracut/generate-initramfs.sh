@@ -32,7 +32,7 @@ rm -f initramfs.img ota-initramfs.ub
 output=$(adb shell ls /usr/sbin/ostree-prepare-root)
 contains="No such file or directory"
 if [[ "$output" == *"$contains"* ]] ; then
-    echo "Failed to find the required binary /usr/sbin/ostree-prepare-root on a device."
+    echo "error: Failed to find the required binary /usr/sbin/ostree-prepare-root on a device."
     exit 1
 fi
 
@@ -43,6 +43,7 @@ adb push module-setup.sh $MODULE_PATH
 adb push prepare-root.sh $MODULE_PATH
 adb push check-udev-finished.sh $MODULE_PATH
 
+echo "Generating initramfs image..."
 adb shell dracut /boot/initramfs.img --host-only --omit systemd --add "ostree" --persistent-policy by-label --force --stdlog 3
 adb pull /boot/initramfs.img
 
@@ -51,5 +52,5 @@ mkimage -A arm -O linux -T ramdisk -a 0 -e 0 -d initramfs.img ota-initramfs.ub
 adb shell rm /boot/initramfs.img
 rm -f initramfs.img
 echo
-echo "Success: generated a OSTree boot compatible initramfs - ota-initramfs.ub."
+echo "Done. Generated OSTree boot compatible initramfs - ota-initramfs.ub."
 echo

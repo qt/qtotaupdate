@@ -1,0 +1,6 @@
+bootpart=0:1
+ramdisk_addr_r=0x86000000
+loaduimage=load mmc ${bootpart} ${kernel_addr_r} ${kernel_image}
+loadfdt=load mmc ${bootpart} ${fdt_addr_r} ${bootdir}/${soc}-colibri-${fdt_board}.dtb
+loadramdisk=load mmc ${bootpart} ${ramdisk_addr_r} ${ramdisk_image}
+sdboot=run setup; setenv bootargs ${bootargs} ${defargs} ${sdargs} ${mtdparts} ${setupargs} ${vidargs}; echo Booting from MMC/SD card...; run loaduimage && run loadfdt && run loadramdisk && bootz ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}

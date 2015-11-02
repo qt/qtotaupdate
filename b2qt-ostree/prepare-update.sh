@@ -32,11 +32,12 @@ ROOT=$(dirname $(readlink -f $0))
 
 OSTREE_REPO=${ROOT}/ostree-repo
 GENERATED_TREE=${ROOT}/tree
-BOOT_FILE_PATH=${GENERATED_TREE}/usr/system/boot
+BOOT_FILE_PATH=${GENERATED_TREE}/boot
 UBOOT_ENV_FILE=""
 SERVER_ROOT=${ROOT}/httpd
 OTA_SYSROOT=false
 INVALID_ARGS=false
+VERBOSE=""
 OSTREE_BRANCH=qt/b2qt
 OSTREE_COMMIT_SUBJECT=""
 # Private variables.
@@ -58,6 +59,7 @@ usage()
     echo "--ostree-commit-subject \"Subject\"     Commits the generated update with the specified commit subject. A default commit subject is the"
     echo "                                      date and time when the update was committed."
     echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot in the 'sysroot' directory."
+    echo "--verbose                             Prints more information to the console."
 
     echo
 }
@@ -107,6 +109,9 @@ parse_args()
           --create-initial-deployment)
               OTA_SYSROOT=true
               ;;
+          --verbose)
+              VERBOSE=v
+              ;;
           --ostree-repo)
               OSTREE_REPO=${2}
               shift 1
@@ -136,6 +141,7 @@ parse_args()
               exit 0
               ;;
           -*)
+              echo
               echo "Unknown parameter: ${1}"
               usage
               exit 1
@@ -159,33 +165,32 @@ find_and_rename_kernel()
     cd ${BOOT_FILE_PATH}/
     for file in *; do
         if file -b $file | grep -qi "kernel"; then
-            echo "Found kernel image ${PWD}/${file}"
-            cp ${file} ${GENERATED_TREE}/boot/vmlinuz
+            echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
+            mv ${file} vmlinuz
             return 0
         fi
     done
-    echo "Failed to find kernel image in ${BOOT_FILE_PATH} !"
+    echo "error: Failed to find kernel image in ${BOOT_FILE_PATH}."
     exit 1
 }
 
 organize_boot_files()
 {
-    # Keep everything what is needed for booting in one place.
-    if [ -d ${GENERATED_TREE}/boot ] && [ "$(ls -A ${GENERATED_TREE}/boot)" ] ; then
-        cp -r ${GENERATED_TREE}/boot/* ${BOOT_FILE_PATH}/
-        rm -rf ${GENERATED_TREE}/boot/
-    fi
+    cd ${ROOT}
+    cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs
+    find_and_rename_kernel
     if [ -n "${UBOOT_ENV_FILE}" ] ; then
         cd ${ROOT}
         cp ${UBOOT_ENV_FILE} ${BOOT_FILE_PATH}/
-
-        file=$(basename ${UBOOT_ENV_FILE})
-        if [ "$file" != "uEnv.txt" ] ; then
-            # must be a boot script then, check
-            # if its compiled or plain text
-            if [ ${file: -4} == ".txt" ] ; then
-                echo "Compiling u-boot boot script..."
-                mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${BOOT_FILE_PATH}/${file} ${BOOT_FILE_PATH}/${file%.*}
+        name=$(basename ${UBOOT_ENV_FILE})
+        if [ "${name}" != "uEnv.txt" ] ; then
+            cd ${BOOT_FILE_PATH}
+            # Must be a boot script then.
+            if file -b $name | grep -qi "ASCII text"; then
+                echo "Compiling u-boot boot script: ${BOOT_FILE_PATH}/${name}..."
+                mv ${name} ${name}-tmp
+                mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${name}-tmp ${name}
+                rm ${name}-tmp
             fi
         fi
     fi
@@ -195,24 +200,17 @@ convert_b2qt_to_ostree()
 {
     cd ${GENERATED_TREE}
     if [[ ! -e usr/bin/ostree || ! -e usr/sbin/ostree-remount ]] ; then
-        echo "Failed: The provided sysroot does not contain required binaries."
+        echo "error: The provided sysroot does not contain required binaries."
         exit 1
     fi
 
-    # Only initramfs and kernel image files are required
-    # in /boot for OSTree tool to recognize this as a valid tree.
-    mkdir -p ${GENERATED_TREE}/boot/
-    cd ${ROOT}
-    cp ${INITRAMFS} ${GENERATED_TREE}/boot/initramfs
-    find_and_rename_kernel
-    cd ${GENERATED_TREE}/boot/
+    cd ${BOOT_FILE_PATH}
     bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
     mv vmlinuz vmlinuz-${bootcsum}
     mv initramfs initramfs-${bootcsum}
 
-    # OSTree requires /etc/os-release file. This data is shown in multi-boot
-    # setup only. U-boot does not have multi-boot menu on system startup so it
-    # doesn't really matter what we put here.
+    # OSTree requires /etc/os-release file (see The Boot Loader Specification).
+    # U-boot does not have multi-boot menu so it doesn't really matter what we put here.
     echo "PRETTY_NAME=\"Boot 2 Qt\"" > ${GENERATED_TREE}/etc/os-release
 
     # Adjust rootfs according to OSTree guidelines.
@@ -231,7 +229,7 @@ convert_b2qt_to_ostree()
     # Run ostree-remount on startup. This makes sure that
     # rw/ro mounts are set correctly for ostree to work.
     cp ${ROOT}/ostree-remount.sh etc/init.d/
-    # sysV services are started in alphanumeric order. We want to remount
+    # System V init services are started in alphanumeric order. We want to remount
     # things as early as possible so we prepend 'a' in S01[a]ostree-remount.sh
     ln -fs ../init.d/ostree-remount.sh etc/rc1.d/S01aostree-remount.sh
     ln -fs ../init.d/ostree-remount.sh etc/rc2.d/S01aostree-remount.sh
@@ -255,7 +253,7 @@ commit_generated_tree()
     fi
 
     cd ${GENERATED_TREE}
-    echo "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
+    echo "Committing the generated tree into a repository at ${OSTREE_REPO}..."
     ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}"
     ostree --repo=${OSTREE_REPO} fsck
 }
@@ -264,33 +262,32 @@ create_initial_deployment()
 {
     echo "Preparing initial deployment..."
     cd ${ROOT}
-    rm -rf sysroot
+    rm -rf sysroot status.txt
 
     mkdir -p sysroot/sysroot/
     export OSTREE_SYSROOT=sysroot
     ostree admin init-fs sysroot
     ostree admin os-init b2qt
 
-    # Tell OSTree that it should use U-Boot handler.
+    # Tell OSTree to use U-Boot boot loader backend.
     mkdir -p sysroot/boot/loader.0/
     ln -s loader.0 sysroot/boot/loader
     touch sysroot/boot/loader/uEnv.txt
+    ln -s loader/uEnv.txt sysroot/boot/uEnv.txt
 
-    # Currently there is no built-in support in OSTree for updating DTBs (and other
-    # files that might be stored on boot partition, like second stage bootloader and
-    # etc.) *so we just copy those files directly to /boot.*
-    # TODO - find some way to workaround this limitation.
-    cp -r ${BOOT_FILE_PATH}/* sysroot/boot/
-    ln -s ../usr/system/boot/ sysroot/boot/boot-update
+    # Add convenience symlinks, for details see
+    # ostree/src/libostree/ostree-bootloader-uboot.c
+    for file in ${BOOT_FILE_PATH}/* ; do
+        name=$(basename $file)
+        if [[ ! -f $file || $name == *.dtb || $name == initramfs-* || $name == vmlinuz-* ]] ; then
+            continue
+        fi
+        ln -sf loader/${name} sysroot/boot/${name}
+    done
 
     ostree --repo=sysroot/ostree/repo pull-local --remote=b2qt ${OSTREE_REPO} ${OSTREE_BRANCH}
     ostree admin deploy --os=b2qt b2qt:${OSTREE_BRANCH}
     ostree admin status | tee status.txt
-
-    if [ ! -e sysroot/boot/loader/uEnv.txt ] ; then
-        echo "Failed: The ostree binary in PATH is too old. Update to a more recent version and try again."
-        exit 1
-    fi
 
     # OSTree does not touch the contents of /var,
     # /var needs to be dynamically managed at boot time.
@@ -300,13 +297,39 @@ create_initial_deployment()
 
     # Repack.
     if [ $DO_B2QT_DEPLOY = true ] ; then
+        echo "Packing initial deployment..."
         rm -rf ota-deploy
         mkdir ota-deploy/
         cd ota-deploy/
-        tar -pczvf boot.tar.gz -C ../sysroot/boot/ .
+        tar -pcz${VERBOSE}f boot.tar.gz -C ../sysroot/boot/ .
         mv ../sysroot/boot/ ../boot/
-        tar -pczvf rootfs.tar.gz -C ../sysroot/ .
+        tar -pcz${VERBOSE}f rootfs.tar.gz -C ../sysroot/ .
         mv ../boot/ ../sysroot/boot/
+    fi
+}
+
+extract_sysroot()
+{
+    echo "Extracting sysroot..."
+    rm -rf ${GENERATED_TREE}
+    mkdir ${GENERATED_TREE}
+    tar -C ${GENERATED_TREE} -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/rootfs.tar.gz
+    tar -C ${GENERATED_TREE} -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/b2qt.tar.gz
+    mkdir -p ${BOOT_FILE_PATH}/
+    tar -C ${BOOT_FILE_PATH}/ -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/boot.tar.gz
+}
+
+start_httpd_server()
+{
+    # Start a trivial httpd server.
+    # TODO - allow starting on existing repo
+    if [ ! -d ${SERVER_ROOT} ] ; then
+        mkdir ${SERVER_ROOT}
+        cd ${SERVER_ROOT}
+        ln -s ${OSTREE_REPO} ostree
+        ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
+        PORT=$(cat ${SERVER_ROOT}/httpd-port)
+        echo "http://127.0.0.1:${PORT}" > ${SERVER_ROOT}/httpd-address
     fi
 }
 
@@ -314,12 +337,7 @@ main()
 {
     parse_args $@
 
-    rm -rf ${GENERATED_TREE}
-    mkdir ${GENERATED_TREE}
-    tar -C ${GENERATED_TREE} -xvf ${SYSROOT_IMAGE_PATH}/rootfs.tar.gz
-    tar -C ${GENERATED_TREE} -xvf ${SYSROOT_IMAGE_PATH}/b2qt.tar.gz
-    mkdir -p ${BOOT_FILE_PATH}/
-    tar -C ${BOOT_FILE_PATH}/ -xvf ${SYSROOT_IMAGE_PATH}/boot.tar.gz
+    extract_sysroot
 
     organize_boot_files
     convert_b2qt_to_ostree
@@ -329,15 +347,9 @@ main()
         create_initial_deployment
     fi
 
-    # Start a trivial httpd server. TODO - Improve this
-    if [ ! -d ${SERVER_ROOT} ] ; then
-        mkdir ${SERVER_ROOT}
-        cd ${SERVER_ROOT}
-        ln -s ${OSTREE_REPO} ostree
-        ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
-        PORT=$(cat ${SERVER_ROOT}/httpd-port)
-        echo "http://127.0.0.1:${PORT}" > ${SERVER_ROOT}/httpd-address
-    fi
+    start_httpd_server
+
+    echo "Done."
 }
 
 main $@

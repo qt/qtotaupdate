@@ -4,21 +4,37 @@ SUMMARY
 
     This repository contains a script that takes embedded linux sysroot and converts it into
     a OTA Update ready sysroot. The same script can be used to generate all subsequent updates
-    for a OTA Update ready device in field or in an automated testing system for a remote system update.
+    for a OTA Update ready device in field for a remote system update.
+
+    TODO: add some notes on how updates are performed (atomic, power down safe, must restart, rollback).
 
 REQUIREMENTS
 
-    sudo apt-get install u-boot-tools
+    1) U-Boot tools package is required. In Ubuntu, this can be install with the following command:
 
-    To run scripts from this repository add 'ostree' binary to the PATH. The binary is
-    available in b2qt SDK under the following path:
+        sudo apt-get install u-boot-tools
 
-    SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin
+    2) The 'ostree' binary must be in the PATH.
+
+        The binary is available in the b2qt SDK under the following path:
+        SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin
+
+    3) The target system must be using u-boot boot loader.
+
+       And reading from ext2 file system must be supported by u-boot.
+
+    4) The kernel must have support for initramfs enabled.*
+
+       CONFIG_BLK_DEV_INITRD=y
+
+     * There are ways around that, but we currently do not support this out-of-box:
+       https://mail.gnome.org/archives/ostree-list/2015-October/msg00015.html
 
 DOCS
 
-    OSTree does not come as installable package. To obtain man pages for ostree command line
-    tool they must be generated and installed manually. Here are the steps:
+    OSTree does not come as installable package on Ubuntu. To obtain man pages for
+    ostree command line tool they must be generated and installed manually. Here are
+    the steps:
 
     Install the required packages (tested on a freshly installed Ubuntu 14.04):
 
@@ -60,9 +76,8 @@ QUICK START GUIDE
 
 CASE 1:
 
-    When preparing a device for shipping (or an automated testing system) and
-    subsequent updates to a device are planned to be delivered via OTA, you have
-    to enable this feature in the sysroot first.
+    When preparing a device for shipping and subsequent updates to a device are planned to
+    be delivered via OTA, you have to enable this feature in the sysroot first.
 
     1) Add 'ostree' binary to the PATH.
 
@@ -83,36 +98,38 @@ CASE 1:
         cd dracut/
         ./generate-initramfs.sh
 
-        This will produce ota-initramfs.ub file in the dracut/ directory. We will need
-        this file in the later steps.
+        This will produce ota-initramfs.ub file in the dracut/ directory. We will need this file in the
+        later steps.
 
     3) Add OSTree support in device's u-boot environment.
 
-        OSTree maintains an environment file located at loader/uEnv.txt. Your u-boot script
-        should import this environment.
+        OSTree maintains an environment file located at /uEnv.txt on the boot partition.
+        Your u-boot script should import this environment.
 
-        Important! Do not modify the loader/uEnv.txt file.
+        Important! Do not modify the uEnv.txt file on a device.
 
         One example content of this file could look like this:
 
-        cat loader/uEnv.txt
+        cat uEnv.txt
 
-        kernel_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/vmlinuz
-        ramdisk_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/initramfs
-        bootargs=ostree=/ostree/boot.1/b2qt/ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/0
+        kernel_image=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/vmlinuz
+        bootdir=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703
+        ramdisk_image=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/initramfs
+        bootargs=ostree=/ostree/boot.1/b2qt/23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/0
 
         Where:
 
         ${kernel_image}:  path to the Linux kernel image
         ${ramdisk_image}: path to the initial ramdisk image
         ${bootargs}:      parameters passed to the kernel command line
+        ${bootdir}:       additional files that are required for booting like DTBs
 
         Example u-boot logic that uses the imported OSTree's environmental variables:
 
         setenv scriptaddr 0x40008000
         setenv kernel_addr 0x40007000
         setenv ramdisk_addr 0x42000000
-        load mmc 0:1 ${scriptaddr} loader/uEnv.txt
+        load mmc 0:1 ${scriptaddr} uEnv.txt
         env import -t ${scriptaddr} ${filesize}
         load mmc 0:1 ${kernel_addr} ${kernel_image}
         load mmc 0:1 ${ramdisk_addr} ${ramdisk_image}
@@ -120,6 +137,16 @@ CASE 1:
 
         The generated initramfs (from step 2) will read the "ostree=" parameter from the kernel command
         command line to find and setup the correct root file system.
+
+        Notes:
+
+        - You should expect to find all boot files on the boot partition. Some devices by default keep
+        some files on rootfs partiton (kernel, dtbs and etc.), when generating OTA update enabled sysroot
+        we move all these files on the boot partition. Before starting to write a boot script you can run
+        the b2qt-ostree/prepare-update.sh script without providing the --uboot-env-file and examine the
+        layout of generated boot partition in b2qt-ostree/sysroot/boot/.
+
+        - Boot partition by default is formated as ext2.
 
         You can find some detailed examples for real devices in the examples/ directory.
 
@@ -132,7 +159,7 @@ CASE 1:
         ./prepare-update.sh --sysroot-image-path ${SDK_INSTALL_DIR}/5.5/Boot2Qt/nitrogen6x-eLinux/images/ \
                             --create-initial-deployment \
                             --initramfs ../dracut/ota-initramfs.ub \
-                            --uboot-env-file ../examples/nitrogen6x_max/b2qt-5.5/6x_bootscript.txt
+                            --uboot-env-file ../examples/nitrogen6x/b2qt-5.5/6x_bootscript
 
         The --create-initial-deployment tells the script to prepare an initial deployment sysroot that you
         will have to deploy to an sdcard by placing it into your computer's sdcard slot (see step 5).
@@ -168,11 +195,11 @@ CASE 1:
 
 CASE 2:
 
-    When preparing a new update for an already OTA enabled device (device in field
-    or in an automated testing system) the workflow is as follows:
+    When preparing a new update for an already OTA enabled device in field, the
+    workflow is as follows:
 
     1) Work on your sysroot as you normally would. When the product is ready
-       for a release (or an automated testing) continue to the next step.
+       for a release continue to the next step.
 
     On A Server:
 
@@ -207,7 +234,7 @@ CASE 2:
 
                 It is advised to regenerate initramfs for each new kernel release so that that the kernel and
                 initramfs versions match. And if the new kernel/initramfs is *not compatible* with the boot
-                script on a device it *must* be updated as well.
+                script on a device it *must* be updated as well (see "Notes on the --uboot-env-file").
 
         Notes on the --sysroot-image-path parameter:
 
@@ -216,7 +243,8 @@ CASE 2:
 
         Notes on the --uboot-env-file:
 
-            Currently not supported! TODO - FIX THIS.
+            Updating u-boot environment file (uEnv.txt and/or u-boot boot script) is supported only for
+            major releases - when kernel/initramfs versions change.
 
     On A Device:
 
@@ -235,6 +263,10 @@ CASE 2:
     5) Reboot into the new system.
 
     6) Go to step 1.
+
+EXAMPLES
+
+    Find examples for real embedded devices in the /examples directory.
 
 SYSTEM LAYOUT OF A OTA UPDATE READY IMAGE
 
@@ -267,43 +299,10 @@ SYSTEM LAYOUT OF A OTA UPDATE READY IMAGE
         Do not modify the /sysroot/ directory.
         Do not store files or create directories in the root directory, as they will not be preserved across upgrades.
         Do not remount read-only /usr to read-write. The created files will be garbage collected on the next system upgrade.
-        Do not modify loader/uEnv.txt on a device.
+        Do not modify uEnv.txt on a device.
 
     Important quote from OSTree man pages:
 
         "It must be emphasized that OSTree only supports read-only trees. To change to a different tree (upgrade, downgrade,
         install software), a new tree is checked out, and a 3-way merge of configuration is performed. The currently running
         tree is not ever modified; the new tree will become active on a system reboot."
-
-EXAMPLES
-
-    Find examples for real embedded devices in the /examples directory.
-
-TECHNICAL READING MATERIAL FOR CONTRIBUTORS
-
-    HTML docs for general OSTree concepts and man pages for OSTree tool commands,
-    both available here:
-
-        https://github.com/GNOME/ostree
-
-    The Fundamentals of OSTree:
-
-        https://samthursfield.wordpress.com/2014/01/16/the-fundamentals-of-ostree/
-
-    OSTree u-boot support:
-
-        https://martinezjavier.wordpress.com/2013/10/06/u-boot-backend-support-for-ostree/
-
-    The handling of /etc:
-
-        http://blog.verbum.org/2014/01/24/why-ostree-requires-usretc/
-
-    Dynamic overlays on top of the running tree (just for future reference):
-
-        *NOT TESTED* and unsure what is the current state of dynamic overlays support is,
-        but from the blog post it sounds like this solution will have systemd as a hard dependency:
-
-        "[..]for any live-upgrade system via OSTree, I plan for it to be fully aware of systemd[..]" see:
-
-        http://blog.verbum.org/2014/02/26/ostree-rigorous-and-reliable-deployment/
-

@@ -4,10 +4,6 @@ setenv bootdir /
 
 setenv bootargs ''
 
-if ${fs}load ${dtype} ${disk}:1 10800000 loader/uEnv.txt ; then
-    env import -t 10800000 $filesize
-fi
-
 if ${fs}load ${dtype} ${disk}:1 10800000 uEnv.txt ; then
     env import -t 10800000 $filesize
 fi
@@ -32,11 +28,11 @@ if itest.s x == x${bootdir} ; then
 fi
 
 setenv fdt_addr 0x12000000
-if ${fs}load ${dtype} ${disk}:1 $fdt_addr ${bootdir}$dtbname ; then
+if ${fs}load ${dtype} ${disk}:1 $fdt_addr ${bootdir}/$dtbname ; then
     fdt addr $fdt_addr
     setenv fdt_high 0xffffffff
 else
-    echo "!!!! Error loading ${bootdir}$dtbname";
+    echo "!!!! Error loading ${bootdir}/$dtbname";
     exit;
 fi
 

@@ -1,4 +1,12 @@
-Example 1 - nitrogen6x_max board.
+SUMMARY
+
+    This directory contains example boot scripts for some of the Boot to Qt reference devices.
+    Directories are named according to the MACHINE environment variable as used by the yocto
+    build scripts from:
+
+    http://doc.qt.io/QtForDeviceCreation/qtee-custom-embedded-linux-image.html
+
+EXAMPLE 1 - nitrogen6x
 
     On this board a default bootcmd contains:
 
@@ -20,29 +28,38 @@ Example 1 - nitrogen6x_max board.
       echo details at http://boundarydevices.com/6q_bootscript ;
       setenv stdin serial,usbkbd
 
-    From where we see that it uses a compiled bootscript to import
-    an additional environment.* To enable OSTree on this board we
-    can modify the default boot script by adding:
+    From this command we see that an additional boot script is imported - 6x_bootscript.
+    By examining the 6x_bootscript we see that to enable OSTree on this board we need to modify
+    the default boot script in the following way*:
 
-    # Source OSTree environment.
-    if ${fs}load ${dtype} ${disk}:1 10800000 loader/uEnv.txt ; then
-        env import -t 10800000 $filesize
-    fi
+    Replace:
+        if ${fs}load ${dtype} ${disk}:1 12000000 ${bootdir}$dtbname ; then
+    With:
+        if ${fs}load ${dtype} ${disk}:1 12000000 ${bootdir}/$dtbname ; then
 
-    # Use kernel_image and ramdisk_image values that were imported from the loader/uEnv.txt
-    ${fs}load ${dtype} ${disk}:1 10800000 ${kernel_image}
-    setenv ramdisk_addr 0x40000000
-    ${fs}load ${dtype} ${disk}:1 ${ramdisk_addr} ${ramdisk_image}
+    Replace:
+        if ${fs}load ${dtype} ${disk}:1 10800000 ${bootdir}uImage ; then
+            if itest.s x$havedtb == x ; then
+                bootm 10800000 ;
+            else
+                bootm 10800000 - 12000000
+            fi
+        fi
+    With:
+        # Use kernel_image and ramdisk_image values that were imported from the uEnv.txt
+        ${fs}load ${dtype} ${disk}:1 10800000 ${kernel_image}
+        setenv ramdisk_addr 0x40000000
+        ${fs}load ${dtype} ${disk}:1 ${ramdisk_addr} ${ramdisk_image}
 
-    bootm 10800000 ${ramdisk_addr} 12000000
+        bootm 10800000 ${ramdisk_addr} 12000000
 
-    * To extract editable text file from a compiled bootscript run:
+    * To work with this script you can simply make a copy of it. Open it with the
+      'vim' editor for example and manually remove the u-boot header.
 
-      dd if=<compiled bootscript> of=<recovered file> bs=64 skip=1
+EXAMPLE 2 - beaglebone
 
-Example 2 - beaglebone black
-
-    Tested on a device where: printe ver = U-Boot 2013.04-dirty (Jun 19 2013 - 09:57:14)
+    Tested on a device with u-boot version U-Boot 2013.04-dirty (Jun 19 2013 - 09:57:14),
+    as returned by the "printenv ver" command.
 
     On this board a default bootcmd contains:
 
@@ -88,15 +105,16 @@ Example 2 - beaglebone black
     From where we see that it uses loadbootenv to import an additional environment.
     To see what this command contains execute the following from u-boot console:
 
-    printe loadbootenv
+    printenv loadbootenv
     loadbootenv=load mmc ${mmcdev} ${loadaddr} ${bootenv}
-    printe bootenv
+
+    printenv bootenv
     bootenv=uEnv.txt
 
-    Now we know that it sources /uEnv.txt. To enable OSTree on this board we will add
-    our custom commands in the /uEnv.txt file.
+    Now we know that it sources uEnv.txt. To enable OSTree on this board we will add
+    our custom commands in the uEnv.txt file.
 
-    Default /uEnv.txt contains:
+    Default uEnv.txt contains:
 
     optargs=consoleblank=0 vt.global_cursor_default=0 quiet
     # extra options to support older u-boot (2013)
@@ -108,15 +126,76 @@ Example 2 - beaglebone black
     After our changes it contains:
 
     bootpart=0:1
-    bootdir=/
     optargs=consoleblank=0 vt.global_cursor_default=0 quiet
-    loadostreeenv=setenv bootenv loader/uEnv.txt; if run loadbootenv; then echo Loaded environment from ${bootenv}; run importbootenv; fi;
     mmcroot=/dev/mmcblk0p2
-    loaduimage=run loadostreeenv; load mmc ${bootpart} ${loadaddr} ${kernel_image}
+    loaduimage=load mmc ${bootpart} ${loadaddr} ${kernel_image}
     loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}
-    loadramdisk=load mmc ${mmcdev} ${rdaddr} ${ramdisk_image}
+    loadramdisk=load mmc ${bootpart} ${rdaddr} ${ramdisk_image}
     mmcargs=setenv bootargs $bootargs console=${console} ${optargs} root=${mmcroot} rootfstype=${mmcrootfstype}
     mmcboot=run loadramdisk; echo Booting from mmc ....; run mmcargs; bootz ${loadaddr} ${rdaddr} ${fdtaddr}
 
-    Notice how we insert the 'loadostreeenv' command before loading kernel and initramfs.
+    When writing a custom uEnv.txt as we do in the above example, we can assume that OSTree's environment will be
+    available (kernel_image and etc). OSTree merges its environment variables at the top of this file. You can
+    see an example of this when running the b2qt-ostree/prepare-update.sh with the --create-initial-deployment and
+    examining the generated sysroot in b2qt-ostree/sysroot/boot/uEnv.txt
+
+EXAMPLE 3 - colibri-vf
+
+    On this board a default bootcmd does not source any external environment. There are several options what we can
+    do:
+
+    1) Update environment directly on the board.
+
+       setenv loadbootenv 'load mmc 0 ${loadaddr} uEnv.txt'
+       setenv importbootenv 'echo Importing environment from mmc ...; env import -t $loadaddr $filesize'
+       setenv bootcmd 'if run loadbootenv; then echo Loaded environment from uEnv.txt; run importbootenv; fi; run sdboot; run ubiboot; run nfsboot'
+       saveenv
+
+       where uEnv.txt contains:
+
+       bootpart=0:1
+       ramdisk_addr_r=0x86000000
+       loaduimage=load mmc ${bootpart} ${kernel_addr_r} ${kernel_image}
+       loadfdt=load mmc ${bootpart} ${fdt_addr_r} ${bootdir}/${soc}-colibri-${fdt_board}.dtb
+       loadramdisk=load mmc ${bootpart} ${ramdisk_addr_r} ${ramdisk_image}
+       sdboot=run setup; setenv bootargs ${bootargs} ${defargs} ${sdargs} ${mtdparts} ${setupargs} ${vidargs}; echo Booting from MMC/SD card...; run loaduimage && run loadfdt && run loadramdisk && bootz ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
+
+    2) Update u-boot configuration for this board.
+
+       This can be done by editing include/configs/colibri_vf.h in u-boot repository.
+
+        #define CONFIG_BOOTCOMMAND
+        #define CONFIG_EXTRA_ENV_SETTINGS
+
+EXAMPLE 4 - imx6qsabresd
+
+    This board assumes that boot files are on FAT partition, where a default bootcmd
+    runs loadbootscript to load an additional environment:
+
+    loadbootscript=fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};
+
+    This won't work because we require a file system with symbolic link support. By default
+    we format boot partition as ext2, so we need to change boot script accordingly:
+
+    setenv loadbootscript 'ext2load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script}'
+    saveenv
+
+    Find the name of the boot script:
+
+    printenv script
+    script=boot.scr
+
+    Add OSTree support by adding the following to the boot.scr:
+
+    ext2load mmc ${mmcdev}:${mmcpart} ${loadaddr} uEnv.txt
+    echo Importing environment from mmc ...
+    env import -t $loadaddr $filesize
+    setenv ramdisk_addr 0x24000000
+    ext2load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${kernel_image}
+    ext2load mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${bootdir}/${fdt_file}
+    ext2load mmc ${mmcdev}:${mmcpart} ${ramdisk_addr} ${ramdisk_image}
+    echo Booting from mmc ...
+    run videoargs
+    setenv bootargs ${bootargs} console=${console},${baudrate} video=${video} consoleblank=0 vt.global_cursor_default=0 root=${mmcroot}
+    bootz ${loadaddr} ${ramdisk_addr} ${fdt_addr}
 
