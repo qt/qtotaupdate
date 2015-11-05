@@ -1,0 +1,437 @@
+/****************************************************************************
+**
+** Copyright (C) 2015 Digia Plc
+** All rights reserved.
+** For any questions to Digia, please use the contact form at
+** http://www.qt.io
+**
+** This file is part of Qt Enterprise Embedded.
+**
+** Licensees holding valid Qt Enterprise licenses may use this file in
+** accordance with the Qt Enterprise License Agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and Digia.
+**
+** If you have questions regarding the use of this file, please use
+** the contact form at http://www.qt.io
+**
+****************************************************************************/
+/*!
+    \page qtee-ota.html
+    \title Over-The-Air Update
+    \previouspage qtee-module-reference.html
+
+    \SDK comes with a script that takes an embedded linux sysroot and
+    converts it into a sysroot that is ready to be deployed over the air (OTA
+    update). The same script can be used to generate all subsequent updates for
+    an OTA update ready device in the field, or in an automated testing system
+    for a remote system update.
+
+    The OTA solution in \SDK is based on OSTree and U-Boot.
+
+    \section1 Requirements
+
+    U-Boot tools package is required. In Ubuntu, this can be install with the
+    following command:
+
+    \badcode
+    sudo apt-get install u-boot-tools
+    \endcode
+
+    To run the provided OTA scripts, add \e ostree binary to the PATH. The
+    binary is available in \SDK under the following path:
+
+    \badcode
+    SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin
+    \endcode
+
+    \section1 OSTree Documentation
+
+    OSTree does not come as installable package. The ostree command line
+    tool includes man pages, however they must be generated and installed
+    manually. The steps are as follows:
+
+    \list 1
+      \li Install the required packages. For example, on Ubuntu 14.04:
+
+          \badcode
+          sudo apt-get install git autoconf gtk-doc-tools libattr1-dev libcap-dev libghc-gio-dev \
+          liblzma-dev e2fslibs-dev libgpgme11-dev libsoup2.4-dev libarchive-dev
+          \endcode
+
+      \li Build the dependency library \e libgsystem:
+          \badcode
+          git clone https://github.com/GNOME/libgsystem.git
+          cd libgsystem
+          git submodule update --init
+          ./autogen.sh
+          make
+          sudo make install
+          cd ..
+          \endcode
+
+      \li Generate and install OSTree man pages:
+
+          \badcode
+          git clone https://github.com/GNOME/ostree.git
+          cd ostree
+          ./autogen.sh --enable-introspection=no --enable-gtk-doc --enable-gtk-doc-html
+          make
+          sudo make install
+          \endcode
+    \endlist
+
+    \section1 Quick Start Guide
+
+    \note This guide describes only one of many possible update workflows.
+    For more information on OSTree commands refer to the ostree man pages. To
+    see a full list of available command line parameters of the \c
+    prepare-update.sh script, run the following command:
+
+    \badcode
+    ./prepare-update.sh --help
+    \endcode
+
+    \section2 Install \SDK
+
+    Download \SDK and follow the \l {Installation Guide}.
+
+    Later in this guide we will refer to this install directory as \c
+    SDK_INSTALL_DIR.
+
+    Build your product on top of \SDK or a custom embedded linux image, and
+    when the image is ready for the \e {first release}, continue to the next
+    step in this guide.
+
+    \section2 Use Case: Preparing a Device for Shipping
+
+    When preparing a device for shipping (or for an automated testing
+    system) and subsequent updates to a device are planned to be delivered via
+    OTA, you need to first enable this feature in the \e sysroot.
+
+    \list 1
+      \li Add \e ostree binary to the PATH.
+
+          \badcode
+          export SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin:$PATH
+          \endcode
+
+      \li Generate the \e initramfs image. \br
+
+          \b {Important:} The device should be powered on, booted into your
+          current product, and connected to a machine from which you will run
+          the \c dracut/generate-initramfs.sh script. Dracut generates the
+          initramfs image based on the currently running kernel. You can of
+          course provide your own initramfs (not necessarily dracut based), as
+          long as you include the required ostree logic from \c dracut/
+          directory. If using dracut, make sure it is availalbe on your device
+          when running the following script.
+
+          Generate the initramfs image:
+
+          \badcode
+          cd dracut
+          ./generate-initramfs.sh
+          \endcode
+
+          This will produce a file \c ota-initramfs.ub in the dracut/ directory. This file is needed
+          in later steps.
+
+      \li Add OSTree support into U-Boot environment of the device.
+
+          OSTree maintains an environment file, \c loader/uEnv.txt. Your
+          U-Boot script should import this environment.
+
+          \b {Important:} Do not modify \c loader/uEnv.txt.
+
+          As an example, the content of this file could look like this:
+
+          \badcode
+          cat loader/uEnv.txt
+
+          kernel_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/vmlinuz
+          ramdisk_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/initramfs
+          bootargs=ostree=/ostree/boot.1/b2qt/ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/0
+          \endcode
+
+          Where:
+
+          \list
+            \li \c ${kernel_image}: Path to the Linux kernel image
+            \li \c ${ramdisk_image}: Path to the initial ramdisk image
+            \li \c ${bootargs}: Parameters passed to the kernel command line
+          \endlist
+
+          Example U-Boot logic that uses the imported OSTree's environmental
+          variables:
+
+          \badcode
+          setenv scriptaddr 0x40008000
+          setenv kernel_addr 0x40007000
+          setenv ramdisk_addr 0x42000000
+          load mmc 0:1 ${scriptaddr} loader/uEnv.txt
+          env import -t ${scriptaddr} ${filesize}
+          load mmc 0:1 ${kernel_addr} ${kernel_image}
+          load mmc 0:1 ${ramdisk_addr} ${ramdisk_image}
+          bootz ${kernel_addr} ${ramdisk_addr}
+          \endcode
+
+          The generated initramfs (from step 2) will read the \c "ostree="
+          parameter from the kernel command command line to find and setup the
+          correct root file system.
+
+          You can find some detailed examples for real devices in the
+          examples/ directory.
+
+      \li Convert your sysroot into an OTA enabled sysroot.
+
+          The conversion is done by running the \c
+          b2qt-ostree/prepare-update.sh script. Here is an example for
+          nitrogen6x board:
+
+          \badcode
+          cd b2qt-ostree/
+          ./prepare-update.sh --sysroot-image-path ${SDK_INSTALL_DIR}/5.5/Boot2Qt/nitrogen6x-eLinux/images/ \
+                              --create-initial-deployment \
+                              --initramfs ../dracut/ota-initramfs.ub \
+                              --uboot-env-file ../examples/nitrogen6x_max/b2qt-5.5/6x_bootscript.txt
+          \endcode
+
+          The \c --create-initial-deployment option tells the script
+          to prepare an initial deployment sysroot that you will have to deploy
+          to an SD card by placing it into your computer's SD card slot (see
+          step 5).
+
+          Setting the \c --uboot-env-file is optional because you can
+          store the required boot script logic in the persistent storage of
+          your board (or define it when building U-Boot). The file given to \c
+          --uboot-env-file is copied into the boot partition.
+
+      \li Deploy the generated initial deployment sysroot to an SD card.
+
+          Plug in the SD card or reader to the development host, and use the
+          following command to find out its device name:
+
+          \badcode
+          lsblk -d
+          \endcode
+
+          Then, deploy to the SD card:
+
+          \badcode
+          cd b2qt-ostree/
+          sudo ./deploy.sh /dev/<device_name>
+          \endcode
+
+      \li Test that everything went according to the plan.
+
+          Boot from the sdcard and run the following command from the device:
+
+          \badcode
+          ostree admin status
+          \endcode
+
+          The output should be something similar to:
+
+          \badcode
+          * b2qt 59a453916ae90f4a73ade9cb038d31557dbdfe514e7cd1c1002d856c28d618f5.0
+              origin refspec: b2qt:qt/b2qt
+          \endcode
+
+          This indicates that the deployment was successful.
+        \endlist
+
+    \section2 Use Case: Preparing a New Update for an OTA Enabled Device
+
+    When preparing a new update for a device that already has OTA enabled
+    (that is, a device in field or in an automated testing system), the
+    workflow is as follows:
+
+    \list 1
+
+      \li Work on your sysroot as you normally would. When the product is ready
+          for a release (or automated testing), continue to the next step.
+
+      \li \b {On a server:}
+
+          Commit the new version of sysroot into a repository on a server or
+          on your host machine for testing purposes.
+
+          Example command:
+
+          \badcode
+          cd b2qt-ostree
+          ./prepare-update.sh --sysroot-image-path ${SDK_INSTALL_DIR}/5.6/Boot2Qt/nitrogen6x-eLinux/images/ \
+                              --initramfs ../dracut/ota-initramfs.ub
+          \endcode
+
+        This will create a new commit in the \c
+        b2qt-ostree/ostree-repo repository, or another location if the \c
+        --ostree-repo argument was provided.
+
+        The script also starts the httpd server which you can access
+        on the local host at \c http://127.0.0.1:${PORT}/ostree/ - the port
+        number is listed in the \c b2qt-ostree/httpd/httpd-port file.
+
+        Entering the above address in a web browser lists the contents of your
+        OSTree repository.
+
+        Notes on the parameters used for the script:
+
+        \list
+            \li \b {\c --initramfs}
+                \list
+                    \li When doing a minor releases that do not update the
+                        kernel:
+
+                        Use the same initramfs which you already generated
+                        when preparing the initial deployment or if there
+                        has already been releases that update the kernel,
+                        use initramfs which was generated for the currently
+                        running kernel version.
+
+                    \li When doing a major release that updates a kernel:
+
+                        It is advised to regenerate initramfs for each new
+                        kernel release so that that the kernel and initramfs
+                        versions match. If the new kernel/initramfs is \b
+                        {not compatible} with the boot script on a device,
+                        it \b must be updated as well.
+                \endlist
+            \li \b {\c --sysroot-image-path}
+                \list
+                    \li Provide a path to the new version of your sysroot
+                        images. Note how earlier we used a path that
+                        contained Qt 5.5, but now we use Qt 5.6.
+                \endlist
+            \li \b {\c --uboot-env-file}
+                \list
+                  \li Currently not supported.
+                  \omit
+                  TODO: FIX THIS.
+                  \endomit
+                \endlist
+        \endlist
+
+      \li \b {On a device:}
+
+          Add a remote repository.
+
+          \note If you already have a remote repository configured on the
+                device, this step can be skipped.
+
+          \badcode
+          ostree remote add --no-gpg-verify b2qt http://${IP_OF_SERVER}:${PORT}/ostree qt/b2qt
+          \endcode
+
+          \c IP_OF_SERVER is the IP address of the server where you have stored
+          your ostree-repo.
+
+      \li Upgrade your device.
+
+          \badcode
+          ostree admin upgrade
+          \endcode
+
+      \li Reboot into the new system.
+    \endlist
+
+    \section1 Layout of an Image Ready for an OTA Update
+
+    \table
+    \header \li Directory         \li Description
+    \row \li \c /usr [read-only]  \li Everything that is part of the system and
+                                      should not be modified by users.
+    \row \li \c /etc [read-write] \li System configurations. While updating
+                                      OSTree does a basic 3-way merge, which
+                                      means that all local changes are
+                                      preserved.
+    \row \li \c /var [read-write] \li The only directory that is preserved by
+                                      OSTree across upgrades - this is where
+                                      user and application data should be
+                                      stored. OSTree does not touch the
+                                      contents of \c {/var}; this directory
+                                      is shared between updates.
+    \row \li \c /boot             \li Maintained by OSTree. Contains the boot
+                                      loader configuration files and other
+                                      files required for booting.
+    \row \li \c {/}               \li Deployment's chroot. All other top level
+                                      directories are garbage collected, \e
+                                      {unless they are symlinks pointing to one
+                                      of the above directories}.
+    \endtable
+
+    The following top level directories are symlinks to the read-only \c /usr
+    directory:
+
+    \badcode
+    /bin  -> usr/system/bin
+    /data -> usr/system/data
+    /lib  -> usr/system/lib
+    /sbin -> usr/system/sbin
+    \endcode
+
+    The following top level directories are symlinks to the read-write \c /var
+    directory, thus preserved by OSTree across upgrades:
+
+    \badcode
+    /home -> var/home
+    \endcode
+
+    \section2 Notes and Warnings
+
+    There are several things that should be avoided:
+
+    \list
+      \li Do not directly modify the contents of the \c /ostree/ directory.
+      \li Do not modify the \c /sysroot/ directory.
+      \li Do not store files or create directories in the root directory, as
+          they will not be preserved across upgrades.
+      \li Do not remount read-only \c /usr to read-write. The created files
+          will be garbage collected on the next system upgrade.
+      \li Do not modify \c loader/uEnv.txt on a device.
+    \endlist
+
+    Important quote from OSTree man pages:
+
+    \badcode
+    "It must be emphasized that OSTree only supports read-only trees.  To
+    change to a different tree (upgrade, downgrade, install software), a new
+    tree is checked out, and a 3-way merge of configuration is performed. The
+    currently running tree is not ever modified; the new tree will become
+    active on a system reboot."
+    \endcode
+
+    \section1 OTA Examples
+
+    Find examples for real embedded devices in the \c /examples directory.
+
+    \section1 Further Reading Material
+
+    HTML documentation for general OSTree concepts and man pages for OSTree
+    tool commands are available at \l https://github.com/GNOME/ostree
+
+    \list
+      \li \l {https://samthursfield.wordpress.com/2014/01/16/the-fundamentals-of-ostree/}
+             {The Fundamentals of OSTree}
+
+      \li \l {https://martinezjavier.wordpress.com/2013/10/06/u-boot-backend-support-for-ostree/}
+             {OSTree U-Boot support}
+
+      \li \l {http://blog.verbum.org/2014/01/24/why-ostree-requires-usretc/}{On handling of /etc}
+             (blog post)
+    \endlist
+
+    \omit
+    Dynamic overlays on top of the running tree (just for future reference):
+
+    *NOT TESTED* and unsure what is the current state of dynamic overlays
+    support is, but from the blog post it sounds like this solution will have
+    systemd as a hard dependency:
+
+    "[..]for any live-upgrade system via OSTree, I plan for it to be fully
+    aware of systemd[..]" see:
+
+    http://blog.verbum.org/2014/02/26/ostree-rigorous-and-reliable-deployment/
+    \endomit
+*/
