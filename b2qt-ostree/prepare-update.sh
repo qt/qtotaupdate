@@ -24,13 +24,17 @@ set -e
 
 if [ ! -x "$(which ostree)" ]
 then
-    echo "Needed command 'ostree' not found in PATH."
+    echo "error: Needed command 'ostree' not found in PATH."
     exit 1
 fi
 
 ROOT=$(dirname $(readlink -f $0))
 
-OSTREE_REPO=${ROOT}/ostree-repo
+if [ "${PWD}" != "${ROOT}" ] ; then
+    echo "error: The script must be executed from the directory containing the 'prepare-update.sh' script: ${ROOT}"
+    exit 1
+fi
+
 GENERATED_TREE=${ROOT}/tree
 BOOT_FILE_PATH=${GENERATED_TREE}/boot
 UBOOT_ENV_FILE=""
@@ -38,8 +42,16 @@ SERVER_ROOT=${ROOT}/httpd
 OTA_SYSROOT=false
 INVALID_ARGS=false
 VERBOSE=""
+# REPO
+OSTREE_REPO=${ROOT}/ostree-repo
 OSTREE_BRANCH=qt/b2qt
 OSTREE_COMMIT_SUBJECT=""
+# GPG
+USE_GPG=false
+GPG_KEY=""
+GPG_HOMEDIR=""
+GPG_TRUSTED_KEYRING=""
+GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # Private variables.
 DO_B2QT_DEPLOY=true
 
@@ -49,18 +61,25 @@ usage()
     echo "Usage: $0 OPTIONS"
 
     echo
-    echo "--sysroot-image-path                  A path to b2qt sysroot [rootfs,b2qt,boot].tar.gz images."
-    echo "--initramfs                           OSTree boot compatible initramfs."
-    echo "--uboot-env-file                      OSTree boot compatible u-boot environment file."
-    echo "--ostree-repo                         Commits the generated tree into this repository. If the repository does not exist, "
+    echo "--sysroot-image-path DIR              A path to b2qt sysroot [rootfs,b2qt,boot].tar.gz images."
+    echo "--initramfs FILE                      OSTree boot compatible initramfs."
+    echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
+    echo
+    echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
     echo "                                      one is created in the specified location. If this argument is not provided, "
     echo "                                      a default repository is created in the same directory as this script."
     echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is qt/b2qt."
-    echo "--ostree-commit-subject \"Subject\"     Commits the generated update with the specified commit subject. A default commit subject is the"
+    echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
     echo "                                      date and time when the update was committed."
+    echo
     echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot in the 'sysroot' directory."
     echo "--verbose                             Prints more information to the console."
-
+    echo
+    echo "--gpg-sign KEY-ID                     GPG Key ID to use for signing the commit."
+    echo "--gpg-homedir DIR                     GPG home directory to use when looking for keyrings."
+    echo "--gpg-trusted-keyring FILE            Adds the provided keyring file to the generated sysroot (see --create-initial-deployment) or to"
+    echo "                                      the generated update. When providing a new keyring via update, the new keyring will be used for"
+    echo "                                      signature verification only after this update has been applied."
     echo
 }
 
@@ -93,12 +112,35 @@ validate_arg()
         update_invalid_args
         case ${flag} in
             d)
-                echo "${arg} requires a valid path."
+                echo "${arg} requires a valid path. The provided ${value} path does not exist."
                 ;;
             f)
-                echo "${arg} requires a path to an existing file."
+                echo "${arg} requires a path to an existing file. The provided ${value} file does not exist."
                 ;;
         esac
+        return 0
+    fi
+
+    valid=true
+    case "${arg}" in
+        --gpg-trusted-keyring)
+            if [[ ${value} != *.gpg ]] ; then
+                valid=false
+                error="--gpg-trusted-keyring expects gpg keyring file with the .gpg extension, but ${value} was provided."
+            fi
+            ;;
+        --gpg-homedir)
+            if [[ ${value} != /* ]] ; then
+                valid=false
+                error="--gpg-homedir must be an absolute path, but ${value} was provided."
+            fi
+            ;;
+    esac
+
+    if [ $valid = false ] ; then
+        update_invalid_args
+        echo ${error}
+        return 0
     fi
 }
 
@@ -136,6 +178,20 @@ parse_args()
               INITRAMFS=${2}
               shift 1
               ;;
+          --gpg-sign)
+              GPG_KEY=${2}
+              USE_GPG=true
+              shift 1
+              ;;
+          --gpg-homedir)
+              GPG_HOMEDIR=${2}
+              USE_GPG=true
+              shift 1
+              ;;
+          --gpg-trusted-keyring)
+              GPG_TRUSTED_KEYRING=${2}
+              shift 1
+              ;;
           -h | -help | --help)
               usage
               exit 0
@@ -153,6 +209,13 @@ parse_args()
     validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" true d
     validate_arg "--initramfs" "${INITRAMFS}" true f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
+    validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
+    validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
+
+    if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}") ]] ; then
+        update_invalid_args
+        echo "Both --gpg-sign and --gpg-homedir must be provided when using the gpg signing feature."
+    fi
 
     if [ $INVALID_ARGS = true ] ; then
         usage
@@ -167,6 +230,7 @@ find_and_rename_kernel()
         if file -b $file | grep -qi "kernel"; then
             echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
             mv ${file} vmlinuz
+            cd - &> /dev/null
             return 0
         fi
     done
@@ -180,7 +244,6 @@ organize_boot_files()
     cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs
     find_and_rename_kernel
     if [ -n "${UBOOT_ENV_FILE}" ] ; then
-        cd ${ROOT}
         cp ${UBOOT_ENV_FILE} ${BOOT_FILE_PATH}/
         name=$(basename ${UBOOT_ENV_FILE})
         if [ "${name}" != "uEnv.txt" ] ; then
@@ -236,6 +299,12 @@ convert_b2qt_to_ostree()
     ln -fs ../init.d/ostree-remount.sh etc/rc3.d/S01aostree-remount.sh
     ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
     ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
+
+    # Add trusted GPG keyring file
+    if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then
+        cd ${ROOT}
+        cp ${GPG_TRUSTED_KEYRING} ${GPG_KEYS_PATH}
+    fi
 }
 
 commit_generated_tree()
@@ -254,7 +323,12 @@ commit_generated_tree()
 
     cd ${GENERATED_TREE}
     echo "Committing the generated tree into a repository at ${OSTREE_REPO}..."
-    ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}"
+    if [ $USE_GPG = true ] ; then
+        ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" --gpg-sign="${GPG_KEY}" --gpg-homedir="${GPG_HOMEDIR}"
+    else
+        ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}"
+    fi
+
     ostree --repo=${OSTREE_REPO} fsck
 }
 
