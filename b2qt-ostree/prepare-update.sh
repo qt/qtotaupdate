@@ -61,7 +61,8 @@ usage()
     echo "Usage: $0 OPTIONS"
 
     echo
-    echo "--sysroot-image-path DIR              A path to b2qt sysroot [rootfs,b2qt,boot].tar.gz images."
+    echo "--sysroot-image-path DIR              A path to b2qt sysroot *.tar.gz images. All files in this path matching the pattern"
+    echo "                                      will be considered to be part of the sysroot."
     echo "--initramfs FILE                      OSTree boot compatible initramfs."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
     echo
@@ -384,13 +385,19 @@ create_initial_deployment()
 
 extract_sysroot()
 {
-    echo "Extracting sysroot..."
     rm -rf ${GENERATED_TREE}
-    mkdir ${GENERATED_TREE}
-    tar -C ${GENERATED_TREE} -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/rootfs.tar.gz
-    tar -C ${GENERATED_TREE} -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/b2qt.tar.gz
-    mkdir -p ${BOOT_FILE_PATH}/
-    tar -C ${BOOT_FILE_PATH}/ -x${VERBOSE}f ${SYSROOT_IMAGE_PATH}/boot.tar.gz
+    mkdir ${GENERATED_TREE}/
+    mkdir ${BOOT_FILE_PATH}/
+
+    for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
+        name=$(basename $image)
+        echo "Extracting ${name}..."
+        if [[ $name == *boot* ]] ; then
+            tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
+        else
+            tar -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
+        fi
+    done
 }
 
 start_httpd_server()
