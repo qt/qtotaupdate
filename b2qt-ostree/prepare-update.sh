@@ -29,21 +29,17 @@ then
 fi
 
 ROOT=$(dirname $(readlink -f $0))
+WORKDIR=$PWD
 
-if [ "${PWD}" != "${ROOT}" ] ; then
-    echo "error: The script must be executed from the directory containing the 'prepare-update.sh' script: ${ROOT}"
-    exit 1
-fi
-
-GENERATED_TREE=${ROOT}/tree
+GENERATED_TREE=${WORKDIR}/tree
 BOOT_FILE_PATH=${GENERATED_TREE}/boot
 UBOOT_ENV_FILE=""
-SERVER_ROOT=${ROOT}/httpd
+SERVER_ROOT=${WORKDIR}/httpd
 OTA_SYSROOT=false
 INVALID_ARGS=false
 VERBOSE=""
 # REPO
-OSTREE_REPO=${ROOT}/ostree-repo
+OSTREE_REPO=${WORKDIR}/ostree-repo
 OSTREE_BRANCH=qt/b2qt
 OSTREE_COMMIT_SUBJECT=""
 # GPG
@@ -68,12 +64,12 @@ usage()
     echo
     echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
     echo "                                      one is created in the specified location. If this argument is not provided, "
-    echo "                                      a default repository is created in the same directory as this script."
+    echo "                                      a default repository is created in the working directory."
     echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is qt/b2qt."
     echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
     echo "                                      date and time when the update was committed."
     echo
-    echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot in the 'sysroot' directory."
+    echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot."
     echo "--verbose                             Prints more information to the console."
     echo
     echo "--gpg-sign KEY-ID                     GPG Key ID to use for signing the commit."
@@ -130,12 +126,6 @@ validate_arg()
                 error="--gpg-trusted-keyring expects gpg keyring file with the .gpg extension, but ${value} was provided."
             fi
             ;;
-        --gpg-homedir)
-            if [[ ${value} != /* ]] ; then
-                valid=false
-                error="--gpg-homedir must be an absolute path, but ${value} was provided."
-            fi
-            ;;
     esac
 
     if [ $valid = false ] ; then
@@ -156,11 +146,11 @@ parse_args()
               VERBOSE=v
               ;;
           --ostree-repo)
-              OSTREE_REPO=${2}
+              OSTREE_REPO=$(readlink -f ${2})
               shift 1
               ;;
           --uboot-env-file)
-              UBOOT_ENV_FILE=${2}
+              UBOOT_ENV_FILE=$(readlink -f ${2})
               shift 1
               ;;
           --ostree-branch)
@@ -172,11 +162,11 @@ parse_args()
               shift 1
               ;;
           --sysroot-image-path)
-              SYSROOT_IMAGE_PATH=${2}
+              SYSROOT_IMAGE_PATH=$(readlink -f ${2})
               shift 1
               ;;
           --initramfs)
-              INITRAMFS=${2}
+              INITRAMFS=$(readlink -f ${2})
               shift 1
               ;;
           --gpg-sign)
@@ -185,12 +175,12 @@ parse_args()
               shift 1
               ;;
           --gpg-homedir)
-              GPG_HOMEDIR=${2}
+              GPG_HOMEDIR=$(readlink -f ${2})
               USE_GPG=true
               shift 1
               ;;
           --gpg-trusted-keyring)
-              GPG_TRUSTED_KEYRING=${2}
+              GPG_TRUSTED_KEYRING=$(readlink -f ${2})
               shift 1
               ;;
           -h | -help | --help)
@@ -231,7 +221,6 @@ find_and_rename_kernel()
         if file -b $file | grep -qi "kernel"; then
             echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
             mv ${file} vmlinuz
-            cd - &> /dev/null
             return 0
         fi
     done
@@ -241,7 +230,6 @@ find_and_rename_kernel()
 
 organize_boot_files()
 {
-    cd ${ROOT}
     cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs
     find_and_rename_kernel
     if [ -n "${UBOOT_ENV_FILE}" ] ; then
@@ -303,7 +291,6 @@ convert_b2qt_to_ostree()
 
     # Add trusted GPG keyring file
     if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then
-        cd ${ROOT}
         cp ${GPG_TRUSTED_KEYRING} ${GPG_KEYS_PATH}
     fi
 }
@@ -336,7 +323,7 @@ commit_generated_tree()
 create_initial_deployment()
 {
     echo "Preparing initial deployment..."
-    cd ${ROOT}
+    cd ${WORKDIR}
     rm -rf sysroot status.txt
 
     mkdir -p sysroot/sysroot/
@@ -380,6 +367,9 @@ create_initial_deployment()
         mv ../sysroot/boot/ ../boot/
         tar -pcz${VERBOSE}f rootfs.tar.gz -C ../sysroot/ .
         mv ../boot/ ../sysroot/boot/
+        if [ "${ROOT}" != "${WORKDIR}" ] ; then
+            cp ${ROOT}/deploy.sh ${ROOT}/mkcard.sh ${WORKDIR}/
+        fi
     fi
 }
 
