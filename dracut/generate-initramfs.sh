@@ -43,7 +43,7 @@ adb push module-setup.sh $MODULE_PATH
 adb push prepare-root.sh $MODULE_PATH
 adb push check-udev-finished.sh $MODULE_PATH
 
-echo "Generating initramfs image..."
+echo "Generating initramfs image ..."
 adb shell dracut /boot/initramfs.img --host-only --omit systemd --add "ostree" --persistent-policy by-label --force --stdlog 3
 adb pull /boot/initramfs.img
 

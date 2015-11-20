@@ -107,7 +107,7 @@ fi
 echo "-- STEP -- Deploying boot files"
 udisks --mount ${BOOT} > /dev/null
 MOUNTPOINT=$(grep ${BOOT} /proc/mounts | awk '{print $2}')
-tar ${VERBOSE}xzf ${DIR}/ota-deploy/boot.tar.gz -C ${MOUNTPOINT} --owner=root --group=root
+tar ${VERBOSE}xzf ${DIR}/boot.tar.gz -C ${MOUNTPOINT} --owner=root --group=root
 if [ -e uEnv.txt ]; then
     cp uEnv.txt ${MOUNTPOINT}
 fi
@@ -121,7 +121,7 @@ udisks --unmount ${BOOT}
 echo "-- STEP -- Deploying rootfs, this may take a while"
 udisks --mount ${ROOTFS} > /dev/null
 MOUNTPOINT=$(grep ${ROOTFS} /proc/mounts | awk '{print $2}')
-tar ${VERBOSE}xzf ${DIR}/ota-deploy/rootfs.tar.gz -C ${MOUNTPOINT}
+tar ${VERBOSE}xzf ${DIR}/rootfs.tar.gz -C ${MOUNTPOINT}
 sync
 udisks --unmount ${ROOTFS}
 

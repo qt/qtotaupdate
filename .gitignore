@@ -2,6 +2,7 @@
 b2qt-ostree/sysroot
 b2qt-ostree/status.txt
 b2qt-ostree/ostree-repo
-b2qt-ostree/ota-deploy
+b2qt-ostree/boot.tar.gz
+b2qt-ostree/rootfs.tar.gz
 b2qt-ostree/httpd
 b2qt-ostree/tree

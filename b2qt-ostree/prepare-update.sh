@@ -239,7 +239,7 @@ organize_boot_files()
             cd ${BOOT_FILE_PATH}
             # Must be a boot script then.
             if file -b $name | grep -qi "ASCII text"; then
-                echo "Compiling u-boot boot script: ${BOOT_FILE_PATH}/${name}..."
+                echo "Compiling u-boot boot script: ${BOOT_FILE_PATH}/${name} ..."
                 mv ${name} ${name}-tmp
                 mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${name}-tmp ${name}
                 rm ${name}-tmp
@@ -310,7 +310,7 @@ commit_generated_tree()
     fi
 
     cd ${GENERATED_TREE}
-    echo "Committing the generated tree into a repository at ${OSTREE_REPO}..."
+    echo "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
     if [ $USE_GPG = true ] ; then
         ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" --gpg-sign="${GPG_KEY}" --gpg-homedir="${GPG_HOMEDIR}"
     else
@@ -322,7 +322,7 @@ commit_generated_tree()
 
 create_initial_deployment()
 {
-    echo "Preparing initial deployment..."
+    echo "Preparing initial deployment in ${WORKDIR}/sysroot/ ..."
     cd ${WORKDIR}
     rm -rf sysroot status.txt
 
@@ -359,14 +359,12 @@ create_initial_deployment()
 
     # Repack.
     if [ $DO_B2QT_DEPLOY = true ] ; then
-        echo "Packing initial deployment..."
-        rm -rf ota-deploy
-        mkdir ota-deploy/
-        cd ota-deploy/
-        tar -pcz${VERBOSE}f boot.tar.gz -C ../sysroot/boot/ .
-        mv ../sysroot/boot/ ../boot/
-        tar -pcz${VERBOSE}f rootfs.tar.gz -C ../sysroot/ .
-        mv ../boot/ ../sysroot/boot/
+        echo "Packing initial deployment ..."
+        rm -rf boot.tar.gz rootfs.tar.gz
+        tar -pcz${VERBOSE}f boot.tar.gz -C sysroot/boot/ .
+        mv sysroot/boot/ .
+        tar -pcz${VERBOSE}f rootfs.tar.gz -C sysroot/ .
+        mv boot/ sysroot/
         if [ "${ROOT}" != "${WORKDIR}" ] ; then
             cp ${ROOT}/deploy.sh ${ROOT}/mkcard.sh ${WORKDIR}/
         fi
@@ -381,7 +379,7 @@ extract_sysroot()
 
     for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
         name=$(basename $image)
-        echo "Extracting ${name}..."
+        echo "Extracting ${name} ..."
         if [[ $name == *boot* ]] ; then
             tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
         else
