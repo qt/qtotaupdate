@@ -42,13 +42,19 @@ VERBOSE=""
 OSTREE_REPO=${WORKDIR}/ostree-repo
 OSTREE_BRANCH=qt/b2qt
 OSTREE_COMMIT_SUBJECT=""
+# TLS
+USE_CLIENT_TLS=false
+SERVER_CERT=""
+CLIENT_CERT=""
+CLIENT_KEY=""
+TLS_CERT_PATH=${GENERATED_TREE}/usr/share/ostree/certs/
 # GPG
 USE_GPG=false
 GPG_KEY=""
 GPG_HOMEDIR=""
 GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
-# Private variables.
+# PRIVATE
 DO_B2QT_DEPLOY=true
 
 usage()
@@ -71,6 +77,11 @@ usage()
     echo
     echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot."
     echo "--verbose                             Prints more information to the console."
+    echo
+    echo "--tls-ca-path FILE                    Path to file containing trusted anchors instead of the system CA database. Pins the certificate and"
+    echo "                                      uses it for servers authentication."
+    echo "--tls-client-cert-path FILE           Path to file for client-side certificate, to present when making requests to a remote repository."
+    echo "--tls-client-key-path FILE            Path to file containing client-side certificate key, to present when making requests to a remote repository."
     echo
     echo "--gpg-sign KEY-ID                     GPG Key ID to use for signing the commit."
     echo "--gpg-homedir DIR                     GPG home directory to use when looking for keyrings."
@@ -109,10 +120,10 @@ validate_arg()
         update_invalid_args
         case ${flag} in
             d)
-                echo "${arg} requires a valid path. The provided ${value} path does not exist."
+                echo "${arg} requires a directory path, but ${value} was provided."
                 ;;
             f)
-                echo "${arg} requires a path to an existing file. The provided ${value} file does not exist."
+                echo "${arg} requires a path to a file, but ${value} was provided."
                 ;;
         esac
         return 0
@@ -151,6 +162,20 @@ parse_args()
               ;;
           --uboot-env-file)
               UBOOT_ENV_FILE=$(readlink -f ${2})
+              shift 1
+              ;;
+          --tls-ca-path)
+              SERVER_CERT=$(readlink -f ${2})
+              shift 1
+              ;;
+          --tls-client-cert-path)
+              CLIENT_CERT=$(readlink -f ${2})
+              USE_CLIENT_TLS=true
+              shift 1
+              ;;
+          --tls-client-key-path)
+              CLIENT_KEY=$(readlink -f ${2})
+              USE_CLIENT_TLS=true
               shift 1
               ;;
           --ostree-branch)
@@ -202,12 +227,20 @@ parse_args()
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
     validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
+    validate_arg "--tls-ca-path" "${SERVER_CERT}" false f
+    validate_arg "--tls-client-cert-path" "${CLIENT_CERT}" false f
+    validate_arg "--tls-client-key-path" "${CLIENT_KEY}" false f
 
-    if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}") ]] ; then
+    if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}" ) ]] ; then
         update_invalid_args
-        echo "Both --gpg-sign and --gpg-homedir must be provided when using the gpg signing feature."
+        # Note: --gpg-homedir is not required when keyring is stored in a standard path,
+        # but just to me sure that a commit won't fail, we require both of these args.
+        echo "Must specify both --gpg-sign and --gpg-homedir for GPG signing feature."
     fi
-
+    if [[ $USE_CLIENT_TLS = true && ( -z "${CLIENT_CERT}" || -z "${CLIENT_KEY}" ) ]] ; then
+        update_invalid_args
+        echo "Must specify both --tls-client-cert-path and --tls-client-key-path for TLS client authentication feature."
+    fi
     if [ $INVALID_ARGS = true ] ; then
         usage
         exit 1
@@ -289,9 +322,18 @@ convert_b2qt_to_ostree()
     ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
     ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
 
-    # Add trusted GPG keyring file
+    # Add trusted GPG keyring file.
     if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then
         cp ${GPG_TRUSTED_KEYRING} ${GPG_KEYS_PATH}
+    fi
+
+    # Enable TLS support.
+    mkdir -p ${TLS_CERT_PATH}
+    if [ -n "${SERVER_CERT}" ] ; then
+        cp ${SERVER_CERT} ${TLS_CERT_PATH}
+    fi
+    if [ $USE_CLIENT_TLS = true ] ; then
+        cp ${CLIENT_CERT} ${CLIENT_KEY} ${TLS_CERT_PATH}
     fi
 }
 
@@ -324,21 +366,18 @@ create_initial_deployment()
 {
     echo "Preparing initial deployment in ${WORKDIR}/sysroot/ ..."
     cd ${WORKDIR}
-    rm -rf sysroot status.txt
+    rm -rf sysroot
 
     mkdir -p sysroot/sysroot/
     export OSTREE_SYSROOT=sysroot
     ostree admin init-fs sysroot
     ostree admin os-init b2qt
-
     # Tell OSTree to use U-Boot boot loader backend.
     mkdir -p sysroot/boot/loader.0/
     ln -s loader.0 sysroot/boot/loader
     touch sysroot/boot/loader/uEnv.txt
     ln -s loader/uEnv.txt sysroot/boot/uEnv.txt
-
-    # Add convenience symlinks, for details see
-    # ostree/src/libostree/ostree-bootloader-uboot.c
+    # Add convenience symlinks, for details see ostree/src/libostree/ostree-bootloader-uboot.c
     for file in ${BOOT_FILE_PATH}/* ; do
         name=$(basename $file)
         if [[ ! -f $file || $name == *.dtb || $name == initramfs-* || $name == vmlinuz-* ]] ; then
@@ -349,15 +388,12 @@ create_initial_deployment()
 
     ostree --repo=sysroot/ostree/repo pull-local --remote=b2qt ${OSTREE_REPO} ${OSTREE_BRANCH}
     ostree admin deploy --os=b2qt b2qt:${OSTREE_BRANCH}
-    ostree admin status | tee status.txt
+    ostree admin status
 
-    # OSTree does not touch the contents of /var,
-    # /var needs to be dynamically managed at boot time.
-    # TODO - handle this at boot time!
+    # OSTree does not touch the contents of /var
     rm -rf sysroot/ostree/deploy/b2qt/var/
     cp -R ${GENERATED_TREE}/var/ sysroot/ostree/deploy/b2qt/
-
-    # Repack.
+    # Pack the OTA ready sysroot.
     if [ $DO_B2QT_DEPLOY = true ] ; then
         echo "Packing initial deployment ..."
         rm -rf boot.tar.gz rootfs.tar.gz
@@ -404,7 +440,7 @@ start_httpd_server()
 
 main()
 {
-    parse_args $@
+    parse_args "$@"
 
     extract_sysroot
 
@@ -421,5 +457,5 @@ main()
     echo "Done."
 }
 
-main $@
+main "$@"
 
