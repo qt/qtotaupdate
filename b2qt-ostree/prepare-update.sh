@@ -37,6 +37,7 @@ UBOOT_ENV_FILE=""
 SERVER_ROOT=${WORKDIR}/httpd
 OTA_SYSROOT=false
 INVALID_ARGS=false
+BINARY_IMAGE=false
 VERBOSE=""
 # REPO
 OSTREE_REPO=${WORKDIR}/ostree-repo
@@ -63,8 +64,7 @@ usage()
     echo "Usage: $0 OPTIONS"
 
     echo
-    echo "--sysroot-image-path DIR              A path to b2qt sysroot *.tar.gz images. All files in this path matching the pattern"
-    echo "                                      will be considered to be part of the sysroot."
+    echo "--sysroot-image-path DIR              A path to b2qt sysroot *.tar.gz or *.img image files."
     echo "--initramfs FILE                      OSTree boot compatible initramfs."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
     echo
@@ -137,6 +137,21 @@ validate_arg()
                 error="--gpg-trusted-keyring expects gpg keyring file with the .gpg extension, but ${value} was provided."
             fi
             ;;
+        --sysroot-image-path)
+            count=$(ls ${value}/*.img 2> /dev/null | wc -l)
+            if [ ${count} -gt 1 ] ; then
+                valid=false
+                error="Found ${count} *.img files in --sysroot-image-path ${value}/, but expected to find 1 *.img file."
+            elif [ ${count} = 1 ] ; then
+                BINARY_IMAGE=true
+            else
+                count=$(ls ${value}/*.tar.gz 2> /dev/null | wc -l)
+                if [ ${count} = 0 ] ; then
+                    valid=false
+                    error="--sysroot-image-path ${value}/ must contain *.img or *.tar.gz sysroot image files."
+                fi
+            fi
+        ;;
     esac
 
     if [ $valid = false ] ; then
@@ -413,20 +428,53 @@ extract_sysroot()
     mkdir ${GENERATED_TREE}/
     mkdir ${BOOT_FILE_PATH}/
 
-    for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
-        name=$(basename $image)
-        echo "Extracting ${name} ..."
-        if [[ $name == *boot* ]] ; then
-            tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
-        else
-            tar -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
+    if [ $BINARY_IMAGE = true ] ; then
+        # Extract binary image.
+        image=$(ls ${SYSROOT_IMAGE_PATH}/*.img)
+        echo "Extracting ${image} ..."
+        units=$(fdisk -l ${image} | grep Units | awk '{print $(NF-1)}')
+        boot_start=$(fdisk -l ${image} | grep ${image}1 | awk '{print $2}')
+        rootfs_start=$(fdisk -l ${image} | grep ${image}2 | awk '{print $2}')
+        boot_offset=$(expr ${units} \* ${boot_start})
+        rootfs_offset=$(expr ${units} \* ${rootfs_start})
+
+        cd ${WORKDIR}/
+        if [ -d boot-mount ] ; then
+            # Ignore return code.
+            sudo umount boot-mount || /bin/true
+            rm -rf boot-mount
         fi
-    done
+        if [ -d rootfs-mount ] ; then
+            # Ignore return code.
+            sudo umount rootfs-mount || /bin/true
+            rm -rf rootfs-mount
+        fi
+
+        mkdir boot-mount rootfs-mount
+        sudo mount -o loop,offset=${boot_offset} ${image} boot-mount/
+        sudo mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
+        sudo cp -r boot-mount/* ${BOOT_FILE_PATH}
+        sudo cp -r rootfs-mount/* ${GENERATED_TREE}
+        sudo umount boot-mount
+        sudo umount rootfs-mount
+        sudo chown -R $(id -u):$(id -g) ${GENERATED_TREE}
+        rm -rf boot-mount rootfs-mount
+    else
+        # Extract *.tar.gz image files.
+        for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
+            echo "Extracting ${image} ..."
+            if [[ $(basename ${image}) == *boot* ]] ; then
+                tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
+            else
+                tar -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
+            fi
+        done
+    fi
 }
 
 start_httpd_server()
 {
-    # Start a trivial httpd server.
+    # Start a trivial httpd server on localhost.
     # TODO - allow starting on existing repo
     if [ ! -d ${SERVER_ROOT} ] ; then
         mkdir ${SERVER_ROOT}
@@ -458,4 +506,3 @@ main()
 }
 
 main "$@"
-
