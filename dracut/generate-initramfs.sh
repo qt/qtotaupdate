@@ -1,3 +1,4 @@
+#!/bin/bash
 #############################################################################
 ##
 ## Copyright (C) 2015 Digia Plc and/or its subsidiary(-ies).
@@ -27,30 +28,63 @@ if [ ! -x "$(which adb)" ] ; then
     exit 1
 fi
 
-rm -f initramfs.img ota-initramfs.ub
+ROOT=$(dirname $(readlink -f $0))
 
 output=$(adb shell ls /usr/sbin/ostree-prepare-root)
-contains="No such file or directory"
-if [[ "$output" == *"$contains"* ]] ; then
+substring="No such file or directory"
+if [[ $output == *${substring}* ]] ; then
     echo "error: Failed to find the required binary /usr/sbin/ostree-prepare-root on a device."
     exit 1
 fi
 
-MODULE_PATH=/usr/lib/dracut/modules.d/90ostree/
+output=$(adb shell ls /lib/systemd/system/b2qt.service)
+systemd=false
+if [[ $output != *${substring}* ]] ; then
+    systemd=true
+fi
 
-adb shell mkdir -p $MODULE_PATH
-adb push module-setup.sh $MODULE_PATH
-adb push prepare-root.sh $MODULE_PATH
-adb push check-udev-finished.sh $MODULE_PATH
+options='/boot/initramfs.img
+        --host-only
+        --add ostree
+        --omit i18n
+        --stdlog 3
+        --force'
 
-echo "Generating initramfs image ..."
-adb shell dracut /boot/initramfs.img --host-only --omit systemd --add "ostree" --persistent-policy by-label --force --stdlog 3
-adb pull /boot/initramfs.img
+if [ ${systemd} = true ] ; then
+    # OSTree ships with a dracut module for systemd based images.
+    echo "Generating initramfs for systemd init based image ..."
+    adb push ${ROOT}/systemd/01-b2qt.conf /etc/dracut.conf.d/
+    custom_options='--add systemd'
+else
+    # Deploy our custom dracut module for systemd-less images.
+    echo "Generating initramfs for system V init based image ..."
+    MODULE_PATH=/usr/lib/dracut/modules.d/98ostree/
+    adb shell mkdir -p $MODULE_PATH
+    adb push ${ROOT}/systemv/module-setup.sh $MODULE_PATH
+    adb push ${ROOT}/systemv/prepare-root.sh $MODULE_PATH
+    custom_options='--omit systemd'
+fi
 
-mkimage -A arm -O linux -T ramdisk -a 0 -e 0 -d initramfs.img ota-initramfs.ub
+# Terminate when the explicitly required modules could not be found or installed.
+adb shell dracut ${options} ${custom_options} | tee dracut_output
+errors=$(cat dracut_output | grep -i "cannot be found or installed" | wc -l)
+rm dracut_output
+if [ ${errors} -gt 0 ] ; then
+    echo "error: Failed to include the required modules into the initramfs image."
+    exit 1
+fi
 
-adb shell rm /boot/initramfs.img
 rm -f initramfs.img
+adb pull /boot/initramfs.img
+device=$(adb shell uname -n | tr -d '\r')
+release=$(adb shell uname -r | tr -d '\r' | cut -d'-' -f1)
+initramfs=initramfs-${device}-${release}
+rm -rf ${initramfs}
+mkimage -A arm -O linux -T ramdisk -a 0 -e 0 -d initramfs.img ${initramfs}
+rm -f initramfs.img
+
 echo
-echo "Done. Generated OSTree boot compatible initramfs - ota-initramfs.ub."
+echo "Done, generated OSTree boot compatible initramfs:"
+echo
+echo ${initramfs}
 echo

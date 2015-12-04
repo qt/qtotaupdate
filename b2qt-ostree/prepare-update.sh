@@ -1,3 +1,4 @@
+#!/bin/bash
 #############################################################################
 ##
 ## Copyright (C) 2015 Digia Plc and/or its subsidiary(-ies).
@@ -326,16 +327,23 @@ convert_b2qt_to_ostree()
     mv home/ var/
     ln -s var/home home
 
-    # Run ostree-remount on startup. This makes sure that
-    # rw/ro mounts are set correctly for ostree to work.
-    cp ${ROOT}/ostree-remount.sh etc/init.d/
-    # System V init services are started in alphanumeric order. We want to remount
-    # things as early as possible so we prepend 'a' in S01[a]ostree-remount.sh
-    ln -fs ../init.d/ostree-remount.sh etc/rc1.d/S01aostree-remount.sh
-    ln -fs ../init.d/ostree-remount.sh etc/rc2.d/S01aostree-remount.sh
-    ln -fs ../init.d/ostree-remount.sh etc/rc3.d/S01aostree-remount.sh
-    ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
-    ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
+    systemd=false
+    if [[ -e lib/systemd/system/b2qt.service ]] ; then
+        systemd=true
+        echo "Detected systemd init system."
+    fi
+    if [ ${systemd} = false ] ; then
+        # Run ostree-remount on startup. This makes sure that
+        # rw/ro mounts are set correctly for ostree to work.
+        cp ${ROOT}/ostree-remount.sh etc/init.d/
+        # System V init services are started in alphanumeric order. We want to remount
+        # things as early as possible so we prepend 'a' in S01[a]ostree-remount.sh
+        ln -fs ../init.d/ostree-remount.sh etc/rc1.d/S01aostree-remount.sh
+        ln -fs ../init.d/ostree-remount.sh etc/rc2.d/S01aostree-remount.sh
+        ln -fs ../init.d/ostree-remount.sh etc/rc3.d/S01aostree-remount.sh
+        ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
+        ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
+    fi
 
     # Add trusted GPG keyring file.
     if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then

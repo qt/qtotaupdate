@@ -33,6 +33,5 @@ depends() {
 
 install() {
     inst_hook cleanup 20 "$moddir/prepare-root.sh"
-    inst_hook initqueue/finished 99 "$moddir/check-udev-finished.sh"
     inst_multiple ostree-prepare-root
 }
