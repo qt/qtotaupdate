@@ -433,7 +433,11 @@ extract_sysroot()
         image=$(ls ${SYSROOT_IMAGE_PATH}/*.img)
         echo "Extracting ${image} ..."
         units=$(fdisk -l ${image} | grep Units | awk '{print $(NF-1)}')
+        # The boot partition not always is marked properly.
         boot_start=$(fdisk -l ${image} | grep ${image}1 | awk '{print $2}')
+        if [ "${boot_start}" == "*" ] ; then
+            boot_start=$(fdisk -l ${image} | grep ${image}1 | awk '{print $3}')
+        fi
         rootfs_start=$(fdisk -l ${image} | grep ${image}2 | awk '{print $2}')
         boot_offset=$(expr ${units} \* ${boot_start})
         rootfs_offset=$(expr ${units} \* ${rootfs_start})
