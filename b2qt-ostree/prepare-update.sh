@@ -312,7 +312,9 @@ convert_b2qt_to_ostree()
 
     # OSTree requires /etc/os-release file (see The Boot Loader Specification).
     # U-boot does not have multi-boot menu so it doesn't really matter what we put here.
-    echo "PRETTY_NAME=\"Boot 2 Qt\"" > ${GENERATED_TREE}/etc/os-release
+    if [ ! -e ${GENERATED_TREE}/etc/os-release ] ; then
+        echo "PRETTY_NAME=\"Boot 2 Qt\"" > ${GENERATED_TREE}/etc/os-release
+    fi
 
     # Adjust rootfs according to OSTree guidelines.
     cd ${GENERATED_TREE}
