@@ -330,9 +330,9 @@ convert_b2qt_to_ostree()
     ln -s var/home home
 
     systemd=false
-    if [[ -e lib/systemd/system/b2qt.service ]] ; then
+    if [[ -e lib/systemd/systemd ]] ; then
         systemd=true
-        echo "Detected systemd init system."
+        echo "Detected systemd support on the image."
     fi
     if [ ${systemd} = false ] ; then
         # Run ostree-remount on startup. This makes sure that

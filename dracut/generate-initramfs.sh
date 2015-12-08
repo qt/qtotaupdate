@@ -37,7 +37,7 @@ if [[ $output == *${substring}* ]] ; then
     exit 1
 fi
 
-output=$(adb shell ls /lib/systemd/system/b2qt.service)
+output=$(adb shell ls /lib/systemd/systemd)
 systemd=false
 if [[ $output != *${substring}* ]] ; then
     systemd=true
@@ -52,12 +52,12 @@ options='/boot/initramfs.img
 
 if [ ${systemd} = true ] ; then
     # OSTree ships with a dracut module for systemd based images.
-    echo "Generating initramfs for systemd init based image ..."
+    echo "Generating initramfs for systemd based image ..."
     adb push ${ROOT}/systemd/01-b2qt.conf /etc/dracut.conf.d/
     custom_options='--add systemd'
 else
     # Deploy our custom dracut module for systemd-less images.
-    echo "Generating initramfs for system V init based image ..."
+    echo "Generating initramfs for system v init based image ..."
     MODULE_PATH=/usr/lib/dracut/modules.d/98ostree/
     adb shell mkdir -p $MODULE_PATH
     adb push ${ROOT}/systemv/module-setup.sh $MODULE_PATH
@@ -66,9 +66,9 @@ else
 fi
 
 # Terminate when the explicitly required modules could not be found or installed.
-adb shell dracut ${options} ${custom_options} | tee dracut_output
-errors=$(cat dracut_output | grep -i "cannot be found or installed" | wc -l)
-rm dracut_output
+adb shell dracut ${options} ${custom_options} | tee dracut.log
+errors=$(cat dracut.log | grep -i "cannot be found or installed" | wc -l)
+rm dracut.log
 if [ ${errors} -gt 0 ] ; then
     echo "error: Failed to include the required modules into the initramfs image."
     exit 1
