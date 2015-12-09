@@ -31,14 +31,14 @@
 
     \section1 Requirements
 
-    U-Boot tools package is required. In Ubuntu, this can be install with the
+    U-Boot tools package is required. In Ubuntu, this can be installed with the
     following command:
 
     \badcode
     sudo apt-get install u-boot-tools
     \endcode
 
-    To run the provided OTA scripts, add \e ostree binary to the PATH. The
+    To run the provided OTA scripts, add the \e ostree binary to the PATH. The
     binary is available in \SDK under the following path:
 
     \badcode
@@ -47,8 +47,8 @@
 
     \section1 OSTree Documentation
 
-    OSTree does not come as installable package. The ostree command line
-    tool includes man pages, however they must be generated and installed
+    OSTree does not come as an installable package. The ostree command line
+    tool includes man pages, but they must be generated and installed
     manually. The steps are as follows:
 
     \list 1
@@ -59,7 +59,7 @@
           liblzma-dev e2fslibs-dev libgpgme11-dev libsoup2.4-dev libarchive-dev
           \endcode
 
-      \li Build the dependency library \e libgsystem:
+      \li Build \e libgsystem, the library that OSTree depends on:
           \badcode
           git clone https://github.com/GNOME/libgsystem.git
           cd libgsystem
@@ -83,8 +83,8 @@
 
     \section1 Quick Start Guide
 
-    \note This guide describes only one of many possible update workflows.
-    For more information on OSTree commands refer to the ostree man pages. To
+    \note This guide describes only one of the many possible update workflows.
+    For more information on OSTree commands, refer to the ostree man pages. To
     see a full list of available command line parameters of the \c
     prepare-update.sh script, run the following command:
 
@@ -96,18 +96,18 @@
 
     Download \SDK and follow the \l {Installation Guide}.
 
-    Later in this guide we will refer to this install directory as \c
+    Later in this guide, we will refer to this install directory as \c
     SDK_INSTALL_DIR.
 
-    Build your product on top of \SDK or a custom embedded linux image, and
-    when the image is ready for the \e {first release}, continue to the next
+    Build your product on top of \SDK or a custom embedded linux image.
+    When the image is ready for the \e {first release}, continue to the next
     step in this guide.
 
     \section2 Use Case: Preparing a Device for Shipping
 
     When preparing a device for shipping (or for an automated testing
     system) and subsequent updates to a device are planned to be delivered via
-    OTA, you need to first enable this feature in the \e sysroot.
+    OTA, you first need to enable this feature in the \e sysroot:
 
     \list 1
       \li Add \e ostree binary to the PATH.
@@ -116,39 +116,37 @@
           export SDK_INSTALL_DIR/${QT_VERSION}/Boot2Qt/${DEVICE}/toolchain/sysroots/x86_64-pokysdk-linux/usr/bin:$PATH
           \endcode
 
-      \li Generate the \e initramfs image. \br
+      \li Generate the \e initramfs image. \br \br
 
           \b {Important:} The device should be powered on, booted into your
           current product, and connected to a machine from which you will run
           the \c dracut/generate-initramfs.sh script. Dracut generates the
-          initramfs image based on the currently running kernel. You can of
-          course provide your own initramfs (not necessarily dracut based), as
-          long as you include the required ostree logic from \c dracut/
-          directory. If using dracut, make sure it is availalbe on your device
+          initramfs image based on the currently running kernel. You can, of
+          course, provide your own initramfs (not necessarily dracut based), as
+          long as you include the required ostree logic from the \c dracut/
+          directory. If using dracut, make sure it is available on your device
           when running the following script.
 
-          Generate the initramfs image:
+          Run the \c generate-iniramfs.sh script:
 
           \badcode
           cd dracut
           ./generate-initramfs.sh
           \endcode
 
-          This will produce a file \c ota-initramfs.ub in the dracut/ directory. This file is needed
-          in later steps.
+          This will produce a file \c ota-initramfs.ub in the dracut/ directory.
+          This file is needed later on.
 
       \li Add OSTree support into U-Boot environment of the device.
 
-          OSTree maintains an environment file, \c loader/uEnv.txt. Your
+          OSTree maintains an environment file \c loader/uEnv.txt. Your
           U-Boot script should import this environment.
 
           \b {Important:} Do not modify \c loader/uEnv.txt.
 
-          As an example, the content of this file could look like this:
+          The content of this file has the following format:
 
           \badcode
-          cat loader/uEnv.txt
-
           kernel_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/vmlinuz
           ramdisk_image=/ostree/b2qt-ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/initramfs
           bootargs=ostree=/ostree/boot.1/b2qt/ed14d566f2269a394e49ae5bbebb3dead181fb189d50163eb3aad71d6c997d75/0
@@ -162,7 +160,7 @@
             \li \c ${bootargs}: Parameters passed to the kernel command line
           \endlist
 
-          Example U-Boot logic that uses the imported OSTree's environmental
+          Example U-Boot logic that uses the imported OSTree's environment
           variables:
 
           \badcode
@@ -177,11 +175,11 @@
           \endcode
 
           The generated initramfs (from step 2) will read the \c "ostree="
-          parameter from the kernel command command line to find and setup the
+          parameter from the kernel command line to find and setup the
           correct root file system.
 
           You can find some detailed examples for real devices in the
-          examples/ directory.
+          \c examples/ directory.
 
       \li Convert your sysroot into an OTA enabled sysroot.
 
@@ -209,7 +207,7 @@
 
       \li Deploy the generated initial deployment sysroot to an SD card.
 
-          Plug in the SD card or reader to the development host, and use the
+          Plug in an SD card or a reader to the development host, and use the
           following command to find out its device name:
 
           \badcode
@@ -225,7 +223,7 @@
 
       \li Test that everything went according to the plan.
 
-          Boot from the sdcard and run the following command from the device:
+          Boot from the SD card and run the following command \e {from the device}:
 
           \badcode
           ostree admin status
@@ -244,7 +242,7 @@
     \section2 Use Case: Preparing a New Update for an OTA Enabled Device
 
     When preparing a new update for a device that already has OTA enabled
-    (that is, a device in field or in an automated testing system), the
+    (that is, a device in the field or in an automated testing system), the
     workflow is as follows:
 
     \list 1
@@ -254,7 +252,7 @@
 
       \li \b {On a server:}
 
-          Commit the new version of sysroot into a repository on a server or
+          Commit a new version of the sysroot into a repository on a server or
           on your host machine for testing purposes.
 
           Example command:
@@ -266,14 +264,14 @@
           \endcode
 
         This will create a new commit in the \c
-        b2qt-ostree/ostree-repo repository, or another location if the \c
+        b2qt-ostree/ostree-repo repository, or to another location if the \c
         --ostree-repo argument was provided.
 
         The script also starts the httpd server which you can access
         on the local host at \c http://127.0.0.1:${PORT}/ostree/ - the port
         number is listed in the \c b2qt-ostree/httpd/httpd-port file.
 
-        Entering the above address in a web browser lists the contents of your
+        Entering the above address into a web browser lists the contents of your
         OSTree repository.
 
         Notes on the parameters used for the script:
@@ -281,19 +279,19 @@
         \list
             \li \b {\c --initramfs}
                 \list
-                    \li When doing a minor releases that do not update the
+                    \li When doing minor releases that do not update the
                         kernel:
 
-                        Use the same initramfs which you already generated
-                        when preparing the initial deployment or if there
+                        Use the same initramfs that you already generated
+                        when preparing the initial deployment, or if there
                         has already been releases that update the kernel,
-                        use initramfs which was generated for the currently
+                        use the initramfs that was generated for the currently
                         running kernel version.
 
                     \li When doing a major release that updates a kernel:
 
                         It is advised to regenerate initramfs for each new
-                        kernel release so that that the kernel and initramfs
+                        kernel release, so that the kernel and initramfs
                         versions match. If the new kernel/initramfs is \b
                         {not compatible} with the boot script on a device,
                         it \b must be updated as well.
@@ -324,7 +322,7 @@
           ostree remote add --no-gpg-verify b2qt http://${IP_OF_SERVER}:${PORT}/ostree qt/b2qt
           \endcode
 
-          \c IP_OF_SERVER is the IP address of the server where you have stored
+          Above, \c IP_OF_SERVER is the IP address of the server where you have created
           your ostree-repo.
 
       \li Upgrade your device.
@@ -340,25 +338,34 @@
 
     \table
     \header \li Directory         \li Description
-    \row \li \c /usr [read-only]  \li Everything that is part of the system and
-                                      should not be modified by users.
-    \row \li \c /etc [read-write] \li System configurations. While updating
-                                      OSTree does a basic 3-way merge, which
-                                      means that all local changes are
-                                      preserved.
-    \row \li \c /var [read-write] \li The only directory that is preserved by
-                                      OSTree across upgrades - this is where
-                                      user and application data should be
-                                      stored. OSTree does not touch the
-                                      contents of \c {/var}; this directory
-                                      is shared between updates.
-    \row \li \c /boot             \li Maintained by OSTree. Contains the boot
-                                      loader configuration files and other
-                                      files required for booting.
-    \row \li \c {/}               \li Deployment's chroot. All other top level
-                                      directories are garbage collected, \e
-                                      {unless they are symlinks pointing to one
-                                      of the above directories}.
+
+    \row \li \c {/usr}\unicode {0xA0}[read\unicode {0x2011}only]
+
+         \li Everything that is part of the system and should not be modified
+             by users.
+
+    \row \li \c {/etc}\unicode {0xA0}[read\unicode {0x2011}write]
+
+         \li System configurations. Updating OSTree does a basic 3-way merge,
+             which means that all local changes are preserved.
+
+    \row \li \c {/var}\unicode {0xA0}[read\unicode {0x2011}write]
+
+         \li The only directory that is preserved by OSTree across upgrades
+             - this is where user and application data should be stored.
+             OTree does not touch the contents of \c {/var}; this directory is
+             shared between updates.
+
+    \row \li \c /boot
+
+         \li Maintained by OSTree. Contains the boot loader configuration
+             files and other files required for booting.
+
+    \row \li \c {/}
+
+         \li Deployment's chroot. All other top level directories are garbage
+             collected, \e {unless they are symlinks pointing to one of the
+             above directories}.
     \endtable
 
     The following top level directories are symlinks to the read-only \c /usr
