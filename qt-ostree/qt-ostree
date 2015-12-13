@@ -298,6 +298,55 @@ organize_boot_files()
     fi
 }
 
+adjust_sysroot_layout()
+{
+    # Adjust rootfs according to OSTree guidelines.
+    cd ${GENERATED_TREE}
+    mkdir -p sysroot/ostree/
+    ln -s sysroot/ostree/ ostree
+    mkdir -p sysroot/tmp/
+    rm -rf tmp/
+    ln -s sysroot/tmp/ tmp
+    # The deployment should not have a traditional UNIX /etc; instead, it should include /usr/etc.
+    if [ -e etc/ ] ; then
+        mv etc/ usr/
+    fi
+    # It's recommended that operating systems ship all of their content in /usr.
+    # NOTE: $usr_move and $var_symlinks could be configurable via command line arguments.
+    usr_move="bin lib sbin data"
+    mkdir -p usr/system/
+    for dir in $usr_move ; do
+        if [ -d ${dir} ] ; then
+            mv ${dir} usr/system/
+            ln -s usr/system/${dir} ${dir}
+        fi
+    done
+    # Everything in /var is preserved across upgrades. Add symlinks so that paths form
+    # ${var_symlinks} point into /var. OSTree by design does not update contents in /var.
+    # It is OS responsibily to handle /var. OS can run post-upgrade scripts to copy the
+    # updates files to /var if required.
+    var_symlinks="home mnt media opt"
+    for dir in $var_symlinks ; do
+        if [ -d ${dir} ] ; then
+            if [ -z "$(find ${dir} -type f)" ]; then
+                rm -rf ${dir}
+            else
+                ro_paths=$(sed 's/ /, /g' <<< ${usr_move})
+                echo
+                echo "warning: Found some content in: /${dir}. It is recommended that operating system ship all"
+                echo "of its content in the /usr or in one of the following top level directories: [$ro_paths]."
+                echo "/${dir} will be a part of an update, but it won't be protected by the read-only mount"
+                echo "set from the ostree-prepare-root binary on a system startup. Any changes users will do"
+                echo "in this directory *will be lost on the next upgrade*."
+                echo
+                continue
+            fi
+            mkdir -p var/${dir}
+            ln -s var/${dir} ${dir}
+        fi
+    done
+}
+
 convert_to_ostree_sysroot()
 {
     cd ${GENERATED_TREE}
@@ -317,18 +366,7 @@ convert_to_ostree_sysroot()
         echo "PRETTY_NAME=\"${OS_NAME}\"" > ${GENERATED_TREE}/etc/os-release
     fi
 
-    # Adjust rootfs according to OSTree guidelines.
-    cd ${GENERATED_TREE}
-    mkdir -p usr/system/
-    mv bin/ lib/ sbin/ data/ usr/system/
-    mkdir -p sysroot/ostree/
-    ln -s sysroot/ostree/ ostree
-    ln -s usr/system/bin bin
-    ln -s usr/system/lib lib
-    ln -s usr/system/sbin sbin
-    ln -s usr/system/data data
-    mv home/ var/
-    ln -s var/home home
+    adjust_sysroot_layout
 
     systemd=false
     if [[ -e lib/systemd/systemd ]] ; then
