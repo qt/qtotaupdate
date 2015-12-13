@@ -53,7 +53,7 @@ options='/boot/initramfs.img
 if [ ${systemd} = true ] ; then
     # OSTree ships with a dracut module for systemd based images.
     echo "Generating initramfs for systemd based image ..."
-    adb push ${ROOT}/systemd/01-b2qt.conf /etc/dracut.conf.d/
+    adb push ${ROOT}/systemd/01-qt.conf /etc/dracut.conf.d/
     custom_options='--add systemd'
 else
     # Deploy our custom dracut module for systemd-less images.

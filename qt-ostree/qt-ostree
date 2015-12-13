@@ -40,9 +40,10 @@ OTA_SYSROOT=false
 INVALID_ARGS=false
 BINARY_IMAGE=false
 VERBOSE=""
+OS_NAME="qt-os"
 # REPO
 OSTREE_REPO=${WORKDIR}/ostree-repo
-OSTREE_BRANCH=qt/b2qt
+OSTREE_BRANCH=linux/qt
 OSTREE_COMMIT_SUBJECT=""
 # TLS
 USE_CLIENT_TLS=false
@@ -57,7 +58,7 @@ GPG_HOMEDIR=""
 GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # PRIVATE
-DO_B2QT_DEPLOY=true
+PACK_DEPLOY=true
 
 usage()
 {
@@ -65,14 +66,14 @@ usage()
     echo "Usage: $0 OPTIONS"
 
     echo
-    echo "--sysroot-image-path DIR              A path to b2qt sysroot *.tar.gz or *.img image files."
+    echo "--sysroot-image-path DIR              A path to embedded linux sysroot *.tar.gz or *.img image files."
     echo "--initramfs FILE                      OSTree boot compatible initramfs."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
     echo
     echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
     echo "                                      one is created in the specified location. If this argument is not provided, "
     echo "                                      a default repository is created in the working directory."
-    echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is qt/b2qt."
+    echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is linux/qt."
     echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
     echo "                                      date and time when the update was committed."
     echo
@@ -297,7 +298,7 @@ organize_boot_files()
     fi
 }
 
-convert_b2qt_to_ostree()
+convert_to_ostree_sysroot()
 {
     cd ${GENERATED_TREE}
     if [[ ! -e usr/bin/ostree || ! -e usr/sbin/ostree-remount ]] ; then
@@ -313,7 +314,7 @@ convert_b2qt_to_ostree()
     # OSTree requires /etc/os-release file (see The Boot Loader Specification).
     # U-boot does not have multi-boot menu so it doesn't really matter what we put here.
     if [ ! -e ${GENERATED_TREE}/etc/os-release ] ; then
-        echo "PRETTY_NAME=\"Boot 2 Qt\"" > ${GENERATED_TREE}/etc/os-release
+        echo "PRETTY_NAME=\"${OS_NAME}\"" > ${GENERATED_TREE}/etc/os-release
     fi
 
     # Adjust rootfs according to OSTree guidelines.
@@ -335,6 +336,7 @@ convert_b2qt_to_ostree()
         echo "Detected systemd support on the image."
     fi
     if [ ${systemd} = false ] ; then
+        echo "Detected system v init support on the image."
         # Run ostree-remount on startup. This makes sure that
         # rw/ro mounts are set correctly for ostree to work.
         cp ${ROOT}/ostree-remount.sh etc/init.d/
@@ -396,7 +398,7 @@ create_initial_deployment()
     mkdir -p sysroot/sysroot/
     export OSTREE_SYSROOT=sysroot
     ostree admin init-fs sysroot
-    ostree admin os-init b2qt
+    ostree admin os-init ${OS_NAME}
     # Tell OSTree to use U-Boot boot loader backend.
     mkdir -p sysroot/boot/loader.0/
     ln -s loader.0 sysroot/boot/loader
@@ -411,15 +413,15 @@ create_initial_deployment()
         ln -sf loader/${name} sysroot/boot/${name}
     done
 
-    ostree --repo=sysroot/ostree/repo pull-local --remote=b2qt ${OSTREE_REPO} ${OSTREE_BRANCH}
-    ostree admin deploy --os=b2qt b2qt:${OSTREE_BRANCH}
+    ostree --repo=sysroot/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
+    ostree admin deploy --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     ostree admin status
 
     # OSTree does not touch the contents of /var
-    rm -rf sysroot/ostree/deploy/b2qt/var/
-    cp -R ${GENERATED_TREE}/var/ sysroot/ostree/deploy/b2qt/
+    rm -rf sysroot/ostree/deploy/${OS_NAME}/var/
+    cp -R ${GENERATED_TREE}/var/ sysroot/ostree/deploy/${OS_NAME}/
     # Pack the OTA ready sysroot.
-    if [ $DO_B2QT_DEPLOY = true ] ; then
+    if [ $PACK_DEPLOY = true ] ; then
         echo "Packing initial deployment ..."
         rm -rf boot.tar.gz rootfs.tar.gz
         tar -pcz${VERBOSE}f boot.tar.gz -C sysroot/boot/ .
@@ -507,7 +509,7 @@ main()
     extract_sysroot
 
     organize_boot_files
-    convert_b2qt_to_ostree
+    convert_to_ostree_sysroot
     commit_generated_tree
 
     if [ $OTA_SYSROOT = true ] ; then

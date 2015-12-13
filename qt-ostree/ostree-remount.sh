@@ -21,7 +21,7 @@
 ##
 #############################################################################
 
-# This script is used by init system in ostree based images.
+# This script is used by system v init system in ostree based images.
 case "$1" in
 start)
     /usr/sbin/ostree-remount

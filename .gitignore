@@ -1,7 +1,7 @@
 *~
-b2qt-ostree/sysroot
-b2qt-ostree/ostree-repo
-b2qt-ostree/boot.tar.gz
-b2qt-ostree/rootfs.tar.gz
-b2qt-ostree/httpd
-b2qt-ostree/tree
+qt-ostree/sysroot
+qt-ostree/ostree-repo
+qt-ostree/boot.tar.gz
+qt-ostree/rootfs.tar.gz
+qt-ostree/httpd
+qt-ostree/tree
