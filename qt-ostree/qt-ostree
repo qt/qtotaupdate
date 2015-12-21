@@ -364,6 +364,7 @@ convert_to_ostree_sysroot()
         exit 1
     fi
 
+    organize_boot_files
     cd ${BOOT_FILE_PATH}
     bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
     mv vmlinuz vmlinuz-${bootcsum}
@@ -375,10 +376,9 @@ convert_to_ostree_sysroot()
         echo "PRETTY_NAME=\"${OS_NAME}\"" > ${GENERATED_TREE}/etc/os-release
     fi
 
-    adjust_sysroot_layout
-
     systemd=false
-    if [[ -e lib/systemd/systemd ]] ; then
+    cd ${GENERATED_TREE}
+    if [ -e lib/systemd/systemd ] ; then
         systemd=true
         echo "Detected systemd support on the image."
     fi
@@ -395,6 +395,8 @@ convert_to_ostree_sysroot()
         ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
         ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
     fi
+
+    adjust_sysroot_layout
 
     # Add trusted GPG keyring file.
     if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then
@@ -556,7 +558,6 @@ main()
     parse_args "$@"
 
     extract_sysroot
-    organize_boot_files
     convert_to_ostree_sysroot
     commit_generated_tree
 
