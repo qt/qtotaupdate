@@ -23,12 +23,6 @@
 #set -x
 set -e
 
-if [ ! -x "$(which ostree)" ]
-then
-    echo "error: Needed command 'ostree' not found in PATH."
-    exit 1
-fi
-
 ROOT=$(dirname $(readlink -f $0))
 WORKDIR=$PWD
 
@@ -59,6 +53,22 @@ GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # PRIVATE
 PACK_DEPLOY=true
+
+initialize()
+{
+    # Check for OSTree dependency.
+    ostree=$(which ostree)
+    if [ ! -x ${ostree} ] ; then
+        echo "error: Needed command 'ostree' not found in PATH."
+        exit 1
+    fi
+    rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
+    if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
+        echo "error: This script depends on 'ostree' binary"
+        echo "from the SDK, but PATH is set to ${ostree}."
+        exit 1
+    fi
+}
 
 usage()
 {
@@ -333,11 +343,10 @@ adjust_sysroot_layout()
             else
                 ro_paths=$(sed 's/ /, /g' <<< ${usr_move})
                 echo
-                echo "warning: Found some content in: /${dir}. It is recommended that operating system ship all"
-                echo "of its content in the /usr or in one of the following top level directories: [$ro_paths]."
-                echo "/${dir} will be a part of an update, but it won't be protected by the read-only mount"
-                echo "set from the ostree-prepare-root binary on a system startup. Any changes users will do"
-                echo "in this directory *will be lost on the next upgrade*."
+                echo "warning: Found some contents in: /${dir}. It is recommended that operating system ships all"
+                echo "of its contents in /usr or in one of the following top level directories: [$ro_paths]."
+                echo "/${dir} will be a part of an update, but it won't be protected by the /usr read-only mount"
+                echo "set by default. Any changes users will do in this directory WILL BE LOST ON THE NEXT UPGRADE."
                 echo
                 continue
             fi
@@ -455,9 +464,9 @@ create_initial_deployment()
     ostree admin deploy --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     ostree admin status
 
-    # OSTree does not touch the contents of /var
+    # OSTree does not touch the contents of /var, it is the OS responsibility to manage this directory.
     rm -rf sysroot/ostree/deploy/${OS_NAME}/var/
-    cp -R ${GENERATED_TREE}/var/ sysroot/ostree/deploy/${OS_NAME}/
+    cp -r ${GENERATED_TREE}/var/ sysroot/ostree/deploy/${OS_NAME}/
     # Pack the OTA ready sysroot.
     if [ $PACK_DEPLOY = true ] ; then
         echo "Packing initial deployment ..."
@@ -542,10 +551,11 @@ start_httpd_server()
 
 main()
 {
+    initialize
+
     parse_args "$@"
 
     extract_sysroot
-
     organize_boot_files
     convert_to_ostree_sysroot
     commit_generated_tree
