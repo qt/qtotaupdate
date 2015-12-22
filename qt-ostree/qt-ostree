@@ -54,36 +54,44 @@ GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # PRIVATE
 PACK_DEPLOY=true
 
+print_usage_header()
+{
+    msg=${1}
+    if [ -n "$msg" ] ; then
+        echo
+        echo $msg
+    fi
+    echo
+    echo "Usage: sudo PATH=PATH_TO_OSTREE_BIN:\$PATH $0 OPTIONS"
+    echo
+}
+
 initialize()
 {
-    usage="Usage: sudo PATH=PATH_TO_OSTREE_BIN:\$PATH $0";
-
     if [ $(id -u) -ne 0 ]; then
-        echo "You need root privileges to run this script"
-        echo $usage ; exit 1
+        print_usage_header "You need root privileges to run this script"
+        exit 1
     fi
 
     # Check for OSTree dependency.
     ostree=$(which ostree)
     if [ ! -x ${ostree} ] ; then
-        echo "Needed command 'ostree' not found in PATH."
-        echo $usage ; exit 1
-
+        print_usage_header "Needed command 'ostree' not found in PATH."
+        exit 1
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        echo "This script depends on 'ostree' binary from the SDK,"
-        echo "but PATH is set to ${ostree}."
-        echo $usage ; exit 1
+        msg="This script depends on 'ostree' binary from the SDK, "
+        msg+="but PATH is set to ${ostree}."
+        print_usage_header "$msg"
+        exit 1
     fi
 }
 
 usage()
 {
-    echo
-    echo "Usage: $0 OPTIONS"
+    print_usage_header ""
 
-    echo
     echo "--sysroot-image-path DIR              A path to embedded linux sysroot *.tar.gz or *.img image files."
     echo "--initramfs FILE                      OSTree boot compatible initramfs."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
@@ -256,6 +264,8 @@ parse_args()
         esac
         shift 1
     done
+
+    initialize
 
     validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" true d
     validate_arg "--initramfs" "${INITRAMFS}" true f
@@ -561,8 +571,6 @@ start_httpd_server()
 
 main()
 {
-    initialize
-
     parse_args "$@"
 
     extract_sysroot
