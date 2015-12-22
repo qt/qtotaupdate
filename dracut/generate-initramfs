@@ -68,7 +68,6 @@ fi
 # Terminate when the explicitly required modules could not be found or installed.
 adb shell dracut ${options} ${custom_options} | tee dracut.log
 errors=$(cat dracut.log | grep -i "cannot be found or installed" | wc -l)
-rm dracut.log
 if [ ${errors} -gt 0 ] ; then
     echo "error: Failed to include the required modules into the initramfs image."
     exit 1
