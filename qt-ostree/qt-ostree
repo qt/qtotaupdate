@@ -31,6 +31,7 @@ BOOT_FILE_PATH=${GENERATED_TREE}/boot
 UBOOT_ENV_FILE=""
 SERVER_ROOT=${WORKDIR}/httpd
 OTA_SYSROOT=false
+START_HTTPD=false
 INVALID_ARGS=false
 BINARY_IMAGE=false
 VERBOSE=""
@@ -105,6 +106,8 @@ usage()
     echo
     echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot."
     echo "--verbose                             Prints more information to the console."
+    echo "--start-trivial-httpd                 Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
+    echo "                                      The address to the hosted repository is listed in the httpd/httpd-address file in the working directory."
     echo
     echo "--tls-ca-path FILE                    Path to file containing trusted anchors instead of the system CA database. Pins the certificate and"
     echo "                                      uses it for servers authentication."
@@ -195,6 +198,9 @@ parse_args()
         case "${1}" in
           --create-initial-deployment)
               OTA_SYSROOT=true
+              ;;
+          --start-trivial-httpd)
+              START_HTTPD=true
               ;;
           --verbose)
               VERBOSE=v
@@ -558,15 +564,14 @@ extract_sysroot()
 start_httpd_server()
 {
     # Start a trivial httpd server on localhost.
-    # TODO - allow starting on existing repo
-    if [ ! -d ${SERVER_ROOT} ] ; then
-        mkdir ${SERVER_ROOT}
-        cd ${SERVER_ROOT}
-        ln -s ${OSTREE_REPO} ostree
-        ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
-        PORT=$(cat ${SERVER_ROOT}/httpd-port)
-        echo "http://127.0.0.1:${PORT}" > ${SERVER_ROOT}/httpd-address
-    fi
+    echo "Starting a local HTTP server ..."
+    rm -rf ${SERVER_ROOT}
+    mkdir ${SERVER_ROOT}
+    cd ${SERVER_ROOT}
+    ln -s ${OSTREE_REPO} ostree
+    ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
+    PORT=$(cat ${SERVER_ROOT}/httpd-port)
+    echo "http://127.0.0.1:${PORT}/ostree" > ${SERVER_ROOT}/httpd-address
 }
 
 main()
@@ -581,7 +586,9 @@ main()
         create_initial_deployment
     fi
 
-    start_httpd_server
+    if [ $START_HTTPD = true ] ; then
+        start_httpd_server
+    fi
 
     echo "Done."
 }
