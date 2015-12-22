@@ -531,7 +531,6 @@ extract_sysroot()
         cp -r rootfs-mount/* ${GENERATED_TREE}
         umount boot-mount
         umount rootfs-mount
-        chown -R $(id -u):$(id -g) ${GENERATED_TREE}
         rm -rf boot-mount rootfs-mount
     else
         # Extract *.tar.gz image files.
