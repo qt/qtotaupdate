@@ -56,17 +56,25 @@ PACK_DEPLOY=true
 
 initialize()
 {
+    usage="Usage: sudo PATH=PATH_TO_OSTREE_BIN:\$PATH $0";
+
+    if [ $(id -u) -ne 0 ]; then
+        echo "You need root privileges to run this script"
+        echo $usage ; exit 1
+    fi
+
     # Check for OSTree dependency.
     ostree=$(which ostree)
     if [ ! -x ${ostree} ] ; then
-        echo "error: Needed command 'ostree' not found in PATH."
-        exit 1
+        echo "Needed command 'ostree' not found in PATH."
+        echo $usage ; exit 1
+
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        echo "error: This script depends on 'ostree' binary"
-        echo "from the SDK, but PATH is set to ${ostree}."
-        exit 1
+        echo "This script depends on 'ostree' binary from the SDK,"
+        echo "but PATH is set to ${ostree}."
+        echo $usage ; exit 1
     fi
 }
 
@@ -426,15 +434,14 @@ commit_generated_tree()
         current_time=$(date +"%m-%d-%Y %T")
         OSTREE_COMMIT_SUBJECT="Generated commit subject: ${current_time}"
     fi
+    if [ $USE_GPG = true ] ; then
+        GPG_ARGS="--gpg-sign=\"${GPG_KEY}\" --gpg-homedir=\"${GPG_HOMEDIR}\""
+    fi
 
     cd ${GENERATED_TREE}
     echo "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
-    if [ $USE_GPG = true ] ; then
-        ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" --gpg-sign="${GPG_KEY}" --gpg-homedir="${GPG_HOMEDIR}"
-    else
-        ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}"
-    fi
-
+    ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" ${GPG_ARGS} \
+           --owner-uid=0 --owner-gid=0
     ostree --repo=${OSTREE_REPO} fsck
 }
 
@@ -442,6 +449,8 @@ create_initial_deployment()
 {
     echo "Preparing initial deployment in ${WORKDIR}/sysroot/ ..."
     cd ${WORKDIR}
+    # Remove immutable attribute (and ignore return code).
+    chattr -if sysroot/ostree/deploy/*/deploy/* || /bin/true
     rm -rf sysroot
 
     mkdir -p sysroot/sysroot/
@@ -506,23 +515,23 @@ extract_sysroot()
         cd ${WORKDIR}/
         if [ -d boot-mount ] ; then
             # Ignore return code.
-            sudo umount boot-mount || /bin/true
+            umount boot-mount || /bin/true
             rm -rf boot-mount
         fi
         if [ -d rootfs-mount ] ; then
             # Ignore return code.
-            sudo umount rootfs-mount || /bin/true
+            umount rootfs-mount || /bin/true
             rm -rf rootfs-mount
         fi
 
         mkdir boot-mount rootfs-mount
-        sudo mount -o loop,offset=${boot_offset} ${image} boot-mount/
-        sudo mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
-        sudo cp -r boot-mount/* ${BOOT_FILE_PATH}
-        sudo cp -r rootfs-mount/* ${GENERATED_TREE}
-        sudo umount boot-mount
-        sudo umount rootfs-mount
-        sudo chown -R $(id -u):$(id -g) ${GENERATED_TREE}
+        mount -o loop,offset=${boot_offset} ${image} boot-mount/
+        mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
+        cp -r boot-mount/* ${BOOT_FILE_PATH}
+        cp -r rootfs-mount/* ${GENERATED_TREE}
+        umount boot-mount
+        umount rootfs-mount
+        chown -R $(id -u):$(id -g) ${GENERATED_TREE}
         rm -rf boot-mount rootfs-mount
     else
         # Extract *.tar.gz image files.
