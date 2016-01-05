@@ -75,8 +75,8 @@ initialize()
     fi
 
     # Check for OSTree dependency.
-    ostree=$(which ostree)
-    if [ ! -x ${ostree} ] ; then
+    ostree=$(which ostree || /bin/true)
+    if [ -z "${ostree}" ] ; then
         print_usage_header "Needed command 'ostree' not found in PATH."
         exit 1
     fi
