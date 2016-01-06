@@ -17,9 +17,8 @@
 **
 ****************************************************************************/
 /*!
-    \page qtee-ota.html
+    \page ota.html
     \title Over-The-Air Update
-    \previouspage qtee-module-reference.html
 
     Over-The-Air (OTA) update is a mechanism of distributing software updates
     over a wireless network, instead of requiring a physical access to a device.
@@ -151,7 +150,7 @@
 
     \section2 Install \SDK
 
-    Download \SDK and follow the \l {Installation Guide}.
+    Download \SDK which contains the OTA package.
 
     Later in the guide, we will refer to this install directory as \c
     SDK_INSTALL_DIR.
