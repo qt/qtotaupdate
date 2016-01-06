@@ -43,17 +43,15 @@
     might be summarized as \e {git for operating system binaries}. At its core
     is a git-like content-addressed object store, and layered on top is a boot
     loader configuration, management of \c {/etc}, and other functions to perform
-    an upgrade beyond just replicating files.
+    an upgrade beyond just replicating files. OSTree does not care what build
+    tools (Yocto, shell scripts, packages, etc.) or combination of them are used
+    to assamble a file system tree.
 
     It comes with a command line tool for managing multiple bootable versioned
     filesystem trees, or just \e tree for short. In the OSTree model, operating
     systems no longer live in the physical \c {"/"} root directory. Instead, they
     parallel install to the new toplevel \c {/ostree} directory. At boot time,
     one these parallel installed trees is switched to be the real \c {"/"} root.
-
-    \omit
-    TODO: Add something about OSTree repository on a static http server.
-    \endomit
 
     \b {Features of the update system:}
 
@@ -68,12 +66,14 @@
         in \l {Layout of an OTA Enabled Sysroot}.
     \li Predictable - traditional package managers (dpkg/rpm) build filesystem
         trees on the client side. In contrast, the primary focus of OSTree is on
-        replicating trees composed on a server.
+        \e {replicating trees} composed on a server.
     \li Bandwidth Optimized - only files that have changed are downloaded.
     \li Configuration Management - see the \c {/etc} in \l {Layout of an OTA
         Enabled Sysroot}.
-    \li Rollback Support - option to safely rollback to the previous version (tree)
-        if something goes wrong (Not available in Tech Preview).
+    \li Binary History on the Server Side - quick access to all previous versions
+        of a filesystem tree.
+    \li Rollback Support - safely rollback to the previous version (tree) if
+        something goes wrong (Not available in Tech Preview).
     \endlist
 
     If you would like to learn more about OSTree workings refer to the \l {OSTree
@@ -141,23 +141,28 @@
       \li Securing a delivery of an update.
     \endlist
 
-    We will be using the \c qt-ostree tool. To see a full list of available command
-    line arguments run the following command:
-
-    \badcode
-    ./qt-ostree/qt-ostree --help
-    \endcode
-
     \section2 Install \SDK
 
     Download \SDK which contains the OTA package.
 
-    Later in the guide, we will refer to this install directory as \c
-    SDK_INSTALL_DIR.
+    Later in the guide, we will refer to this install directory as \c SDK_INSTALL_DIR.
+    When executing scripts, we will refer to the current working directory as
+    WORKDIR. We will be using the \c qt-ostree tool from \SDK. To see a full list
+    of available command line arguments run the following command:
 
-    Build your product on top of \SDK or build your own custom embedded linux image.
-    When the image is ready for the \e {first release}, continue to the next step
-    in the guide.
+    \badcode
+    ./qt-ostree --help
+    \endcode
+
+    Instead of providing a full path to the \c qt-ostree each time we use it in
+    the guide, we will assume to be already in the
+    \c SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/qt-ostree directory.
+
+    \section2 Work on Your Product
+
+    Build your product on top of \SDK or build your own custom embedded linux
+    image. When the image is ready for the \e {first release}, continue to the
+    \l {Enabling OTA Functionality on a Device}.
 
     \section2 Enabling OTA Functionality on a Device
 
@@ -165,13 +170,8 @@
     via OTA, you first need to enable this feature in the \e sysroot:
 
     \list 1
-      \li Make sure that \e ostree binary is in the PATH.
 
-          \badcode
-          export <SDK_INSTALL_DIR>/Tools/ostree:$PATH
-          \endcode
-
-      \li Generate the \e initramfs image. \br \br
+      \li Generate OSTree boot compatible \e initramfs image.
 
           OSTree integration code parses the \c ostree= kernel command line
           argument in the initramfs to find the correct versioned tree. It setups
@@ -183,7 +183,8 @@
           To generate the initramfs image, run:
 
           \badcode
-          ./dracut/generate-initramfs
+          cd SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/dracut/
+          ./generate-initramfs
           \endcode
 
           \b {Important:} The device should be powered on, booted into your current
@@ -210,10 +211,10 @@
           The content of OSTree's maintained \c uEnv.txt has the following format:
 
           \badcode
-          kernel_image=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/vmlinuz
-          bootdir=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703
-          ramdisk_image=/ostree/b2qt-23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/initramfs
-          bootargs=ostree=/ostree/boot.1/b2qt/23dab5f9942fd52b71f7a068ad65315b08b49ffc96427056c93e6b04f24ef703/0
+          kernel_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/vmlinuz
+          bootdir=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b
+          ramdisk_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/initramfs
+          bootargs=ostree=/ostree/boot.1/qt-os/590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/0
           \endcode
 
           Where:
@@ -239,30 +240,41 @@
           bootz ${kernel_addr} ${ramdisk_addr}
           \endcode
 
-          You can find some detailed examples for real devices in the \c examples/
-          directory.
+          For more examples refer to \l {Device Integration Examples}
 
           \note You should expect to find all the files that are required for the
           boot process under the \c ${bootdir} path. Before starting to write
           U-Boot integration code, you can run the \c qt-ostree tool without
           providing the \c --uboot-env-file argument, then examine the generated
-          layout of the \c {$WORKDIR/sysroot/boot/} directory (see step 4).
+          layout of the \c {WORKDIR/sysroot/boot/} directory (see step 3).
 
       \li Convert your sysroot into an OTA enabled sysroot.
 
           The conversion is done using the \c qt-ostree tool.
 
           \badcode
-          ./qt-ostree --sysroot-image-path ${SDK_INSTALL_DIR}/version-a/images/ \
+          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH \
+          ./qt-ostree --sysroot-image-path SDK_INSTALL_DIR/version-a/images/ \
                       --create-initial-deployment \
                       --initramfs ../dracut/initramfs-${device}-${release} \
-                      --uboot-env-file ../examples/nitrogen6x_max/b2qt-5.5/6x_bootscript.txt
+                      --uboot-env-file ../examples/nitrogen6x/6x_bootscript
           \endcode
 
           The unarchived version of the generated sysroot can be examined at \c
-          {$WORKDIR/sysroot/}.
+          WORKDIR/sysroot/.
 
-          Notes on the arguments passed to \c {qt-ostree}:
+          \note To remove the WORKDIR/sysroot/ directory from the computer when
+          it is not needed anymore execute the following:
+
+          \raw HTML
+          <pre class="cpp">
+          # Remove immutable attribute
+          sudo chattr -if WORKDIR/sysroot/ostree/deploy/&ast;/deploy/&ast;
+          sudo rm -rf WORKDIR/sysroot/
+          </pre>
+          \endraw
+
+          Notes on the arguments passed to the \c {qt-ostree}:
 
           \list
               \li \b {\c --sysroot-image-path}
@@ -277,12 +289,12 @@
                       \li This option tells the \c qt-ostree to prepare an \e
                           {initial sysroot}. You will have to deploy the generated
                           sysroot to a device; in this guide, we use an SD card
-                          as memory media (see step 5).
+                          as memory media (see step 4).
                   \endlist
 
               \li \b {\c --initramfs}
                   \list
-                      \li The initramfs image that we generated in the step 2.
+                      \li The initramfs image that we generated in the step 1.
                   \endlist
 
               \li \b {\c --uboot-env-file}
@@ -307,7 +319,7 @@
           Then, deploy to the SD card:
 
           \badcode
-          sudo ./deploy.sh /dev/<device_name>
+          sudo SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/qt-ostree/deploy.sh /dev/<device_name>
           \endcode
 
       \li Test that everything went according to the plan.
@@ -321,13 +333,15 @@
           The output should be something similar to:
 
           \badcode
-          * b2qt 59a453916ae90f4a73ade9cb038d31557dbdfe514e7cd1c1002d856c28d618f5.0
-              origin refspec: b2qt:qt/b2qt
+          * qt-os 36524faa47e33da9dbded2ff99d1df47b3734427b94c8a11e062314ed31442a7.0
+              origin refspec: qt-os:linux/qt
           \endcode
 
-          This indicates that the deployment was successful. You should also
-          verify that application(s) are working as expected and do not write
-          outside the \l {Layout of an OTA Enabled Sysroot}{permitted paths}.
+          This indicates that the deployment was successful.
+
+          \note You should also verify that application(s) are working as expected
+          and do not write outside the \l {Layout of an OTA Enabled Sysroot}
+          {permitted paths}.
 
         \endlist
 
@@ -335,6 +349,8 @@
 
     When preparing a new update for a device that already has OTA enabled, the
     workflow is as follows:
+
+    \note Steps 3 - 5 are executed on a device.
 
     \list 1
 
@@ -346,31 +362,18 @@
           This is done by using the \c qt-ostree tool.
 
           \badcode
-          ./qt-ostree --sysroot-image-path ${SDK_INSTALL_DIR}/version-b/images/ \
+          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH \
+          ./qt-ostree --sysroot-image-path SDK_INSTALL_DIR/version-b/images/ \
                       --initramfs ../dracut/initramfs-${device}-${release} \
+                      --start-trivial-httpd
           \endcode
 
-        This will create a new commit in the repository at \c {$WORKDIR/ostree-repo},
-        or create a new repository if one does not exist in the specified path.
-        Use the \c --ostree-repo argument to provide a custom path.
+        The above command will create a new commit in the repository at \c
+        {WORKDIR/ostree-repo/}, or create a new repository if one does not exist.
+        Use the \c --ostree-repo argument to provide a custom path. This repository
+        can be copied to a production server at any time.
 
-        \note This repository can be copied to a production server at any time.
-        Devices when querying for an update will compare the repository on a server
-        with the repository on a device to determine which files have changed and
-        need updating.
-
-        \omit
-        TODO: Add a section on how to start a trivial httpd. \br
-        \endomit
-
-        The \c qt-ostree starts the httpd server which you can access on the local
-        host at \c http://127.0.0.1:${PORT}/ostree/. Entering this address into
-        a web browser lists the contents of your  OSTree repository.
-
-        \c ${PORT} - the port number is listed in the \c $WORKDIR/httpd/httpd-port
-        file.
-
-        Notes on the arguments passed to \c {qt-ostree}:
+        Notes on the arguments passed to the \c {qt-ostree}:
 
         \list
             \li \b {\c --initramfs}
@@ -400,28 +403,38 @@
                 \list
                     \li Updating u-boot environment file is supported only for
                         major releases - when kernel/initramfs versions change.
+
+                        The kernel/initramfs version is considered to change when
+                        \c bootcsum changes in the following expression:
+                        \badcode
+                        bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
+                        \endcode
+                \endlist
+            \li \b {\c --start-trivial-httpd}
+                \list
+                    \li Starts a simple web server which you can access on the
+                        local host at address specified in \c WORKDIR/httpd/httpd-address
+                        file. Entering this address into a web browser lists the
+                        contents of your OSTree repository. This command line
+                        argument is useful for quick testing purposes, in production
+                        with more advanced requirements (TLS authentication) you
+                        will need to use a different web server solution, like
+                        Apache.
                 \endlist
         \endlist
 
-      \note The kernel/initramfs \e version is considered to change when \c
-      bootcsum changes in the following expression:
-
-      \badcode
-      bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
-      \endcode
-
-      \li \b {On a device:}
-
-          Add a remote repository, as the device needs to know where to look for
-          an update.
+      \li Add a remote repository.
 
           \badcode
-          ostree remote add --no-gpg-verify qt-os http://${SERVER_ADDRESS}:${PORT}/ostree linux/qt
+          ostree remote add --no-gpg-verify qt-os ${SERVER_ADDRESS}:${PORT} linux/qt
           \endcode
 
           \c ${SERVER_ADDRESS} - the server where you have stored the OSTree
-          repository. \br
-          \c ${PORT} - optional port number.
+          repository.
+          \c ${PORT} - port number.
+
+          For more examples on configuring remotes, refer to the \l {Securing a
+          Delivery of an Update} section.
 
       \li Upgrade your device.
 
@@ -429,15 +442,71 @@
           ostree admin upgrade
           \endcode
 
+          This command downloads the latest \e tree version (if one is available)
+          from the server that we configured in the previous step. The upgrade
+          process compares the local repository (located in the \c {/ostree}
+          directory on a device) with the remote repository to determine which
+          files need to be downloaded.
+
+          Then the downloaded tree is deployed on a device. This tree is completely
+          independent from the currently booted tree. Next a three-way merge of
+          \c /etc configurations is performed and finally an atomic swap is
+          executed to set the newly deployed tree as default for the next system
+          reboot.
+
+          It is safe to interrupt the upgrade process.
+
       \li Reboot into the new system.
+
+      \li Go back to step 1.
 
     \endlist
 
     \section2 Securing a Delivery of an Update
 
-    \omit
-    TODO.
-    \endomit
+    OTA is a component of a system and not a security framework. If handled
+    correctly (GPG and TLS are used properly, the keys are generated and handled
+    properly and the servers in question are secure to known vulnerabilies and
+    exploits) OTA is considered secure against realistic attacks.
+
+    \b {GPG Signing}
+
+    GPG signing helps to ensure that the data was transmitted in-full, without
+    damage or file corruption and that the data was sent by a trusted party. A
+    set of trusted keys is stored as keyring files on a device. Look for \c {--gpg-*}
+    command line arguments in the output of \c {./qt-ostree --help}.
+
+    In Ubuntu, the required packages can be installed with the following command:
+
+    \badcode
+    sudo apt-get install gnupg gnupg2
+    \endcode
+
+    Example of a remote configuration:
+
+    \badcode
+    ostree remote add --set=gpg-verify=true qt-os http://address/ostree-repo linux/qt
+    \endcode
+
+    \b {TLS Authentication}
+
+    TLS protects data from tampering and eavesdropping. System administrators use
+    this to restrict the access to the server (client authentication) and client
+    devices use this to verify the identitiy of an update server (server authentication).
+    Look for \c {--tls-*} command line arguments in the output of \c {./qt-ostree --help}.
+
+    Example of a remote configuration:
+
+    \badcode
+    ostree remote add --tls-client-cert-path /path/client.crt \
+                      --tls-client-key-path /path/client.key \
+                      --tls-ca-path /trusted/server.crt qt-os https://address/ostree-repo linux/qt
+    \endcode
+
+    It is advised to use both GPG and TLS in hostale environments.
+
+    To learn more about the security topics from the above list, consult dedicated
+    resources.
 
     \section1 Layout of an OTA Enabled Sysroot
 
@@ -459,9 +528,10 @@
 
     \row \li \c {/usr}\unicode {0xA0}[read\unicode {0x2011}only]
 
-         \li Everything that is part of the OS and should not be modified by users.
-             It's recommended that an operating system ships all of its content
-             in /usr. Contents of this directory are updated via OTA.
+         \li Everything that is part of the OS - mounted read-only to prevent
+             inadvertent corruption. It's recommended that an operating system
+             ships all of its content in /usr. Contents of this directory are
+             updated via OTA.
 
     \row \li \c {/etc}
 
@@ -487,9 +557,9 @@
     \row \li \c {/var}
 
          \li The only directory that is \e preserved and \e shared across upgrades.
-             This is where user and application data should be stored. OSTree does
-             not update the contents of /var, it is the responsibility of the OS
-             to manage and upgrade /var if required.
+             This is where user and application data should be stored.
+             \note OSTree does not update the contents of /var, it is the
+             responsibility of the OS to manage and upgrade /var if required.
 
     \row \li \c /ostree
 
@@ -518,7 +588,8 @@
 
     \section1 Device Integration Examples
 
-    Find examples for real embedded devices in the \c /examples directory.
+    Find examples for real embedded devices in the \c
+    SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/examples/ directory.
 
     \section1 OSTree Documentation
 
