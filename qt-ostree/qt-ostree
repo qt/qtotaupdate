@@ -451,7 +451,7 @@ commit_generated_tree()
         OSTREE_COMMIT_SUBJECT="Generated commit subject: ${current_time}"
     fi
     if [ $USE_GPG = true ] ; then
-        GPG_ARGS="--gpg-sign=\"${GPG_KEY}\" --gpg-homedir=\"${GPG_HOMEDIR}\""
+        GPG_ARGS="--gpg-sign=${GPG_KEY} --gpg-homedir=${GPG_HOMEDIR}"
     fi
 
     cd ${GENERATED_TREE}
