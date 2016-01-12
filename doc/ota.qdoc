@@ -45,7 +45,7 @@
     loader configuration, management of \c {/etc}, and other functions to perform
     an upgrade beyond just replicating files. OSTree does not care what build
     tools (Yocto, shell scripts, packages, etc.) or combination of them are used
-    to assamble a file system tree.
+    to assamble a filesystem tree.
 
     It comes with a command line tool for managing multiple bootable versioned
     filesystem trees, or just \e tree for short. In the OSTree model, operating
@@ -85,12 +85,16 @@
 
     \list 1
 
-      \li File systems.
+      \li Filesystem.
 
       Because OSTree operates at the Unix filesystem layer, it works on top of
       any filesystem or block storage layout; it's possible to replicate a given
       filesystem tree from an OSTree repository into plain ext4, BTRFS, XFS, or
-      in general any Unix-compatible filesystem that supports hard links.
+      in general any Unix-compatible filesystem that supports hard and symbolic
+      links. For OSTree to function reliably, the filesystem needs to be able to
+      recover to a consistent state after an unclean shutdown. Any journaling or
+      log-structured filesystem, when configured properly, is capable of such
+      recovery.
 
       \li The kernel must be configured with initramfs enabled.*
 
@@ -107,7 +111,7 @@
       \b {U-Boot:}
 
       \list
-        \li Reading from a file system with symbolic links must be supported.
+        \li Reading from a filesystem with symbolic links must be supported.
         \li U-Boot tools package is required. In Ubuntu, this can be installed
             with the following command:
             \badcode
