@@ -216,24 +216,24 @@ parse_args()
               VERBOSE=v
               ;;
           --ostree-repo)
-              OSTREE_REPO=$(readlink -f ${2})
+              OSTREE_REPO=$(readlink -m ${2})
               shift 1
               ;;
           --uboot-env-file)
-              UBOOT_ENV_FILE=$(readlink -f ${2})
+              UBOOT_ENV_FILE=$(readlink -m ${2})
               shift 1
               ;;
           --tls-ca-path)
-              SERVER_CERT=$(readlink -f ${2})
+              SERVER_CERT=$(readlink -m ${2})
               shift 1
               ;;
           --tls-client-cert-path)
-              CLIENT_CERT=$(readlink -f ${2})
+              CLIENT_CERT=$(readlink -m ${2})
               USE_CLIENT_TLS=true
               shift 1
               ;;
           --tls-client-key-path)
-              CLIENT_KEY=$(readlink -f ${2})
+              CLIENT_KEY=$(readlink -m ${2})
               USE_CLIENT_TLS=true
               shift 1
               ;;
@@ -246,11 +246,11 @@ parse_args()
               shift 1
               ;;
           --sysroot-image-path)
-              SYSROOT_IMAGE_PATH=$(readlink -f ${2})
+              SYSROOT_IMAGE_PATH=$(readlink -m ${2})
               shift 1
               ;;
           --initramfs)
-              INITRAMFS=$(readlink -f ${2})
+              INITRAMFS=$(readlink -m ${2})
               shift 1
               ;;
           --gpg-sign)
@@ -259,12 +259,12 @@ parse_args()
               shift 1
               ;;
           --gpg-homedir)
-              GPG_HOMEDIR=$(readlink -f ${2})
+              GPG_HOMEDIR=$(readlink -m ${2})
               USE_GPG=true
               shift 1
               ;;
           --gpg-trusted-keyring)
-              GPG_TRUSTED_KEYRING=$(readlink -f ${2})
+              GPG_TRUSTED_KEYRING=$(readlink -m ${2})
               shift 1
               ;;
           -h | -help | --help)
