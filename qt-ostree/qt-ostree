@@ -20,8 +20,11 @@
 ## $QT_END_LICENSE$
 ##
 #############################################################################
-#set -x
+if [ -n "${QT_OSTREE_DEBUG}" ] ; then
+    set -x
+fi
 set -e
+trap handle_non_zero_exit EXIT
 
 ROOT=$(dirname $(readlink -f $0))
 WORKDIR=$PWD
@@ -54,6 +57,13 @@ GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # PRIVATE
 PACK_DEPLOY=true
+
+handle_non_zero_exit()
+{
+    echo
+    echo "error: $BASH_COMMAND returned non-zero exit code. For debugging set QT_OSTREE_DEBUG environment variable."
+    echo
+}
 
 print_usage_header()
 {
@@ -591,6 +601,8 @@ main()
     fi
 
     echo "Done."
+    # We are done, disable the trap.
+    trap - EXIT
 }
 
 main "$@"
