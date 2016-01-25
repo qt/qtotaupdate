@@ -58,6 +58,13 @@ GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # PRIVATE
 PACK_DEPLOY=true
 
+exit_qt_ostree()
+{
+    # We are done, disable the trap.
+    trap - EXIT
+    exit ${1}
+}
+
 handle_non_zero_exit()
 {
     echo
@@ -81,21 +88,21 @@ initialize()
 {
     if [ $(id -u) -ne 0 ]; then
         print_usage_header "You need root privileges to run this script"
-        exit 1
+        exit_qt_ostree 1
     fi
 
     # Check for OSTree dependency.
     ostree=$(which ostree || /bin/true)
     if [ -z "${ostree}" ] ; then
         print_usage_header "Needed command 'ostree' not found in PATH."
-        exit 1
+        exit_qt_ostree 1
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
         msg="This script depends on 'ostree' binary from the SDK, "
         msg+="but PATH is set to ${ostree}."
         print_usage_header "$msg"
-        exit 1
+        exit_qt_ostree 1
     fi
 }
 
@@ -269,13 +276,13 @@ parse_args()
               ;;
           -h | -help | --help)
               usage
-              exit 0
+              exit_qt_ostree 0
               ;;
           -*)
               echo
               echo "Unknown parameter: ${1}"
               usage
-              exit 1
+              exit_qt_ostree 1
               ;;
         esac
         shift 1
@@ -304,7 +311,7 @@ parse_args()
     fi
     if [ $INVALID_ARGS = true ] ; then
         usage
-        exit 1
+        exit_qt_ostree 1
     fi
 }
 
@@ -319,7 +326,7 @@ find_and_rename_kernel()
         fi
     done
     echo "error: Failed to find kernel image in ${BOOT_FILE_PATH}."
-    exit 1
+    exit_qt_ostree 1
 }
 
 organize_boot_files()
@@ -395,7 +402,7 @@ convert_to_ostree_sysroot()
     cd ${GENERATED_TREE}
     if [[ ! -e usr/bin/ostree || ! -e usr/sbin/ostree-remount ]] ; then
         echo "error: The provided sysroot does not contain required binaries."
-        exit 1
+        exit_qt_ostree 1
     fi
 
     organize_boot_files
@@ -601,8 +608,7 @@ main()
     fi
 
     echo "Done."
-    # We are done, disable the trap.
-    trap - EXIT
+    exit_qt_ostree 0
 }
 
 main "$@"
