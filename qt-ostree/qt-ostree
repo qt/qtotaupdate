@@ -24,6 +24,7 @@ if [ -n "${QT_OSTREE_DEBUG}" ] ; then
     set -x
 fi
 set -e
+shopt -s extglob
 trap handle_non_zero_exit EXIT
 
 ROOT=$(dirname $(readlink -f $0))
@@ -31,7 +32,6 @@ WORKDIR=$PWD
 
 GENERATED_TREE=${WORKDIR}/tree
 BOOT_FILE_PATH=${GENERATED_TREE}/boot
-UBOOT_ENV_FILE=""
 SERVER_ROOT=${WORKDIR}/httpd
 OTA_SYSROOT=false
 START_HTTPD=false
@@ -39,6 +39,11 @@ INVALID_ARGS=false
 BINARY_IMAGE=false
 VERBOSE=""
 OS_NAME="qt-os"
+# HARDWARE INTEGRATION
+DEVICE=""
+BOOTLOADER="u-boot"
+UBOOT_ENV_FILE=""
+GRUB2_CFG_GENERATOR=""
 # REPO
 OSTREE_REPO=${WORKDIR}/ostree-repo
 OSTREE_BRANCH=linux/qt
@@ -55,8 +60,14 @@ GPG_KEY=""
 GPG_HOMEDIR=""
 GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
-# PRIVATE
-PACK_DEPLOY=true
+# DD IMAGE
+ROOTFS_TYPE="ext3"
+ROOTFS_OPT="-F -L rootfs"
+BOOTFS_TYPE="ext2"
+BOOTFS_OPT="-F -L boot-ostree"  # When /boot directory is on a separate partition from rootfs, ostree-remount attempts to mount filesystem where LABEL=boot-ostree
+BOOTFS_SIZE="65536"             # Boot partition size [in KiB]
+ROOT_OVERHEAD_FACTOR="1.3"      # Add 30% extra space in rootfs
+IMAGE_ROOTFS_ALIGNMENT="4096"   # Set alignment to 4MB [in KiB]
 
 exit_qt_ostree()
 {
@@ -99,9 +110,7 @@ initialize()
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        msg="This script depends on 'ostree' binary from the SDK, "
-        msg+="but PATH is set to ${ostree}."
-        print_usage_header "$msg"
+        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${ostree}."
         exit_qt_ostree 1
     fi
 }
@@ -113,6 +122,7 @@ usage()
     echo "--sysroot-image-path DIR              A path to embedded linux sysroot *.tar.gz or *.img image files."
     echo "--initramfs FILE                      OSTree boot compatible initramfs."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
+    echo "--grub2-cfg-generator FILE            GRUB2 configuration generator script."
     echo
     echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
     echo "                                      one is created in the specified location. If this argument is not provided, "
@@ -230,6 +240,10 @@ parse_args()
               UBOOT_ENV_FILE=$(readlink -m ${2})
               shift 1
               ;;
+          --grub2-cfg-generator)
+              GRUB2_CFG_GENERATOR=$(readlink -m ${2})
+              shift 1
+              ;;
           --tls-ca-path)
               SERVER_CERT=$(readlink -m ${2})
               shift 1
@@ -293,6 +307,7 @@ parse_args()
     validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" true d
     validate_arg "--initramfs" "${INITRAMFS}" true f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
+    validate_arg "--grub2-cfg-generator" "${GRUB2_CFG_GENERATOR}" false f
     validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
     validate_arg "--tls-ca-path" "${SERVER_CERT}" false f
@@ -315,6 +330,25 @@ parse_args()
     fi
 }
 
+clean_workdir()
+{
+    cd ${WORKDIR}/
+
+    dir_list="boot-mount rootfs-mount boot-dd rootfs-dd"
+    for dir in $dir_list ; do
+        if mountpoint -q ${dir} ; then
+            umount ${dir}
+        fi
+        rm -rf ${dir}
+    done
+
+    # Remove immutable attribute.
+    chattr -if sysroot/ostree/deploy/*/deploy/* || /bin/true
+    rm -rf sysroot
+    rm -rf ${GENERATED_TREE}
+    rm -rf fakepath
+}
+
 find_and_rename_kernel()
 {
     cd ${BOOT_FILE_PATH}/
@@ -333,7 +367,9 @@ organize_boot_files()
 {
     cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs
     find_and_rename_kernel
-    if [ -n "${UBOOT_ENV_FILE}" ] ; then
+
+    # Boot loader companions.
+    if [[ "${BOOTLOADER}" = "u-boot" && -n "${UBOOT_ENV_FILE}" ]] ; then
         cp ${UBOOT_ENV_FILE} ${BOOT_FILE_PATH}/
         name=$(basename ${UBOOT_ENV_FILE})
         if [ "${name}" != "uEnv.txt" ] ; then
@@ -346,6 +382,14 @@ organize_boot_files()
                 rm ${name}-tmp
             fi
         fi
+    fi
+
+    if [ "${BOOTLOADER}" = "grub2" ] ; then
+        if [ -z "${GRUB2_CFG_GENERATOR}" ] ; then
+            # Use default generator.
+            GRUB2_CFG_GENERATOR=${ROOT}/ostree-grub-generator
+        fi
+        cp ${GRUB2_CFG_GENERATOR} ${GENERATED_TREE}/usr/sbin/ostree-grub-generator
     fi
 }
 
@@ -412,7 +456,6 @@ convert_to_ostree_sysroot()
     mv initramfs initramfs-${bootcsum}
 
     # OSTree requires /etc/os-release file (see The Boot Loader Specification).
-    # U-boot does not have multi-boot menu so it doesn't really matter what we put here.
     if [ ! -e ${GENERATED_TREE}/etc/os-release ] ; then
         echo "PRETTY_NAME=\"${OS_NAME}\"" > ${GENERATED_TREE}/etc/os-release
     fi
@@ -478,56 +521,136 @@ commit_generated_tree()
     ostree --repo=${OSTREE_REPO} fsck
 }
 
+configure_boot_loader()
+{
+    if [ "${BOOTLOADER}" = "u-boot" ] ; then
+        mkdir -p sysroot/boot/loader.0/
+        ln -s loader.0 sysroot/boot/loader
+        touch sysroot/boot/loader/uEnv.txt
+        ln -s loader/uEnv.txt sysroot/boot/uEnv.txt
+        # Add convenience symlinks, for details see ostree/src/libostree/ostree-bootloader-uboot.c
+        for file in ${BOOT_FILE_PATH}/* ; do
+            name=$(basename $file)
+            if [[ ! -f $file || $name == *.dtb || $name == initramfs-* || $name == vmlinuz-* ]] ; then
+                continue
+            fi
+            ln -sf loader/${name} sysroot/boot/${name}
+        done
+    fi
+
+    if [ "${BOOTLOADER}" = "grub2" ] ; then
+        mkdir -p sysroot/boot/grub2/
+        ln -s ../loader/grub.cfg sysroot/boot/grub2/grub.cfg
+        KERNEL_ARGS="--karg=root=LABEL=rootfs ${KERNEL_ARGS}"
+        # Add ostree-grub-generator to the PATH.
+        # https://bugzilla.gnome.org/show_bug.cgi?id=762220
+        mkdir -p ${WORKDIR}/fakepath
+        cp ${GRUB2_CFG_GENERATOR} ${WORKDIR}/fakepath/ostree-grub-generator
+        export PATH=${WORKDIR}/fakepath:$PATH
+    fi
+}
+
+populate_filesystem_images()
+{
+    mkdir rootfs-dd boot-dd
+    mount boot.${BOOTFS_TYPE} boot-dd/
+    mount rootfs.${ROOTFS_TYPE} rootfs-dd/
+
+    if [[ ${DEVICE} = *nuc* ]] ; then
+        mcopy -s -i boot.${BOOTFS_TYPE} ${GENERATED_TREE}/boot/EFI ::/EFI
+        # The whole sysroot on the same partition.
+        cp -rd sysroot/* rootfs-dd/
+        return
+    fi
+
+    # boot/ directory on a separate boot partition.
+    cp -rd sysroot/!(boot) rootfs-dd/
+    cp -rd sysroot/boot/* boot-dd/
+}
+
+# Disk layout:
+#
+#    0                      -> IMAGE_ROOTFS_ALIGNMENT   - reserved to boot loader (not partitioned)
+#    IMAGE_ROOTFS_ALIGNMENT -> BOOTFS_SIZE              - kernel and other data   (boot partition)
+#    BOOTFS_SIZE            -> rootfs_size              - rootfs                  (rootfs partition)
+#
+#  ------------------------ ------------ ------------------------ -------------------------------
+# | IMAGE_ROOTFS_ALIGNMENT | BOOTFS_SIZE | rootfs_size           |     IMAGE_ROOTFS_ALIGNMENT    |
+#  ------------------------ ------------ ------------------------ -------------------------------
+
+assemble_dd_image()
+{
+    cd ${WORKDIR}
+    echo "Creating a deployable image..."
+    # Align boot partition and calculate total binary image size.
+    sysroot_size=$(du -sk sysroot/ | cut -f1)
+    rootfs_size=$(echo ${sysroot_size}*${ROOT_OVERHEAD_FACTOR} | bc | cut -f1 -d'.')
+    bootfs_size_aligned=$(( ${BOOTFS_SIZE} + ${IMAGE_ROOTFS_ALIGNMENT} - 1 ))
+    bootfs_size_aligned=$(( ${bootfs_size_aligned} - ${bootfs_size_aligned} % ${IMAGE_ROOTFS_ALIGNMENT} ))
+    image_size=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} + ${rootfs_size} + ${IMAGE_ROOTFS_ALIGNMENT} ))
+
+    # Initialize a sparse file.
+    image="${DEVICE}-ota.img"
+    rm -f ${image}
+    dd if=/dev/zero of=${image} bs=1k count=0 seek=${image_size}
+
+    # Create a partition table.
+    bootfs_start=${IMAGE_ROOTFS_ALIGNMENT}
+    bootfs_end=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} ))
+    rootfs_end=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} + ${rootfs_size} ))
+    if [ "${BOOTFS_TYPE}" = "vfat" ] ; then
+        fs_type="FAT32"
+    fi
+    parted -s ${image} mklabel msdos
+    parted -s ${image} unit KiB mkpart primary ${fs_type} ${bootfs_start} ${bootfs_end}
+    parted -s ${image} unit KiB mkpart primary ${bootfs_end} ${rootfs_end}
+    parted -s ${image} set 1 boot on
+    parted ${image} print
+
+    # Create filesystem images.
+    rm -f rootfs.${ROOTFS_TYPE} boot.${BOOTFS_TYPE}
+    dd if=/dev/zero of=boot.${BOOTFS_TYPE} seek=${bootfs_size_aligned} count=0 bs=1k
+    mkfs.${BOOTFS_TYPE} ${BOOTFS_OPT} boot.${BOOTFS_TYPE}
+    dd if=/dev/zero of=rootfs.${ROOTFS_TYPE} seek=${rootfs_size} count=0 bs=1k
+    mkfs.${ROOTFS_TYPE} ${ROOTFS_OPT} rootfs.${ROOTFS_TYPE}
+
+    populate_filesystem_images
+    sync
+
+    # Burn partitions.
+    dd if=boot.${BOOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_start} bs=1k && sync && sync
+    dd if=rootfs.${ROOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_end} bs=1k && sync && sync
+
+    echo
+    echo "Created a binary image - ${image}, deployable with dd command."
+    echo "Example: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
+    echo
+}
+
 create_initial_deployment()
 {
-    echo "Preparing initial deployment in ${WORKDIR}/sysroot/ ..."
     cd ${WORKDIR}
-    # Remove immutable attribute (and ignore return code).
-    chattr -if sysroot/ostree/deploy/*/deploy/* || /bin/true
-    rm -rf sysroot
 
     mkdir -p sysroot/sysroot/
     export OSTREE_SYSROOT=sysroot
     ostree admin init-fs sysroot
     ostree admin os-init ${OS_NAME}
-    # Tell OSTree to use U-Boot boot loader backend.
-    mkdir -p sysroot/boot/loader.0/
-    ln -s loader.0 sysroot/boot/loader
-    touch sysroot/boot/loader/uEnv.txt
-    ln -s loader/uEnv.txt sysroot/boot/uEnv.txt
-    # Add convenience symlinks, for details see ostree/src/libostree/ostree-bootloader-uboot.c
-    for file in ${BOOT_FILE_PATH}/* ; do
-        name=$(basename $file)
-        if [[ ! -f $file || $name == *.dtb || $name == initramfs-* || $name == vmlinuz-* ]] ; then
-            continue
-        fi
-        ln -sf loader/${name} sysroot/boot/${name}
-    done
+
+    configure_boot_loader
 
     ostree --repo=sysroot/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
-    ostree admin deploy --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+    ostree admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     ostree admin status
 
     # OSTree does not touch the contents of /var, it is the OS responsibility to manage this directory.
     rm -rf sysroot/ostree/deploy/${OS_NAME}/var/
     cp -r ${GENERATED_TREE}/var/ sysroot/ostree/deploy/${OS_NAME}/
-    # Pack the OTA ready sysroot.
-    if [ $PACK_DEPLOY = true ] ; then
-        echo "Packing initial deployment ..."
-        rm -rf boot.tar.gz rootfs.tar.gz
-        tar -pcz${VERBOSE}f boot.tar.gz -C sysroot/boot/ .
-        mv sysroot/boot/ .
-        tar -pcz${VERBOSE}f rootfs.tar.gz -C sysroot/ .
-        mv boot/ sysroot/
-        if [ "${ROOT}" != "${WORKDIR}" ] ; then
-            cp ${ROOT}/deploy.sh ${ROOT}/mkcard.sh ${WORKDIR}/
-        fi
-    fi
+
+    assemble_dd_image
 }
 
 extract_sysroot()
 {
-    rm -rf ${GENERATED_TREE}
     mkdir ${GENERATED_TREE}/
     mkdir ${BOOT_FILE_PATH}/
 
@@ -542,29 +665,15 @@ extract_sysroot()
             boot_start=$(fdisk -l ${image} | grep ${image}1 | awk '{print $3}')
         fi
         rootfs_start=$(fdisk -l ${image} | grep ${image}2 | awk '{print $2}')
-        boot_offset=$(expr ${units} \* ${boot_start})
-        rootfs_offset=$(expr ${units} \* ${rootfs_start})
+        boot_offset=$(( ${units} * ${boot_start} ))
+        rootfs_offset=$(( ${units} * ${rootfs_start} ))
 
         cd ${WORKDIR}/
-        if [ -d boot-mount ] ; then
-            # Ignore return code.
-            umount boot-mount || /bin/true
-            rm -rf boot-mount
-        fi
-        if [ -d rootfs-mount ] ; then
-            # Ignore return code.
-            umount rootfs-mount || /bin/true
-            rm -rf rootfs-mount
-        fi
-
         mkdir boot-mount rootfs-mount
         mount -o loop,offset=${boot_offset} ${image} boot-mount/
         mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
-        cp -r boot-mount/* ${BOOT_FILE_PATH}
-        cp -r rootfs-mount/* ${GENERATED_TREE}
-        umount boot-mount
-        umount rootfs-mount
-        rm -rf boot-mount rootfs-mount
+        cp -rd boot-mount/* ${BOOT_FILE_PATH}
+        cp -rd rootfs-mount/* ${GENERATED_TREE}
     else
         # Extract *.tar.gz image files.
         for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
@@ -589,13 +698,37 @@ start_httpd_server()
     ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
     PORT=$(cat ${SERVER_ROOT}/httpd-port)
     echo "http://127.0.0.1:${PORT}/ostree" > ${SERVER_ROOT}/httpd-address
+    echo "OTA update repository available on $(cat ${SERVER_ROOT}/httpd-address)"
+}
+
+detect_target_device()
+{
+    hostname_file=${GENERATED_TREE}/etc/hostname
+    DEVICE=$(cat ${hostname_file})
+    if [ -z "${DEVICE}" ] ; then
+        echo "error: no hostname specified in ${hostname_file}"
+        exit_qt_ostree 1
+    fi
+
+    case "${DEVICE}" in
+        *nuc*) # Intel NUC
+            BOOTLOADER="grub2"
+            BOOTFS_TYPE="vfat"
+            BOOTFS_OPT="-n boot"
+            ;;
+    esac
+
+    echo "Detected ${DEVICE} device with ${BOOTLOADER} boot loader."
 }
 
 main()
 {
     parse_args "$@"
 
+    clean_workdir
     extract_sysroot
+    detect_target_device
+
     convert_to_ostree_sysroot
     commit_generated_tree
 
@@ -606,6 +739,8 @@ main()
     if [ $START_HTTPD = true ] ; then
         start_httpd_server
     fi
+
+    clean_workdir
 
     echo "Done."
     exit_qt_ostree 0
