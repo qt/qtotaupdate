@@ -349,31 +349,34 @@ clean_workdir()
     rm -rf fakepath
 }
 
-find_and_rename_kernel()
-{
-    cd ${BOOT_FILE_PATH}/
-    for file in *; do
-        if file -b $file | grep -qi "kernel"; then
-            echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
-            mv ${file} vmlinuz
-            return 0
-        fi
-    done
-    echo "error: Failed to find kernel image in ${BOOT_FILE_PATH}."
-    exit_qt_ostree 1
-}
-
 organize_boot_files()
 {
     cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs
-    find_and_rename_kernel
+
+    # Find kernel image.
+    cd ${BOOT_FILE_PATH}/
+    kernel_found=false
+    for file in *; do
+        if file -b $file | grep -qi "kernel"; then
+            echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
+            kernel_found=true
+            if [ "${file}" != "vmlinuz" ] ; then
+                # Rename as OSTree expects that kernel image is named 'vmlinuz'.
+                mv ${file} vmlinuz
+            fi
+            break
+        fi
+    done
+    if [ $kernel_found = false ] ; then
+        echo "error: Failed to find kernel image in ${BOOT_FILE_PATH}."
+        exit_qt_ostree 1
+    fi
 
     # Boot loader companions.
     if [[ "${BOOTLOADER}" = "u-boot" && -n "${UBOOT_ENV_FILE}" ]] ; then
         cp ${UBOOT_ENV_FILE} ${BOOT_FILE_PATH}/
         name=$(basename ${UBOOT_ENV_FILE})
         if [ "${name}" != "uEnv.txt" ] ; then
-            cd ${BOOT_FILE_PATH}
             # Must be a boot script then.
             if file -b $name | grep -qi "ASCII text"; then
                 echo "Compiling u-boot boot script: ${BOOT_FILE_PATH}/${name} ..."
