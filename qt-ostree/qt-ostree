@@ -68,6 +68,11 @@ BOOTFS_OPT="-F -L boot-ostree"  # When /boot directory is on a separate partitio
 BOOTFS_SIZE="65536"             # Boot partition size [in KiB]
 ROOT_OVERHEAD_FACTOR="1.3"      # Add 30% extra space in rootfs
 IMAGE_ROOTFS_ALIGNMENT="4096"   # Set alignment to 4MB [in KiB]
+# LOG COLORS
+COLOR_DEFAULT='\e[0m'
+COLOR_RED='\e[0;31m'
+COLOR_GREEN='\e[0;32m'
+COLOR_YELLOW='\e[0;33m'
 
 exit_qt_ostree()
 {
@@ -76,11 +81,26 @@ exit_qt_ostree()
     exit ${1}
 }
 
+qt_ostree_info()
+{
+    echo -e ${COLOR_GREEN}[info] ${COLOR_DEFAULT}${1}
+}
+
+qt_ostree_warning()
+{
+    echo -e ${COLOR_YELLOW}[warning] ${COLOR_DEFAULT}${1}
+}
+
+qt_ostree_error()
+{
+    echo -e ${COLOR_RED}[error] ${COLOR_DEFAULT}${1}
+    echo
+    exit_qt_ostree 1
+}
+
 handle_non_zero_exit()
 {
-    echo
-    echo "error: $BASH_COMMAND returned non-zero exit code. For debugging set QT_OSTREE_DEBUG environment variable."
-    echo
+    qt_ostree_error "$BASH_COMMAND returned non-zero exit code. For debugging set QT_OSTREE_DEBUG environment variable."
 }
 
 print_usage_header()
@@ -97,20 +117,21 @@ print_usage_header()
 
 initialize()
 {
+    echo
     if [ $(id -u) -ne 0 ]; then
-        print_usage_header "You need root privileges to run this script"
+        print_usage_header "You need root privileges to run this script."
         exit_qt_ostree 1
     fi
 
     # Check for OSTree dependency.
     ostree=$(which ostree || /bin/true)
     if [ -z "${ostree}" ] ; then
-        print_usage_header "Needed command 'ostree' not found in PATH."
+        print_usage_header "Needed command 'ostree' not found in PATH"
         exit_qt_ostree 1
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${ostree}."
+        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${ostree}"
         exit_qt_ostree 1
     fi
 }
@@ -358,7 +379,7 @@ organize_boot_files()
     kernel_found=false
     for file in *; do
         if file -b $file | grep -qi "kernel"; then
-            echo "Found kernel image ${BOOT_FILE_PATH}/${file}"
+            qt_ostree_info "Found kernel image ${BOOT_FILE_PATH}/${file}"
             kernel_found=true
             if [ "${file}" != "vmlinuz" ] ; then
                 # Rename as OSTree expects that kernel image is named 'vmlinuz'.
@@ -368,8 +389,7 @@ organize_boot_files()
         fi
     done
     if [ $kernel_found = false ] ; then
-        echo "error: Failed to find kernel image in ${BOOT_FILE_PATH}."
-        exit_qt_ostree 1
+        qt_ostree_error "Failed to find kernel image in ${BOOT_FILE_PATH}"
     fi
 
     # Boot loader companions.
@@ -379,7 +399,7 @@ organize_boot_files()
         if [ "${name}" != "uEnv.txt" ] ; then
             # Must be a boot script then.
             if file -b $name | grep -qi "ASCII text"; then
-                echo "Compiling u-boot boot script: ${BOOT_FILE_PATH}/${name} ..."
+                qt_ostree_info "Add u-boot header to a boot script at: ${BOOT_FILE_PATH}/${name} ..."
                 mv ${name} ${name}-tmp
                 mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${name}-tmp ${name}
                 rm ${name}-tmp
@@ -419,7 +439,7 @@ adjust_sysroot_layout()
             ln -s usr/system/${dir} ${dir}
         fi
     done
-    # Everything in /var is preserved across upgrades. Add symlinks so that paths form
+    # Everything in /var is preserved across upgrades. Add symlinks so that paths from
     # ${var_symlinks} point into /var. OSTree by design does not update contents in /var.
     # It is OS responsibily to handle /var. OS can run post-upgrade scripts to copy the
     # updates files to /var if required.
@@ -430,12 +450,10 @@ adjust_sysroot_layout()
                 rm -rf ${dir}
             else
                 ro_paths=$(sed 's/ /, /g' <<< ${usr_move})
-                echo
-                echo "warning: Found some contents in: /${dir}. It is recommended that operating system ships all"
-                echo "of its contents in /usr or in one of the following top level directories: [$ro_paths]."
-                echo "/${dir} will be a part of an update, but it won't be protected by the /usr read-only mount"
-                echo "set by default. Any changes users will do in this directory WILL BE LOST ON THE NEXT UPGRADE."
-                echo
+                qt_ostree_warning "Found some contents in: /${dir}. It is recommended that operating system ships all
+                                   \nof its contents in /usr or in one of the following top level directories: [$ro_paths].
+                                   \n/${dir} will be a part of an update, but it won't be protected by the /usr read-only mount
+                                   \nset by default. Any changes users will do in this directory WILL BE LOST ON THE NEXT UPGRADE"
                 continue
             fi
             mkdir -p var/${dir}
@@ -448,8 +466,7 @@ convert_to_ostree_sysroot()
 {
     cd ${GENERATED_TREE}
     if [[ ! -e usr/bin/ostree || ! -e usr/sbin/ostree-remount ]] ; then
-        echo "error: The provided sysroot does not contain required binaries."
-        exit_qt_ostree 1
+        qt_ostree_error "The provided sysroot does not contain required binaries"
     fi
 
     organize_boot_files
@@ -467,10 +484,10 @@ convert_to_ostree_sysroot()
     cd ${GENERATED_TREE}
     if [ -e lib/systemd/systemd ] ; then
         systemd=true
-        echo "Detected systemd support on the image."
+        qt_ostree_info "Detected systemd init support on the image"
     fi
     if [ ${systemd} = false ] ; then
-        echo "Detected system v init support on the image."
+        qt_ostree_info "Detected System V init support on the image"
         # Run ostree-remount on startup. This makes sure that
         # rw/ro mounts are set correctly for ostree to work.
         cp ${ROOT}/ostree-remount.sh etc/init.d/
@@ -505,7 +522,7 @@ commit_generated_tree()
     # Commit the generated tree into OSTree repository.
     mkdir -p ${OSTREE_REPO}
     if [ ! -d ${OSTREE_REPO}/objects ] ; then
-        echo "Initializing new OSTree repository in ${OSTREE_REPO}"
+        qt_ostree_info "Initializing new OSTree repository in ${OSTREE_REPO}"
         ostree --repo=${OSTREE_REPO} init --mode=archive-z2
     fi
 
@@ -518,14 +535,16 @@ commit_generated_tree()
     fi
 
     cd ${GENERATED_TREE}
-    echo "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
+    qt_ostree_info "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
     ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" ${GPG_ARGS} \
            --owner-uid=0 --owner-gid=0
+    qt_ostree_info "Checking the repository for consistency ..."
     ostree --repo=${OSTREE_REPO} fsck
 }
 
 configure_boot_loader()
 {
+    qt_ostree_info "Configuring ${BOOTLOADER} boot loader"
     if [ "${BOOTLOADER}" = "u-boot" ] ; then
         mkdir -p sysroot/boot/loader.0/
         ln -s loader.0 sysroot/boot/loader
@@ -584,7 +603,7 @@ populate_filesystem_images()
 assemble_dd_image()
 {
     cd ${WORKDIR}
-    echo "Creating a deployable image..."
+    qt_ostree_info "Assembling a deployable image ..."
     # Align boot partition and calculate total binary image size.
     sysroot_size=$(du -sk sysroot/ | cut -f1)
     rootfs_size=$(echo ${sysroot_size}*${ROOT_OVERHEAD_FACTOR} | bc | cut -f1 -d'.')
@@ -624,14 +643,13 @@ assemble_dd_image()
     dd if=boot.${BOOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_start} bs=1k && sync && sync
     dd if=rootfs.${ROOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_end} bs=1k && sync && sync
 
-    echo
-    echo "Created a binary image - ${image}, deployable with dd command."
-    echo "Example: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
-    echo
+    qt_ostree_info "Created a binary image - ${image}, deployable with dd command"
+    qt_ostree_info "Example dd command: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
 }
 
 create_initial_deployment()
 {
+    qt_ostree_info "Creating OTA enabled sysroot ..."
     cd ${WORKDIR}
 
     mkdir -p sysroot/sysroot/
@@ -641,6 +659,7 @@ create_initial_deployment()
 
     configure_boot_loader
 
+    qt_ostree_info "Checking out filesystem tree from ${OSTREE_REPO} repository"
     ostree --repo=sysroot/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
     ostree admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     ostree admin status
@@ -660,7 +679,7 @@ extract_sysroot()
     if [ $BINARY_IMAGE = true ] ; then
         # Extract binary image.
         image=$(ls ${SYSROOT_IMAGE_PATH}/*.img)
-        echo "Extracting ${image} ..."
+        qt_ostree_info "Extracting ${image} ..."
         units=$(fdisk -l ${image} | grep Units | awk '{print $(NF-1)}')
         # The boot partition not always is marked properly.
         boot_start=$(fdisk -l ${image} | grep ${image}1 | awk '{print $2}')
@@ -680,7 +699,7 @@ extract_sysroot()
     else
         # Extract *.tar.gz image files.
         for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
-            echo "Extracting ${image} ..."
+            qt_ostree_info "Extracting ${image} ..."
             if [[ $(basename ${image}) == *boot* ]] ; then
                 tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
             else
@@ -693,7 +712,7 @@ extract_sysroot()
 start_httpd_server()
 {
     # Start a trivial httpd server on localhost.
-    echo "Starting a local HTTP server ..."
+    qt_ostree_info "Starting a local HTTP server"
     rm -rf ${SERVER_ROOT}
     mkdir ${SERVER_ROOT}
     cd ${SERVER_ROOT}
@@ -701,7 +720,7 @@ start_httpd_server()
     ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
     PORT=$(cat ${SERVER_ROOT}/httpd-port)
     echo "http://127.0.0.1:${PORT}/ostree" > ${SERVER_ROOT}/httpd-address
-    echo "OTA update repository available on $(cat ${SERVER_ROOT}/httpd-address)"
+    qt_ostree_info "OTA update repository available at $(cat ${SERVER_ROOT}/httpd-address)"
 }
 
 detect_target_device()
@@ -709,8 +728,7 @@ detect_target_device()
     hostname_file=${GENERATED_TREE}/etc/hostname
     DEVICE=$(cat ${hostname_file})
     if [ -z "${DEVICE}" ] ; then
-        echo "error: no hostname specified in ${hostname_file}"
-        exit_qt_ostree 1
+        qt_ostree_error "No hostname specified in ${hostname_file}"
     fi
 
     case "${DEVICE}" in
@@ -721,7 +739,7 @@ detect_target_device()
             ;;
     esac
 
-    echo "Detected ${DEVICE} device with ${BOOTLOADER} boot loader."
+    qt_ostree_info "Detected ${DEVICE} device with ${BOOTLOADER} boot loader"
 }
 
 main()
@@ -729,6 +747,7 @@ main()
     parse_args "$@"
 
     clean_workdir
+
     extract_sysroot
     detect_target_device
 
@@ -745,7 +764,7 @@ main()
 
     clean_workdir
 
-    echo "Done."
+    qt_ostree_info "All done."
     exit_qt_ostree 0
 }
 
