@@ -74,7 +74,7 @@ COLOR_RED='\e[0;31m'
 COLOR_GREEN='\e[0;32m'
 COLOR_YELLOW='\e[0;33m'
 
-exit_qt_ostree()
+qt_ostree_exit()
 {
     # We are done, disable the trap.
     trap - EXIT
@@ -95,7 +95,7 @@ qt_ostree_error()
 {
     echo -e ${COLOR_RED}[error] ${COLOR_DEFAULT}${1}
     echo
-    exit_qt_ostree 1
+    qt_ostree_exit 1
 }
 
 handle_non_zero_exit()
@@ -120,19 +120,19 @@ initialize()
     echo
     if [ $(id -u) -ne 0 ]; then
         print_usage_header "You need root privileges to run this script."
-        exit_qt_ostree 1
+        qt_ostree_exit 1
     fi
 
     # Check for OSTree dependency.
     ostree=$(which ostree || /bin/true)
     if [ -z "${ostree}" ] ; then
         print_usage_header "Needed command 'ostree' not found in PATH"
-        exit_qt_ostree 1
+        qt_ostree_exit 1
     fi
     rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
         print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${ostree}"
-        exit_qt_ostree 1
+        qt_ostree_exit 1
     fi
 }
 
@@ -311,13 +311,13 @@ parse_args()
               ;;
           -h | -help | --help)
               usage
-              exit_qt_ostree 0
+              qt_ostree_exit 0
               ;;
           -*)
               echo
               echo "Unknown parameter: ${1}"
               usage
-              exit_qt_ostree 1
+              qt_ostree_exit 1
               ;;
         esac
         shift 1
@@ -347,7 +347,7 @@ parse_args()
     fi
     if [ $INVALID_ARGS = true ] ; then
         usage
-        exit_qt_ostree 1
+        qt_ostree_exit 1
     fi
 }
 
@@ -765,7 +765,7 @@ main()
     clean_workdir
 
     qt_ostree_info "All done."
-    exit_qt_ostree 0
+    qt_ostree_exit 0
 }
 
 main "$@"
