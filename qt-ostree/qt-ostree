@@ -22,6 +22,7 @@
 #############################################################################
 if [ -n "${QT_OSTREE_DEBUG}" ] ; then
     set -x
+    VERBOSE="v"
 fi
 set -e
 shopt -s extglob
@@ -37,7 +38,6 @@ OTA_SYSROOT=false
 START_HTTPD=false
 INVALID_ARGS=false
 BINARY_IMAGE=false
-VERBOSE=""
 OS_NAME="qt-os"
 # HARDWARE INTEGRATION
 DEVICE=""
@@ -153,7 +153,6 @@ usage()
     echo "                                      date and time when the update was committed."
     echo
     echo "--create-initial-deployment           Generates Over-The-Air Update ready sysroot."
-    echo "--verbose                             Prints more information to the console."
     echo "--start-trivial-httpd                 Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
     echo "                                      The address to the hosted repository is listed in the httpd/httpd-address file in the working directory."
     echo
@@ -249,9 +248,6 @@ parse_args()
               ;;
           --start-trivial-httpd)
               START_HTTPD=true
-              ;;
-          --verbose)
-              VERBOSE=v
               ;;
           --ostree-repo)
               OSTREE_REPO=$(readlink -m ${2})
@@ -661,6 +657,8 @@ create_initial_deployment()
 
     qt_ostree_info "Checking out filesystem tree from ${OSTREE_REPO} repository"
     ostree --repo=sysroot/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
+    # --verbose here is not really that verbose, it simply helps to confirm that the correct
+    # boot loader backend was picked up by OSTree.
     ostree admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     ostree admin status
 
@@ -694,8 +692,8 @@ extract_sysroot()
         mkdir boot-mount rootfs-mount
         mount -o loop,offset=${boot_offset} ${image} boot-mount/
         mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
-        cp -rd boot-mount/* ${BOOT_FILE_PATH}
-        cp -rd rootfs-mount/* ${GENERATED_TREE}
+        cp -r${VERBOSE}d boot-mount/* ${BOOT_FILE_PATH}
+        cp -r${VERBOSE}d rootfs-mount/* ${GENERATED_TREE}
     else
         # Extract *.tar.gz image files.
         for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
