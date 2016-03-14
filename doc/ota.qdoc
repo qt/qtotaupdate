@@ -259,7 +259,7 @@
           \badcode
           sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH \
           ./qt-ostree --sysroot-image-path SDK_INSTALL_DIR/version-a/images/ \
-                      --create-initial-deployment \
+                      --create-ota-sysroot \
                       --initramfs ../dracut/initramfs-${device}-${release} \
                       --uboot-env-file ../examples/nitrogen6x/6x_bootscript
           \endcode
@@ -288,7 +288,7 @@
                           accepted.
                   \endlist
 
-              \li \b {\c --create-initial-deployment}
+              \li \b {\c --create-ota-sysroot}
                   \list
                       \li This option tells the \c qt-ostree to prepare an \e
                           {initial sysroot}. You will have to deploy the generated
@@ -586,7 +586,7 @@
 
     \row \li \c /
 
-         \li Deployment's (versioned filesystem tree's) chroot.
+         \li Versioned filesystem tree's chroot.
 
     \endtable
 

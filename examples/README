@@ -141,7 +141,7 @@ EXAMPLE 2 - beaglebone/ (BeagleBone Black)
     variables at the top of uEnv.txt file. You can see an example of this when running
     'qt-ostree' with the following arguments:
 
-    ./qt-ostree --create-initial-deployment \
+    ./qt-ostree --create-ota-sysroot \
                 --uboot-env-file uEnv.txt \ (your custom uEnv.txt)
                 --sysroot-image-path $SYSROOT_IMAGE_PATH \
                 --initramfs $INITRAMFS

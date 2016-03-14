@@ -7,7 +7,7 @@
 # 1) cp ostree-grub-generator ostree-grub-generator-mydevice
 # 2) Edit ostree-grub-generator-mydevice
 # 3) Pass ostree-grub-generator-mydevice to qt-ostree via --grub2-cfg-generator
-# 4) Examine the generated grub.cfg file in the OTA sysroot (created by --create-initial-deployment)
+# 4) Examine the generated grub.cfg file in the OTA sysroot (created by --create-ota-sysroot)
 #
 # WARNINGS:
 #
