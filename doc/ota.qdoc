@@ -34,24 +34,24 @@
 
     \section1 OSTree Overview
 
-    The following is a brief summary from the OSTree documentation.
+    The following is a brief summary from the \l {https://ostree.readthedocs.org/en/latest/}
+    {OSTree documentation}.
 
     \b {What is OSTree:}
 
-    OSTree is an upgrade system for Linux-based operating systems that performs
-    atomic upgrades of complete filesystem trees. The underlying architecture
-    might be summarized as \e {git for operating system binaries}. At its core
-    is a git-like content-addressed object store, and layered on top is a boot
-    loader configuration, management of \c {/etc}, and other functions to perform
-    an upgrade beyond just replicating files. OSTree does not care what build
-    tools (Yocto, shell scripts, packages, etc.) or combination of them are used
-    to assamble a filesystem tree.
+    OSTree is a tool that combines a \e git-like model for committing and downloading
+    bootable filesystem trees, along with a layer for deploying them and managing the
+    bootloader configuration. OSTree is like git in that it checksums individual files
+    and has a content-addressed object store. It's unlike git in that it \e {checks out}
+    the files via hardlinks, and they should thus be immutable. OSTree is completely
+    agnostic as to how the root file system is generated - bitbake recipes, shell build
+    scripts, traditional dpkg/rpm packages, and so on, or some combination of these.
 
     It comes with a command line tool for managing multiple bootable versioned
     filesystem trees, or just \e tree for short. In the OSTree model, operating
     systems no longer live in the physical \c {"/"} root directory. Instead, they
     parallel install to the new toplevel \c {/ostree} directory. At boot time,
-    one these parallel installed trees is switched to be the real \c {"/"} root.
+    one of the parallel installed trees is switched to be the real \c {"/"} root.
 
     \b {Features of the update system:}
 
@@ -76,8 +76,8 @@
         something goes wrong (Not available in Tech Preview).
     \endlist
 
-    If you would like to learn more about OSTree workings refer to the \l {OSTree
-    Documentation}. There you can read about the anatomy of an OSTree repository
+    If you would like to learn more about OSTree workings refer to the \l {https://ostree.readthedocs.org/en/latest/}
+    {OSTree Documentation}. There you can read about the anatomy of an OSTree repository
     and the deployment system, booting, and other internals of the project, as
     well as how OSTree compares to other update solutions.
 
@@ -87,50 +87,27 @@
 
       \li Filesystem.
 
-      Because OSTree operates at the Unix filesystem layer, it works on top of
-      any filesystem or block storage layout; it's possible to replicate a given
-      filesystem tree from an OSTree repository into plain ext4, BTRFS, XFS, or
-      in general any Unix-compatible filesystem that supports hard and symbolic
-      links. For OSTree to function reliably, the filesystem needs to be able to
-      recover to a consistent state after an unclean shutdown. Any journaling or
-      log-structured filesystem, when configured properly, is capable of such
-      recovery.
+      OSTree operates in userspace, and will work on top of any Linux filesystem
+      that supports hard and symbolic links. For OSTree to function reliably, the
+      filesystem needs to be able to recover to a consistent state after an unclean
+      shutdown. Any journaling or log-structured filesystem, when configured properly,
+      is capable of such recovery.
 
-      \li The kernel must be configured with initramfs enabled.*
+      \li The Linux Kernel.
+
+      The kernel must be configured with initramfs enabled.
 
       \badcode
       CONFIG_BLK_DEV_INITRD=y
       \endcode
 
-     * There are ways around that, but we currently do not support this out of
+      There are ways around that, but we currently do not support this out of
       the box: \br
       \l https://mail.gnome.org/archives/ostree-list/2015-October/msg00015.html
 
-      \li Supported boot loaders.
+      \li Boot Loader.
 
-      \b {U-Boot:}
-
-      \list
-        \li Reading from a filesystem with symbolic links must be supported.
-        \li U-Boot tools package is required. In Ubuntu, this can be installed
-            with the following command:
-            \badcode
-            sudo apt-get install u-boot-tools
-            \endcode
-      \endlist
-
-      \b {GRUB:}
-
-      \list
-          \li Not available in Tech Preview.
-      \endlist
-
-      \omit
-      \li Partition layout.
-
-      TODO
-
-      \endomit
+      Supported boot loaders are: U-Boot, GRUB 2. \br
 
     \endlist
 
@@ -158,7 +135,7 @@
     ./qt-ostree --help
     \endcode
 
-    Instead of providing a full path to the \c qt-ostree each time we use it in
+    Instead of providing a full path to \c qt-ostree each time we refer to it in
     the guide, we will assume to be already in the
     \c SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/qt-ostree directory.
 
@@ -175,14 +152,14 @@
 
     \list 1
 
-      \li Generate OSTree boot compatible \e initramfs image.
+      \li Generate OSTree boot compatible initramfs image.
 
           OSTree integration code parses the \c ostree= kernel command line
           argument in the initramfs to find the correct versioned tree. It setups
           the necessary mounts, notably the read-only mount on the \c {/usr} path,
-          and makes the versioned tree to appear as a real \c {"/"} root directory.
-          The \c ostree= argument is passed via the boot loader integration code,
-          explained in more detail later in the guide.
+          and makes the versioned tree to appear as a real \c {"/"} root directory
+          in the booted system. The \c ostree= argument is passed via the \l {Boot loader integration.}
+          {boot loader integration} code, explained in more detail later in the guide.
 
           To generate the initramfs image, run:
 
@@ -198,87 +175,109 @@
           provide your own (not necessarily dracut based) initramfs, as long as
           you include the required ostree logic from the provided dracut module.
 
-          \note The \c generate-initramfs works on \e systemd and \e sysvinit
-          based systems.
+          \note The \c generate-initramfs works on \e systemd and \e {System V}
+          init-based systems.
 
           This will produce an \c initramfs-${device}-${release} file in the
           working directory. The initramfs file will be needed in the later steps.
 
-      \li U-Boot Integration.
 
-          Add OSTree support into U-Boot environment of the device. OSTree maintains
-          an environment file \c uEnv.txt, which your U-Boot script should import.
-          If custom changes to \c uEnv.txt are required, use the \c --uboot-env-file
-          argument from the \c {qt-ostree} tool. The provided file will be merged
-          with OSTree's maintained \c uEnv.txt.
+       \target Boot loader integration.
+       \li Boot loader integration.
 
-          The content of OSTree's maintained \c uEnv.txt has the following format:
-
-          \badcode
-          kernel_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/vmlinuz
-          bootdir=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b
-          ramdisk_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/initramfs
-          bootargs=ostree=/ostree/boot.1/qt-os/590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/0
-          \endcode
-
-          Where:
+          OSTree maintains bootloader-independent drop-in configuration files in a format
+          as defined by \l {https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec/}
+          {The Boot Loader Specification}. Including a special \c ostree= kernel argument that allows
+          the initramfs to find and boot the specified tree. Not all boot loaders support the The
+          Boot Loader Specification, so OSTree contains code to generate native config files from
+          the bootloader-independent configurations.
 
           \list
-            \li \c ${kernel_image}: Path to the Linux kernel image.
-            \li \c ${ramdisk_image}: Path to the initramfs image.
-            \li \c ${bootargs}: Parameters passed to the kernel command line.
-            \li \c ${bootdir}: Path to other files that belong to the same release
-                   and should be accessible from U-Boot (DTBs, boot scripts).
+            \li \b {U-Boot}
+
+              U-Boot tools package is required. In Ubuntu, this can be installed with the following
+              command:
+
+              \badcode
+              sudo apt-get install u-boot-tools
+              \endcode
+
+              OSTree maintains the \c uEnv.txt environment file, which the U-Boot environment should
+              import. If custom changes to \c uEnv.txt are required, use the \c --uboot-env-file
+              argument from the \c {qt-ostree} tool. The provided file will be appended to OSTree's
+              \c uEnv.txt.
+
+              The content of OSTree's \c uEnv.txt has the following format:
+
+              \badcode
+              kernel_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/vmlinuz
+              bootdir=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b
+              ramdisk_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/initramfs
+              bootargs=ostree=/ostree/boot.1/qt-os/590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/0
+              \endcode
+
+              Where:
+
+              \list
+                \li \c ${kernel_image}: Path to the Linux kernel image.
+                \li \c ${ramdisk_image}: Path to the initramfs image.
+                \li \c ${bootargs}: Parameters passed to the kernel command line.
+                \li \c ${bootdir}: Path to other files that belong to the same release
+                       and should be accessible from U-Boot (DTBs, boot scripts).
+              \endlist
+
+              Example U-Boot logic that uses the imported OSTree's environment variables:
+
+              \badcode
+              setenv scriptaddr 0x40008000
+              setenv kernel_addr 0x40007000
+              setenv ramdisk_addr 0x42000000
+              load mmc 0:1 ${scriptaddr} uEnv.txt
+              env import -t ${scriptaddr} ${filesize}
+              load mmc 0:1 ${kernel_addr} ${kernel_image}
+              load mmc 0:1 ${ramdisk_addr} ${ramdisk_image}
+              bootz ${kernel_addr} ${ramdisk_addr}
+              \endcode
+
+              \note You should expect to find all the files that are required for the
+              boot process under the \c ${bootdir} path. Before starting to write
+              U-Boot integration code, you can run the \c qt-ostree tool without
+              providing the \c --uboot-env-file argument and \l {The generated sysroot} {examine}
+              the generated sysroot (see step 3).
+
+            \li \b {GRUB 2}
+
+              Whenever the boot loader configuration files need to be updated on a GRUB 2 based system,
+              OSTree executes \c ostree-grub-generator to convert bootloader-independent configuration
+              files into native grub.cfg format. A default script, used by the \c qt-ostree tool is
+              \c SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/qt-ostree/ostree-grub-generator.
+              You can customize this script to match your requirements and provide it to \c qt-ostree
+              via \c --grub2-cfg-generator. The \c ostree-grub-generator file contains additional
+              details, the script itself is about 40 lines long.
+
           \endlist
 
-          Example U-Boot logic that uses the imported OSTree's environment variables:
-
-          \badcode
-          setenv scriptaddr 0x40008000
-          setenv kernel_addr 0x40007000
-          setenv ramdisk_addr 0x42000000
-          load mmc 0:1 ${scriptaddr} uEnv.txt
-          env import -t ${scriptaddr} ${filesize}
-          load mmc 0:1 ${kernel_addr} ${kernel_image}
-          load mmc 0:1 ${ramdisk_addr} ${ramdisk_image}
-          bootz ${kernel_addr} ${ramdisk_addr}
-          \endcode
-
           For more examples refer to \l {Device Integration Examples}
-
-          \note You should expect to find all the files that are required for the
-          boot process under the \c ${bootdir} path. Before starting to write
-          U-Boot integration code, you can run the \c qt-ostree tool without
-          providing the \c --uboot-env-file argument, then examine the generated
-          layout of the \c {WORKDIR/sysroot/boot/} directory (see step 3).
 
       \li Convert your sysroot into an OTA enabled sysroot.
 
           The conversion is done using the \c qt-ostree tool.
 
           \badcode
-          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH \
-          ./qt-ostree --sysroot-image-path SDK_INSTALL_DIR/version-a/images/ \
-                      --create-ota-sysroot \
-                      --initramfs ../dracut/initramfs-${device}-${release} \
-                      --uboot-env-file ../examples/nitrogen6x/6x_bootscript
+          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH ./qt-ostree \
+          --sysroot-image-path SDK_INSTALL_DIR/version-a/images/ \
+          --create-ota-sysroot \
+          --initramfs ../dracut/initramfs-${device}-${release} \
+          --uboot-env-file ../examples/nitrogen6x/6x_bootscript
           \endcode
 
-          The unarchived version of the generated sysroot can be examined at \c
-          WORKDIR/sysroot/.
+          \target {The generated sysroot}
+          The generated sysroot can be examined by mounting the \c {boot.${BOOTFS_TYPE}} and
+          the \c {rootfs.${ROOTFS_TYPE}} file system images found in \c {WORKDIR}.
 
-          \note To remove the WORKDIR/sysroot/ directory from the computer when
-          it is not needed anymore execute the following:
+          In this guide we assume that the system is based on U-Boot boot loader.
 
-          \raw HTML
-          <pre class="cpp">
-          # Remove immutable attribute
-          sudo chattr -if WORKDIR/sysroot/ostree/deploy/&ast;/deploy/&ast;
-          sudo rm -rf WORKDIR/sysroot/
-          </pre>
-          \endraw
-
-          Notes on the arguments passed to the \c {qt-ostree}:
+          Notes on the arguments passed to \c {qt-ostree}:
 
           \list
               \li \b {\c --sysroot-image-path}
@@ -290,10 +289,10 @@
 
               \li \b {\c --create-ota-sysroot}
                   \list
-                      \li This option tells the \c qt-ostree to prepare an \e
-                          {initial sysroot}. You will have to deploy the generated
-                          sysroot to a device; in this guide, we use an SD card
-                          as memory media (see step 4).
+                      \li This option tells \c qt-ostree to create a binary image
+                          that contains a bootable OTA enabled sysroot. You will have to
+                          deploy the generated image to a device; in this guide, we use
+                          an SD card as memory media (see step 4).
                   \endlist
 
               \li \b {\c --initramfs}
@@ -311,19 +310,25 @@
                   \endlist
           \endlist
 
-      \li Deploy the generated sysroot to an SD card.
+      \li Deploy the generated OTA image to an SD card.
 
           Plug in an SD card or a reader to the development host, and use the
-          following command to find out its device name:
+          following command to find out its device name.
 
           \badcode
           lsblk -d
           \endcode
 
-          Then, deploy to the SD card:
+          Make sure to unmount all partitions on a device.
 
           \badcode
-          sudo SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/qt-ostree/deploy.sh /dev/<device_name>
+          sudo umount /dev/<device_name>?*
+          \endcode
+
+          And then deploy the image.
+
+          \badcode
+          sudo dd bs=4M if=<image> of=/dev/<device_name> && sync
           \endcode
 
       \li Test that everything went according to the plan.
@@ -366,10 +371,10 @@
           This is done by using the \c qt-ostree tool.
 
           \badcode
-          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH \
-          ./qt-ostree --sysroot-image-path SDK_INSTALL_DIR/version-b/images/ \
-                      --initramfs ../dracut/initramfs-${device}-${release} \
-                      --start-trivial-httpd
+          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH ./qt-ostree \
+          --sysroot-image-path SDK_INSTALL_DIR/version-b/images/ \
+          --initramfs ../dracut/initramfs-${device}-${release} \
+          --start-trivial-httpd
           \endcode
 
         The above command will create a new commit in the repository at \c
@@ -377,7 +382,7 @@
         Use the \c --ostree-repo argument to provide a custom path. This repository
         can be copied to a production server at any time.
 
-        Notes on the arguments passed to the \c {qt-ostree}:
+        Notes on the arguments passed to \c {qt-ostree}:
 
         \list
             \li \b {\c --initramfs}
@@ -435,6 +440,7 @@
 
           \c ${SERVER_ADDRESS} - the server where you have stored the OSTree
           repository.
+
           \c ${PORT} - port number.
 
           For more examples on configuring remotes, refer to the \l {Securing a
@@ -502,9 +508,10 @@
     Example of a remote configuration:
 
     \badcode
-    ostree remote add --tls-client-cert-path /path/client.crt \
-                      --tls-client-key-path /path/client.key \
-                      --tls-ca-path /trusted/server.crt qt-os https://address/ostree-repo linux/qt
+    ostree remote add \
+    --tls-client-cert-path /path/client.crt \
+    --tls-client-key-path /path/client.key \
+    --tls-ca-path /trusted/server.crt qt-os https://address/ostree-repo linux/qt
     \endcode
 
     It is advised to use both GPG and TLS in hostale environments.
@@ -586,7 +593,7 @@
 
     \row \li \c /
 
-         \li Versioned filesystem tree's chroot.
+         \li Versioned filesystem tree's root.
 
     \endtable
 
@@ -594,17 +601,4 @@
 
     Find examples for real embedded devices in the \c
     SDK_INSTALL_DIR/Tools/ota/ota-enterprise-src-1.0/examples/ directory.
-
-    \section1 OSTree Documentation
-
-    OSTree does not come as an installable package, but you can refer to these
-    online resources:
-
-    \list
-    \li HTML documentation for OSTree project \l https://developer.gnome.org/ostree/
-    \li Man pages for the OSTree command line tool \l https://www.mankier.com/1/ostree
-    \endlist
-
-    The most recent documentation can be generated by obtaining and building the
-    source code from \l https://github.com/GNOME/ostree.
 */
