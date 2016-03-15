@@ -578,13 +578,13 @@ populate_filesystem_images()
     if [[ ${DEVICE} = *nuc* ]] ; then
         mcopy -s -i boot.${BOOTFS_TYPE} ${GENERATED_TREE}/boot/EFI ::/EFI
         # The whole sysroot on the same partition.
-        cp -rd ${OTA_SYSROOT}/* rootfs-dd/
+        cp -rP --preserve=all ${OTA_SYSROOT}/* rootfs-dd/
         return
     fi
 
     # boot/ directory on a separate boot partition.
-    cp -rd ${OTA_SYSROOT}/!(boot) rootfs-dd/
-    cp -rd ${OTA_SYSROOT}/boot/* boot-dd/
+    cp -rP --preserve=all ${OTA_SYSROOT}/!(boot) rootfs-dd/
+    cp -rP --preserve=all ${OTA_SYSROOT}/boot/* boot-dd/
 }
 
 # Disk layout:
