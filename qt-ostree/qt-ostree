@@ -38,7 +38,6 @@ CREATE_OTA_SYSROOT=false
 OTA_SYSROOT=${WORKDIR}/sysroot
 START_HTTPD=false
 INVALID_ARGS=false
-BINARY_IMAGE=false
 OS_NAME="qt-os"
 # HARDWARE INTEGRATION
 DEVICE=""
@@ -62,13 +61,18 @@ GPG_HOMEDIR=""
 GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # DD IMAGE
+BINARY_IMAGE=false
 ROOTFS_TYPE="ext3"
 ROOTFS_OPT="-F -L rootfs"
 BOOTFS_TYPE="ext2"
 BOOTFS_OPT="-F -L boot-ostree"  # When /boot directory is on a separate partition from rootfs, ostree-remount attempts to mount filesystem where LABEL=boot-ostree
 BOOTFS_SIZE="65536"             # Boot partition size [in KiB]
+RECOVERY_PARTITION=false
+RECOVERYFS_TYPE="ext2"
+RECOVERYFS_OPT="-F -L recovery"
+RECOVERYFS_SIZE="65536"         # Recovery partition size [in KiB]
 ROOT_OVERHEAD_FACTOR="1.3"      # Add 30% extra space in rootfs
-IMAGE_ROOTFS_ALIGNMENT="4096"   # Set alignment to 4MB [in KiB]
+PARTITION_ALIGNMENT="4096"      # Set alignment to 4MB [in KiB]
 # LOG COLORS
 COLOR_DEFAULT='\e[0m'
 COLOR_RED='\e[0;31m'
@@ -142,7 +146,7 @@ usage()
     print_usage_header ""
 
     echo "--sysroot-image-path DIR              A path to embedded linux sysroot *.tar.gz or *.img image files."
-    echo "--initramfs FILE                      OSTree boot compatible initramfs."
+    echo "--initramfs FILE                      OSTree boot compatible initramfs. Used also for recovery booting (see --create-recovery-partition)."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
     echo "--grub2-cfg-generator FILE            GRUB2 configuration generator script."
     echo
@@ -154,6 +158,8 @@ usage()
     echo "                                      date and time when the update was committed."
     echo
     echo "--create-ota-sysroot                  Generates Over-The-Air Update enabled sysroot."
+    echo "--create-recovery-partition           When provided, a dedicated partition is created right after the rootfs partition. The initramfs (see --initramfs)"
+    echo "                                      and matching kernel version is stored on this partition. This partition should be treated as read-only."
     echo "--start-trivial-httpd                 Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
     echo "                                      The address to the hosted repository is listed in the httpd/httpd-address file in the working directory."
     echo
@@ -246,6 +252,9 @@ parse_args()
         case "${1}" in
           --create-ota-sysroot)
               CREATE_OTA_SYSROOT=true
+              ;;
+          --create-recovery-partition)
+              RECOVERY_PARTITION=true
               ;;
           --start-trivial-httpd)
               START_HTTPD=true
@@ -352,7 +361,7 @@ clean_workdir()
 {
     cd ${WORKDIR}/
 
-    dir_list="boot-mount rootfs-mount boot-dd rootfs-dd"
+    dir_list="boot-mount rootfs-mount boot-dd rootfs-dd recovery-dd"
     for dir in $dir_list ; do
         if mountpoint -q ${dir} ; then
             umount ${dir}
@@ -579,34 +588,56 @@ populate_filesystem_images()
         mcopy -s -i boot.${BOOTFS_TYPE} ${GENERATED_TREE}/boot/EFI ::/EFI
         # The whole sysroot on the same partition.
         cp -rP --preserve=all ${OTA_SYSROOT}/* rootfs-dd/
-        return
+    else
+        # boot/ directory on a separate boot partition.
+        cp -rP --preserve=all ${OTA_SYSROOT}/!(boot) rootfs-dd/
+        cp -rP --preserve=all ${OTA_SYSROOT}/boot/* boot-dd/
     fi
 
-    # boot/ directory on a separate boot partition.
-    cp -rP --preserve=all ${OTA_SYSROOT}/!(boot) rootfs-dd/
-    cp -rP --preserve=all ${OTA_SYSROOT}/boot/* boot-dd/
+    if [ $RECOVERY_PARTITION = true ] ; then
+        mkdir recovery-dd
+        mount recovery.${RECOVERYFS_TYPE} recovery-dd/
+        cp ${BOOT_FILE_PATH}/initramfs-* recovery-dd/initramfs
+        # Ship the kernel version that match the initramfs version.
+        cp ${BOOT_FILE_PATH}/vmlinuz-* recovery-dd/vmlinuz
+    fi
+
+    sync
 }
 
 # Disk layout:
 #
-#    0                      -> IMAGE_ROOTFS_ALIGNMENT   - reserved to boot loader (not partitioned)
-#    IMAGE_ROOTFS_ALIGNMENT -> BOOTFS_SIZE              - kernel and other data   (boot partition)
-#    BOOTFS_SIZE            -> rootfs_size              - rootfs                  (rootfs partition)
+#    0                      -> PARTITION_ALIGNMENT       - reserved to boot loader      (not partitioned)
+#    PARTITION_ALIGNMENT    -> bootfs_size_aligned       - kernel and other data        (boot partition)
+#    bootfs_size_aligned    -> rootfs_size_aligned       - rootfs                       (rootfs partition)
+#    rootfs_size_aligned    -> recoveryfs_size_aligned   - recovery initramfs + kernel  (optional recovery partition)
 #
-#  ------------------------ ------------ ------------------------ -------------------------------
-# | IMAGE_ROOTFS_ALIGNMENT | BOOTFS_SIZE | rootfs_size           |     IMAGE_ROOTFS_ALIGNMENT    |
-#  ------------------------ ------------ ------------------------ -------------------------------
+#  --------------------- --------------------- --------------------- ------------------------- ---------------------
+# | PARTITION_ALIGNMENT | bootfs_size_aligned | rootfs_size_aligned | recoveryfs_size_aligned | PARTITION_ALIGNMENT |
+#  --------------------- --------------------- --------------------- ------------------------- ---------------------
+
+get_aligned_size()
+{
+    size=${1}
+    aligned_size=$(( ${size} + ${PARTITION_ALIGNMENT} - 1 ))
+    aligned_size=$(( ${aligned_size} - ${aligned_size} % ${PARTITION_ALIGNMENT} ))
+    echo ${aligned_size}
+}
 
 assemble_dd_image()
 {
     cd ${WORKDIR}
     qt_ostree_info "Assembling a deployable image ..."
-    # Align boot partition and calculate total binary image size.
+    # Align partition sizes and calculate total binary image size.
     sysroot_size=$(du -sk ${OTA_SYSROOT}/ | cut -f1)
     rootfs_size=$(echo ${sysroot_size}*${ROOT_OVERHEAD_FACTOR} | bc | cut -f1 -d'.')
-    bootfs_size_aligned=$(( ${BOOTFS_SIZE} + ${IMAGE_ROOTFS_ALIGNMENT} - 1 ))
-    bootfs_size_aligned=$(( ${bootfs_size_aligned} - ${bootfs_size_aligned} % ${IMAGE_ROOTFS_ALIGNMENT} ))
-    image_size=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} + ${rootfs_size} + ${IMAGE_ROOTFS_ALIGNMENT} ))
+    bootfs_size_aligned=$(get_aligned_size ${BOOTFS_SIZE})
+    rootfs_size_aligned=$(get_aligned_size ${rootfs_size})
+    image_size=$(( ${PARTITION_ALIGNMENT} + ${bootfs_size_aligned} + ${rootfs_size_aligned} + ${PARTITION_ALIGNMENT} ))
+    if [ $RECOVERY_PARTITION = true ] ; then
+        recoveryfs_size_aligned=$(get_aligned_size ${RECOVERYFS_SIZE})
+        image_size=$(( ${image_size} + ${recoveryfs_size_aligned} ))
+    fi
 
     # Initialize a sparse file.
     image="${DEVICE}-ota.img"
@@ -614,33 +645,44 @@ assemble_dd_image()
     dd if=/dev/zero of=${image} bs=1k count=0 seek=${image_size}
 
     # Create a partition table.
-    bootfs_start=${IMAGE_ROOTFS_ALIGNMENT}
-    bootfs_end=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} ))
-    rootfs_end=$(( ${IMAGE_ROOTFS_ALIGNMENT} + ${bootfs_size_aligned} + ${rootfs_size} ))
+    bootfs_start=${PARTITION_ALIGNMENT}
+    bootfs_end=$(( ${PARTITION_ALIGNMENT} + ${bootfs_size_aligned} ))
+    rootfs_end=$(( ${bootfs_end} + ${rootfs_size_aligned} ))
     if [ "${BOOTFS_TYPE}" = "vfat" ] ; then
         fs_type="FAT32"
     fi
+
     parted -s ${image} mklabel msdos
     parted -s ${image} unit KiB mkpart primary ${fs_type} ${bootfs_start} ${bootfs_end}
     parted -s ${image} unit KiB mkpart primary ${bootfs_end} ${rootfs_end}
+    if [ $RECOVERY_PARTITION = true ] ; then
+        recoveryfs_end=$(( ${rootfs_end} + ${recoveryfs_size_aligned} ))
+        parted -s ${image} unit KiB mkpart primary ${rootfs_end} ${recoveryfs_end}
+    fi
     parted -s ${image} set 1 boot on
     parted ${image} print
 
     # Create filesystem images.
-    rm -f rootfs.${ROOTFS_TYPE} boot.${BOOTFS_TYPE}
+    rm -f rootfs.${ROOTFS_TYPE} boot.${BOOTFS_TYPE} recovery.${RECOVERYFS_TYPE}
     dd if=/dev/zero of=boot.${BOOTFS_TYPE} seek=${bootfs_size_aligned} count=0 bs=1k
     mkfs.${BOOTFS_TYPE} ${BOOTFS_OPT} boot.${BOOTFS_TYPE}
     dd if=/dev/zero of=rootfs.${ROOTFS_TYPE} seek=${rootfs_size} count=0 bs=1k
     mkfs.${ROOTFS_TYPE} ${ROOTFS_OPT} rootfs.${ROOTFS_TYPE}
+    if [ $RECOVERY_PARTITION = true ] ; then
+        dd if=/dev/zero of=recovery.${RECOVERYFS_TYPE} seek=${recoveryfs_size_aligned} count=0 bs=1k
+        mkfs.${RECOVERYFS_TYPE} ${RECOVERYFS_OPT} recovery.${RECOVERYFS_TYPE}
+    fi
 
     populate_filesystem_images
-    sync
 
     # Burn partitions.
     dd if=boot.${BOOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_start} bs=1k && sync && sync
     dd if=rootfs.${ROOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_end} bs=1k && sync && sync
+    if [ $RECOVERY_PARTITION = true ] ; then
+        dd if=recovery.${RECOVERYFS_TYPE} of=${image} conv=notrunc seek=${rootfs_end} bs=1k && sync && sync
+    fi
 
-    qt_ostree_info "Created a binary image - ${image}, deployable with dd command"
+    qt_ostree_info "Created a binary image - ${image}, deployable with the dd command"
     qt_ostree_info "Example dd command: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
 }
 
