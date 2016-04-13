@@ -596,6 +596,8 @@ populate_filesystem_images()
         cp ${BOOT_FILE_PATH}/vmlinuz-* recovery-dd/vmlinuz
     fi
 
+    # When mounting a loopback, the kernel doesn't know that the backing device
+    # is a file on the same media. Do an explicit sync call.
     sync
 }
 
@@ -670,11 +672,14 @@ assemble_dd_image()
     populate_filesystem_images
 
     # Burn partitions.
-    dd if=boot.${BOOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_start} bs=1k && sync && sync
-    dd if=rootfs.${ROOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_end} bs=1k && sync && sync
+    dd if=boot.${BOOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_start} bs=1k
+    dd if=rootfs.${ROOTFS_TYPE} of=${image} conv=notrunc seek=${bootfs_end} bs=1k
     if [ $RECOVERY_PARTITION = true ] ; then
-        dd if=recovery.${RECOVERYFS_TYPE} of=${image} conv=notrunc seek=${rootfs_end} bs=1k && sync && sync
+        dd if=recovery.${RECOVERYFS_TYPE} of=${image} conv=notrunc seek=${rootfs_end} bs=1k
     fi
+    # With dd it is always safer to sync explicitly than assume that the kernel will
+    # flush filesystem buffers on time.
+    sync
 
     qt_ostree_info "Created a binary image - ${image}, deployable with the dd command"
     qt_ostree_info "Example dd command: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
