@@ -129,14 +129,14 @@ initialize()
     fi
 
     # Check for OSTree dependency.
-    ostree=$(which ostree || /bin/true)
-    if [ -z "${ostree}" ] ; then
+    OSTREE=$(which ostree || /bin/true)
+    if [ -z "${OSTREE}" ] ; then
         print_usage_header "Needed command 'ostree' not found in PATH"
         qt_ostree_exit 1
     fi
-    rpath=$(objdump -x ${ostree} | grep RPATH | awk '{print $2}')
+    rpath=$(objdump -x ${OSTREE} | grep RPATH | awk '{print $2}')
     if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${ostree}"
+        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${OSTREE}"
         qt_ostree_exit 1
     fi
 }
@@ -529,7 +529,7 @@ commit_generated_tree()
     mkdir -p ${OSTREE_REPO}
     if [ ! -d ${OSTREE_REPO}/objects ] ; then
         qt_ostree_info "Initializing new OSTree repository in ${OSTREE_REPO}"
-        ostree --repo=${OSTREE_REPO} init --mode=archive-z2
+        "${OSTREE}" --repo=${OSTREE_REPO} init --mode=archive-z2
     fi
 
     if [ -z "${OSTREE_COMMIT_SUBJECT}" ] ; then
@@ -542,10 +542,10 @@ commit_generated_tree()
 
     cd ${GENERATED_TREE}
     qt_ostree_info "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
-    ostree --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" ${GPG_ARGS} \
+    "${OSTREE}" --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" ${GPG_ARGS} \
            --owner-uid=0 --owner-gid=0
     qt_ostree_info "Checking the repository for consistency ..."
-    ostree --repo=${OSTREE_REPO} fsck
+    "${OSTREE}" --repo=${OSTREE_REPO} fsck
 }
 
 configure_boot_loader()
@@ -693,17 +693,17 @@ create_ota_sysroot()
 
     mkdir -p ${OTA_SYSROOT}/sysroot/
     export OSTREE_SYSROOT=${OTA_SYSROOT}
-    ostree admin init-fs ${OTA_SYSROOT}
-    ostree admin os-init ${OS_NAME}
+    "${OSTREE}" admin init-fs ${OTA_SYSROOT}
+    "${OSTREE}" admin os-init ${OS_NAME}
 
     configure_boot_loader
 
     qt_ostree_info "Checking out filesystem tree from ${OSTREE_REPO} repository"
-    ostree --repo=${OTA_SYSROOT}/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
+    "${OSTREE}" --repo=${OTA_SYSROOT}/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
     # --verbose here is not really that verbose, it simply helps to confirm that the correct
     # boot loader backend was picked up by OSTree.
-    ostree admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
-    ostree admin status
+    "${OSTREE}" admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+    "${OSTREE}" admin status
 
     # OSTree does not touch the contents of /var, it is the OS responsibility to manage this directory.
     rm -rf ${OTA_SYSROOT}/ostree/deploy/${OS_NAME}/var/
@@ -758,7 +758,7 @@ start_httpd_server()
     mkdir ${SERVER_ROOT}
     cd ${SERVER_ROOT}
     ln -s ${OSTREE_REPO} ostree
-    ostree trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
+    "${OSTREE}" trivial-httpd --autoexit --daemonize -p ${SERVER_ROOT}/httpd-port
     PORT=$(cat ${SERVER_ROOT}/httpd-port)
     echo "http://127.0.0.1:${PORT}/ostree" > ${SERVER_ROOT}/httpd-address
     qt_ostree_info "OTA update repository available at $(cat ${SERVER_ROOT}/httpd-address)"
