@@ -59,6 +59,8 @@ detect_target_device()
 
 generate_initramfs()
 {
+    MODULE_PATH=/usr/lib/dracut/modules.d/
+
     output=$("${ADB}" shell ls /usr/sbin/ostree-prepare-root)
     substring="No such file or directory"
     if [[ $output == *${substring}* ]] ; then
@@ -87,10 +89,7 @@ generate_initramfs()
     else
         # Deploy our custom dracut module for systemd-less images.
         echo "Generating initramfs for system v init based image ..."
-        MODULE_PATH=/usr/lib/dracut/modules.d/98ostree/
-        "${ADB}" shell mkdir -p $MODULE_PATH
-        "${ADB}" push ${ROOT}/systemv/module-setup.sh $MODULE_PATH
-        "${ADB}" push ${ROOT}/systemv/prepare-root.sh $MODULE_PATH
+        "${ADB}" push "${ROOT}"/systemv/ "${MODULE_PATH}"/98ostree/
         custom_options='--omit systemd'
     fi
 
