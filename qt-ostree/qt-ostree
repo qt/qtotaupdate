@@ -116,7 +116,7 @@ print_usage_header()
         echo $msg
     fi
     echo
-    echo "Usage: sudo PATH=PATH_TO_OSTREE_BIN:\$PATH $0 OPTIONS"
+    echo "Usage: sudo $0 OPTIONS"
     echo
 }
 
@@ -129,15 +129,9 @@ initialize()
     fi
 
     # Check for OSTree dependency.
-    OSTREE=$(which ostree || /bin/true)
-    if [ -z "${OSTREE}" ] ; then
-        print_usage_header "Needed command 'ostree' not found in PATH"
-        qt_ostree_exit 1
-    fi
-    rpath=$(objdump -x ${OSTREE} | grep RPATH | awk '{print $2}')
-    if [ "${rpath}" != "\$ORIGIN/lib/" ] ; then
-        print_usage_header "This script depends on 'ostree' binary from the SDK, but PATH is set to ${OSTREE}"
-        qt_ostree_exit 1
+    OSTREE=$(readlink -m "${ROOT}"/../../../ostree/ostree)
+    if [ ! -x "${OSTREE}" ] ; then
+        qt_ostree_error "Needed command 'ostree' not found in SDK"
     fi
 }
 

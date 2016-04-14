@@ -264,7 +264,7 @@
           The conversion is done using the \c qt-ostree tool.
 
           \badcode
-          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH ./qt-ostree \
+          sudo ./qt-ostree \
           --sysroot-image-path SDK_INSTALL_DIR/version-a/images/ \
           --create-ota-sysroot \
           --initramfs ../dracut/initramfs-${device}-${release} \
@@ -371,7 +371,7 @@
           This is done by using the \c qt-ostree tool.
 
           \badcode
-          sudo PATH=SDK_INSTALL_DIR/Tools/ostree:$PATH ./qt-ostree \
+          sudo ./qt-ostree \
           --sysroot-image-path SDK_INSTALL_DIR/version-b/images/ \
           --initramfs ../dracut/initramfs-${device}-${release} \
           --start-trivial-httpd
