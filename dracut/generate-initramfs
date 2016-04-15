@@ -94,6 +94,10 @@ generate_initramfs()
         custom_options="--omit systemd"
     fi
 
+    # Recovery module parts
+    "${ADB}" push "${ROOT}"/recovery/ "${MODULE_PATH}"/98recovery/
+    custom_options="${custom_options} --add recovery"
+
     # Terminate when the explicitly required modules could not be found or installed.
     "${ADB}" shell dracut ${options} ${custom_options} | tee dracut.log
     errors=$(cat dracut.log | grep -i "cannot be found or installed" | wc -l)
