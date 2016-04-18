@@ -662,7 +662,7 @@ assemble_dd_image()
     rm -f rootfs.${ROOTFS_TYPE} boot.${BOOTFS_TYPE} recovery.${RECOVERYFS_TYPE}
     dd if=/dev/zero of=boot.${BOOTFS_TYPE} seek=${bootfs_size_aligned} count=0 bs=1k
     mkfs.${BOOTFS_TYPE} ${BOOTFS_OPT} boot.${BOOTFS_TYPE}
-    dd if=/dev/zero of=rootfs.${ROOTFS_TYPE} seek=${rootfs_size} count=0 bs=1k
+    dd if=/dev/zero of=rootfs.${ROOTFS_TYPE} seek=${rootfs_size_aligned} count=0 bs=1k
     mkfs.${ROOTFS_TYPE} ${ROOTFS_OPT} rootfs.${ROOTFS_TYPE}
     if [ $RECOVERY_PARTITION = true ] ; then
         dd if=/dev/zero of=recovery.${RECOVERYFS_TYPE} seek=${recoveryfs_size_aligned} count=0 bs=1k
