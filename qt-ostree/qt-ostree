@@ -367,6 +367,8 @@ clean_workdir()
     chattr -if ${OTA_SYSROOT}/ostree/deploy/*/deploy/* || /bin/true
     rm -rf ${OTA_SYSROOT}
     rm -rf ${GENERATED_TREE}
+
+    chmod -x ${ROOT}/ostree-grub-generator
 }
 
 organize_boot_files()
@@ -490,6 +492,7 @@ convert_to_ostree_sysroot()
         # Run ostree-remount on startup. This makes sure that
         # rw/ro mounts are set correctly for ostree to work.
         cp ${ROOT}/ostree-remount.sh etc/init.d/
+        chmod +x etc/init.d/ostree-remount.sh
         # System V init services are started in alphanumeric order. We want to remount
         # things as early as possible so we prepend 'a' in S01[a]ostree-remount.sh
         ln -fs ../init.d/ostree-remount.sh etc/rc1.d/S01aostree-remount.sh
