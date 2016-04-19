@@ -700,9 +700,7 @@ create_ota_sysroot()
 
     qt_ostree_info "Checking out filesystem tree from ${OSTREE_REPO} repository"
     "${OSTREE}" --repo=${OTA_SYSROOT}/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
-    # --verbose here is not really that verbose, it simply helps to confirm that the correct
-    # boot loader backend was picked up by OSTree.
-    "${OSTREE}" admin deploy --verbose ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+    "${OSTREE}" admin deploy ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
     "${OSTREE}" admin status
 
     # OSTree does not touch the contents of /var, it is the OS responsibility to manage this directory.
