@@ -594,6 +594,7 @@ populate_filesystem_images()
         cp ${BOOT_FILE_PATH}/initramfs-* recovery-dd/initramfs
         # Ship the kernel version that match the initramfs version.
         cp ${BOOT_FILE_PATH}/vmlinuz-* recovery-dd/vmlinuz
+        chattr -R +i recovery-dd/
     fi
 
     # When mounting a loopback, the kernel doesn't know that the backing device
