@@ -367,7 +367,6 @@ clean_workdir()
     chattr -if ${OTA_SYSROOT}/ostree/deploy/*/deploy/* || /bin/true
     rm -rf ${OTA_SYSROOT}
     rm -rf ${GENERATED_TREE}
-    rm -rf fakepath
 }
 
 organize_boot_files()
@@ -406,13 +405,13 @@ organize_boot_files()
             fi
         fi
     fi
-
     if [ "${BOOTLOADER}" = "grub2" ] ; then
         if [ -z "${GRUB2_CFG_GENERATOR}" ] ; then
             # Use default generator.
             GRUB2_CFG_GENERATOR=${ROOT}/ostree-grub-generator
         fi
-        cp ${GRUB2_CFG_GENERATOR} ${GENERATED_TREE}/usr/sbin/ostree-grub-generator
+        chmod +x ${GRUB2_CFG_GENERATOR}
+        cp ${GRUB2_CFG_GENERATOR} ${GENERATED_TREE}/usr/lib/ostree/ostree/ostree-grub-generator
     fi
 }
 
@@ -545,6 +544,7 @@ commit_generated_tree()
 configure_boot_loader()
 {
     qt_ostree_info "Configuring ${BOOTLOADER} boot loader"
+
     if [ "${BOOTLOADER}" = "u-boot" ] ; then
         mkdir -p ${OTA_SYSROOT}/boot/loader.0/
         ln -s loader.0 ${OTA_SYSROOT}/boot/loader
@@ -564,11 +564,7 @@ configure_boot_loader()
         mkdir -p ${OTA_SYSROOT}/boot/grub2/
         ln -s ../loader/grub.cfg ${OTA_SYSROOT}/boot/grub2/grub.cfg
         KERNEL_ARGS="--karg=root=LABEL=rootfs ${KERNEL_ARGS}"
-        # Add ostree-grub-generator to the PATH.
-        # https://bugzilla.gnome.org/show_bug.cgi?id=762220
-        mkdir -p ${WORKDIR}/fakepath
-        cp ${GRUB2_CFG_GENERATOR} ${WORKDIR}/fakepath/ostree-grub-generator
-        export PATH=${WORKDIR}/fakepath:$PATH
+        export OSTREE_GRUB2_EXEC=${GRUB2_CFG_GENERATOR}
     fi
 }
 
