@@ -120,21 +120,6 @@ print_usage_header()
     echo
 }
 
-initialize()
-{
-    echo
-    if [ $(id -u) -ne 0 ]; then
-        print_usage_header "You need root privileges to run this script."
-        qt_ostree_exit 1
-    fi
-
-    # Check for OSTree dependency.
-    OSTREE=$(readlink -m "${ROOT}"/../../../ostree/ostree)
-    if [ ! -x "${OSTREE}" ] ; then
-        qt_ostree_error "Needed command 'ostree' not found in SDK"
-    fi
-}
-
 usage()
 {
     print_usage_header ""
@@ -308,6 +293,10 @@ parse_args()
               GPG_TRUSTED_KEYRING=$(readlink -m ${2})
               shift 1
               ;;
+          --ostree) # intentionally undocumented
+              OSTREE=$(readlink -m ${2})
+              shift 1
+              ;;
           -h | -help | --help)
               usage
               qt_ostree_exit 0
@@ -321,8 +310,22 @@ parse_args()
         shift 1
     done
 
-    initialize
+    # Check if running as root.
+    if [ $(id -u) -ne 0 ]; then
+        print_usage_header "You need root privileges to run this script."
+        qt_ostree_exit 1
+    fi
 
+    # Check for OSTree dependency.
+    validate_arg "--ostree" "${OSTREE}" false f
+    if [ -z "${OSTREE}" ] ; then
+        OSTREE=$(readlink -m "${ROOT}"/../../../ostree/ostree)
+    fi
+    if [ ! -x "${OSTREE}" ] ; then
+        qt_ostree_error "Needed command 'ostree' not found in SDK"
+    fi
+
+    # Other validation tasks.
     validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" true d
     validate_arg "--initramfs" "${INITRAMFS}" true f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
@@ -345,6 +348,8 @@ parse_args()
         usage
         qt_ostree_exit 1
     fi
+
+    qt_ostree_info "Using ostree ${OSTREE}"
 }
 
 umount_mount_points()
