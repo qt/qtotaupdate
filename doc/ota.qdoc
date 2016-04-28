@@ -188,9 +188,13 @@
           OSTree maintains bootloader-independent drop-in configuration files in a format
           as defined by \l {https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec/}
           {The Boot Loader Specification}. Including a special \c ostree= kernel argument that allows
-          the initramfs to find and boot the specified tree. Not all boot loaders support the The
-          Boot Loader Specification, so OSTree contains code to generate native config files from
-          the bootloader-independent configurations.
+          the initramfs to find and boot the specified tree. Not all boot loaders support The
+          Boot Loader Specification, so OSTree contains code to generate native configurations files
+          from the bootloader-independent configurations.
+
+          The boot script used by your device has to be changed to use the configurations that are
+          managed by OSTree. This will ensure that, after OTA updates or rollbacks, the correct
+          kernel version (and corresponding boot files) will be selected at boot time.
 
           \list
             \li \b {U-Boot}
@@ -211,7 +215,7 @@
 
               \badcode
               kernel_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/vmlinuz
-              bootdir=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b
+              bootdir=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/
               ramdisk_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/initramfs
               bootargs=ostree=/ostree/boot.1/qt-os/590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/0
               \endcode
@@ -226,18 +230,33 @@
                        and should be accessible from U-Boot (DTBs, boot scripts).
               \endlist
 
-              Example U-Boot logic that uses the imported OSTree's environment variables:
+
+              A sample U-Boot logic that uses the imported OSTree's environment variables:
 
               \badcode
-              setenv scriptaddr 0x40008000
-              setenv kernel_addr 0x40007000
-              setenv ramdisk_addr 0x42000000
-              load mmc 0:1 ${scriptaddr} uEnv.txt
-              env import -t ${scriptaddr} ${filesize}
-              load mmc 0:1 ${kernel_addr} ${kernel_image}
-              load mmc 0:1 ${ramdisk_addr} ${ramdisk_image}
-              bootz ${kernel_addr} ${ramdisk_addr}
+              if ${fs}load ${dtype} ${disk}:${part} ${script} uEnv.txt ; then
+                  env import -t ${script} ${filesize}
+              else
+                  echo "Error loading uEnv.txt"
+                  exit
+              fi
+
+              fdt_file=<device_tree_filename>
+
+              ${fs}load ${dtype} ${disk}:${part} ${kernel_addr} ${kernel_image}
+              ${fs}load ${dtype} ${disk}:${part} ${fdt_addr} ${bootdir}/${fdt_file}
+              ${fs}load ${dtype} ${disk}:${part} ${initramfs_addr} ${ramdisk_image}
+
+              setenv bootargs ${bootargs} <additional_bootargs>
+
+              bootz ${kernel_addr} ${initramfs_addr} ${fdt_addr}
               \endcode
+
+              Enabling OSTree support requires minimal effort when using a default boot script
+              as the base. A default boot script here means whatever the device is currently using
+              for booting. The \c {qt-ostree} tool does not change the kernel image format, only
+              the path and the file name changes. If the original script uses the \c bootm command for
+              loading the kernel image, then the OSTree-enabled script should use \c bootm too.
 
               \note You should expect to find all the files that are required for the
               boot process under the \c ${bootdir} path. Before starting to write
@@ -302,11 +321,10 @@
 
               \li \b {\c --uboot-env-file}
                   \list
-                      \li A custom U-Boot \e {boot script} or \c uEnv.txt file.
-                          This argument is optional as U-Boot environment can be
-                          stored directly on the board's persistent storage
-                          dedicated for U-boot environment, or defined when building
-                          the U-Boot binary.
+                      \li A custom U-Boot boot script or \c uEnv.txt file, see \l {Boot loader
+                          integration}. This argument is optional as U-Boot environment can be
+                          stored directly on the board's persistent storage dedicated for U-boot
+                          environment, or defined when building the U-Boot binary.
                   \endlist
           \endlist
 
@@ -400,7 +418,7 @@
                         versions \e match.
 
                         On U-Boot systems: If the new kernel/initramfs is \b
-                        {not compatible} with the \e {boot script} on a device,
+                        {not compatible} with the boot script on a device,
                         it \b must be updated as well (see the \c --uboot-env-file
                         notes below).
                 \endlist
