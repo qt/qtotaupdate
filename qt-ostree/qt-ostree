@@ -736,16 +736,16 @@ extract_sysroot()
         mkdir boot-mount rootfs-mount
         mount -o loop,offset=${boot_offset} ${image} boot-mount/
         mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
-        cp -r${VERBOSE}d boot-mount/* ${BOOT_FILE_PATH}
-        cp -r${VERBOSE}d rootfs-mount/* ${GENERATED_TREE}
+        cp -rp${VERBOSE}d boot-mount/* ${BOOT_FILE_PATH}
+        cp -rp${VERBOSE}d rootfs-mount/* ${GENERATED_TREE}
     else
         # Extract *.tar.gz image files.
         for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
             qt_ostree_info "Extracting ${image} ..."
             if [[ $(basename ${image}) == *boot* ]] ; then
-                tar -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
+                tar --preserve -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
             else
-                tar -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
+                tar --preserve -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
             fi
         done
     fi
