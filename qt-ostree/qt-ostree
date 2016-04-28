@@ -351,17 +351,28 @@ parse_args()
     fi
 }
 
-clean_workdir()
+umount_mount_points()
 {
     cd ${WORKDIR}/
 
     dir_list="boot-mount rootfs-mount boot-dd rootfs-dd recovery-dd"
+    did_umount=false
     for dir in $dir_list ; do
         if mountpoint -q ${dir} ; then
+            did_umount=true
             umount ${dir}
         fi
         rm -rf ${dir}
     done
+
+    if [ ${did_umount} = true ] ; then
+        sync
+    fi
+}
+
+clean_workdir()
+{
+    cd ${WORKDIR}/
 
     # Remove immutable attribute.
     chattr -if ${OTA_SYSROOT}/ostree/deploy/*/deploy/* || /bin/true
@@ -599,6 +610,7 @@ populate_filesystem_images()
     # When mounting a loopback, the kernel doesn't know that the backing device
     # is a file on the same media. Do an explicit sync call.
     sync
+    umount_mount_points
 }
 
 # Disk layout:
@@ -677,8 +689,6 @@ assemble_dd_image()
     if [ $RECOVERY_PARTITION = true ] ; then
         dd if=recovery.${RECOVERYFS_TYPE} of=${image} conv=notrunc seek=${rootfs_end} bs=1k
     fi
-    # With dd it is always safer to sync explicitly than assume that the kernel will
-    # flush filesystem buffers on time.
     sync
 
     qt_ostree_info "Created a binary image - ${image}, deployable with the dd command"
@@ -784,6 +794,7 @@ main()
 {
     parse_args "$@"
 
+    umount_mount_points
     clean_workdir
 
     extract_sysroot
@@ -800,6 +811,7 @@ main()
         start_httpd_server
     fi
 
+    umount_mount_points
     clean_workdir
 
     qt_ostree_info "All done."
