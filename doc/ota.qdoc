@@ -233,7 +233,8 @@
 
               A sample U-Boot logic that uses the imported OSTree's environment variables:
 
-              \badcode
+              \raw HTML
+              <pre class="cpp">
               if ${fs}load ${dtype} ${disk}:${part} ${script} uEnv.txt ; then
                   env import -t ${script} ${filesize}
               else
@@ -241,16 +242,18 @@
                   exit
               fi
 
-              fdt_file=<device_tree_filename>
+              fdt_file=&lt;device_tree_filename&gt;
 
-              ${fs}load ${dtype} ${disk}:${part} ${kernel_addr} ${kernel_image}
-              ${fs}load ${dtype} ${disk}:${part} ${fdt_addr} ${bootdir}/${fdt_file}
-              ${fs}load ${dtype} ${disk}:${part} ${initramfs_addr} ${ramdisk_image}
+              ${fs}load ${dtype} ${disk}:${part} ${kernel_addr} <b>${kernel_image}</b>
+              ${fs}load ${dtype} ${disk}:${part} ${fdt_addr} <b>${bootdir}</b>/${fdt_file}
+              ${fs}load ${dtype} ${disk}:${part} ${initramfs_addr} <b>${ramdisk_image}</b>
 
-              setenv bootargs ${bootargs} <additional_bootargs>
+              # Don't overwrite bootargs set by OSTree in uEnv.txt.
+              setenv bootargs <b>${bootargs}</b> &lt;additional_bootargs&gt;
 
               bootz ${kernel_addr} ${initramfs_addr} ${fdt_addr}
-              \endcode
+              </pre>
+              \endraw
 
               Enabling OSTree support requires minimal effort when using a default boot script
               as the base. A default boot script here means whatever the device is currently using
