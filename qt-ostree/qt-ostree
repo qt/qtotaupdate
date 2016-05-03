@@ -598,7 +598,11 @@ populate_filesystem_images()
         mkdir recovery-dd
         mount recovery.${RECOVERYFS_TYPE} recovery-dd/
         cp ${BOOT_FILE_PATH}/* recovery-dd/
-        chattr -R +i recovery-dd/
+        cd recovery-dd
+        ln -s initramfs-* initramfs
+        ln -s vmlinuz-* vmlinuz
+        cd -
+        chattr -R -f +i recovery-dd/ || /bin/true
     fi
 
     # When mounting a loopback, the kernel doesn't know that the backing device
