@@ -27,17 +27,24 @@ if itest.s "x" == "x${dtbname}" ; then
 	fi
 fi
 
+if itest.s x${bootpart} == x ; then
+	bootpart=1
+fi
+echo Booting from partition ${bootpart}
 
-if load ${dtype} ${disk}:1 ${a_script} uEnv.txt ; then
+if load ${dtype} ${disk}:${bootpart} ${a_script} uEnv.txt ; then
     env import -t ${a_script} ${filesize}
+fi
+
+if itest.s "x" != "x${recovery}" ; then
+  echo "Starting up recovery mode"
+  kernel_image=/vmlinuz
+  ramdisk_image=/initramfs
+  setenv bootargs ${bootargs} recovery
 fi
 
 if itest.s x == x${bootdir} ; then
 	bootdir=/
-fi
-
-if itest.s x${bootpart} == x ; then
-	bootpart=1
 fi
 
 if load ${dtype} ${disk}:${bootpart} ${a_fdt} ${bootdir}${dtbname} ; then
