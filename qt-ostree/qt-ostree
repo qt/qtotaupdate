@@ -128,19 +128,22 @@ usage()
     echo "--initramfs FILE                      OSTree boot compatible initramfs. Used also for recovery booting (see --create-recovery-partition)."
     echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
     echo "--grub2-cfg-generator FILE            GRUB2 configuration generator script."
+    echo "--ota-json FILE                       JSON file containing an OTA update metadata, can be arbitrary formatted. The following top-level fields have"
+    echo "                                      convenience methods in the Qt/QML OTA API: version, description."
     echo
     echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
     echo "                                      one is created in the specified location. If this argument is not provided, "
     echo "                                      a default repository is created in the working directory."
-    echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is linux/qt."
-    echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
-    echo "                                      date and time when the update was committed."
-    echo
-    echo "--create-ota-sysroot                  Generates Over-The-Air Update enabled sysroot."
-    echo "--create-recovery-partition           When provided, a dedicated partition is created right after the rootfs partition. The initramfs (see --initramfs)"
-    echo "                                      and matching kernel version is stored on this partition. This partition should be treated as read-only."
     echo "--start-trivial-httpd                 Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
     echo "                                      The address to the hosted repository is listed in the httpd/httpd-address file in the working directory."
+    # NOTE: Disabling, as we don't really use them at the moment.
+    #echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is linux/qt."
+    #echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
+    #echo "                                      date and time when the update was committed."
+    echo
+    echo "--create-ota-sysroot                  Generates Over-The-Air Update enabled sysroot."
+    echo "--create-recovery-partition           When provided, a dedicated partition is created right after the rootfs partition. It duplicates contents of /boot,"
+    echo "                                      this partition should be treated as read-only."
     echo
     echo "--tls-ca-path FILE                    Path to file containing trusted anchors instead of the system CA database. Pins the certificate and"
     echo "                                      uses it for servers authentication."
@@ -249,6 +252,10 @@ parse_args()
               GRUB2_CFG_GENERATOR=$(readlink -m ${2})
               shift 1
               ;;
+          --ota-json)
+              OTA_JSON=$(readlink -m ${2})
+              shift 1
+              ;;
           --tls-ca-path)
               SERVER_CERT=$(readlink -m ${2})
               shift 1
@@ -330,6 +337,7 @@ parse_args()
     validate_arg "--initramfs" "${INITRAMFS}" true f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
     validate_arg "--grub2-cfg-generator" "${GRUB2_CFG_GENERATOR}" false f
+    validate_arg "--ota-json" "${OTA_JSON}" true f
     validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
     validate_arg "--tls-ca-path" "${SERVER_CERT}" false f
@@ -349,7 +357,9 @@ parse_args()
         qt_ostree_exit 1
     fi
 
+    # Report.
     qt_ostree_info "Using ostree ${OSTREE}"
+    qt_ostree_info "OTA JSON: " && echo "$(cat ${OTA_JSON})"
 }
 
 umount_mount_points()
@@ -510,6 +520,9 @@ convert_to_ostree_sysroot()
     fi
 
     adjust_sysroot_layout
+
+    # OTA metadata.
+    cp ${OTA_JSON} ${GENERATED_TREE}/usr/etc/qt-ota.json
 
     # Add trusted GPG keyring file.
     if [ -n "${GPG_TRUSTED_KEYRING}" ] ; then
@@ -689,8 +702,8 @@ assemble_dd_image()
     fi
     sync
 
-    qt_ostree_info "Created a binary image - ${image}, deployable with the dd command"
-    qt_ostree_info "Example dd command: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
+    qt_ostree_info "Created a binary image - ${image}, deployable with the dd command" \
+    && echo "Example dd command: sudo dd bs=4M if=${image} of=/dev/sdX && sync"
 }
 
 create_ota_sysroot()
