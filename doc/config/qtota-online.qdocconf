@@ -1,0 +1,5 @@
+include(qtota-project.qdocconf)
+include($QT_INSTALL_DOCS/global/qt-module-defaults-online.qdocconf)
+
+# sidebar used for online template
+HTML.stylesheets += style/qt5-sidebar.html

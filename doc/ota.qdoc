@@ -17,7 +17,7 @@
 **
 ****************************************************************************/
 /*!
-    \page ota.html
+    \page index.html
     \title Over-The-Air Update
 
     Over-The-Air (OTA) update is a mechanism of distributing software updates
@@ -30,7 +30,8 @@
     is completely automated, given an ordinary linux sysroot as an input. This
     includes generating updates for linux kernel, user space applications and
     system libraries, translation fixes, anything that is part of the sysroot.
-    The OTA solution in \SDK is based on \l {OSTree Overview} {OSTree}.
+    The OTA solution supported for the \B2Q stack is based on \l {OSTree Overview}
+    {OSTree}.
 
     \section1 OSTree Overview
 
@@ -122,14 +123,17 @@
       \li Securing a delivery of an update.
     \endlist
 
-    \section2 Install \SDK
+    \section2 Installation
 
-    Download \SDK which contains the OTA package.
+    Currently, the OTA package is distributed with \l {Qt Automotive Suite} and
+    \l {Qt for Device Creation}. The OTA-related files are installed under
+    \c Tools/ota directory in the main SDK install location, referred to as
+    \c SDK_INSTALL_DIR in this guide.
 
-    Later in the guide, we will refer to this install directory as \c SDK_INSTALL_DIR.
     When executing scripts, we will refer to the current working directory as
-    WORKDIR. We will be using the \c qt-ostree tool from \SDK. To see a full list
-    of available command line arguments run the following command:
+    WORKDIR. We will be using the \c qt-ostree tool from the installation.
+    To see a full list of available command line arguments run the following
+    command:
 
     \badcode
     ./qt-ostree --help
@@ -141,8 +145,8 @@
 
     \section2 Work on Your Product
 
-    Build your product on top of \SDK or build your own custom embedded linux
-    image. When the image is ready for the \e {first release}, continue to the
+    Build your product on top of the \B2Q stack, or build your own custom embedded
+    linux image. When the image is ready for the \e {first release}, continue to the
     \l {Enabling OTA Functionality on a Device}.
 
     \section2 Enabling OTA Functionality on a Device

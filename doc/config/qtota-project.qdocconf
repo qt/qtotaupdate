@@ -1,0 +1,16 @@
+project                      = QtOTA
+description                  = Qt OTA Update Documentation
+version                      = $QT_VERSION
+
+sourcedirs                  += ..
+
+qhp.projects                 = QtOTA
+
+qhp.QtAutomotiveOTA.file                = qtota.qhp
+qhp.QtAutomotiveOTA.namespace           = io.qt.qtota.$QT_VERSION_TAG
+qhp.QtAutomotiveOTA.virtualFolder       = qtota
+qhp.QtAutomotiveOTA.indexTitle          = Over the Air Update
+qhp.QtAutomotiveOTA.indexRoot           =
+
+macro.B2Q                    = "Boot to Qt"
+navigation.homepage          = "Qt Documentation (Technology Preview)"

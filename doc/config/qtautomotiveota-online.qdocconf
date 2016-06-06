@@ -1,5 +1,0 @@
-include($QT_INSTALL_DOCS/global/qt-module-defaults-online-commercial.qdocconf)
-include(qtautomotiveota-project.qdocconf)
-
-# sidebar used for online template
-HTML.stylesheets += style/qt5-sidebar.html

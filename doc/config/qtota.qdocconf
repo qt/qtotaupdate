@@ -1,0 +1,2 @@
+include(html-offline.qdocconf)
+include(qtota-project.qdocconf)
