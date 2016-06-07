@@ -1,7 +1,10 @@
 TARGET = QtOTAUpdate
 QT = core
 
+MODULE = qtotaupdate
 load(qt_module)
+
+CONFIG -= create_cmake
 
 INCLUDEPATH += \
     $$[QT_SYSROOT]/usr/include/ostree-1/ \
