@@ -1,0 +1,104 @@
+From 86184e5a266b087ba222b03141b491241e27e284 Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@theqtcompany.com>
+Date: Thu, 21 Apr 2016 14:28:38 +0200
+Subject: [PATCH 2/3] u-boot: Merge ostree's and systems uEnv.txt
+
+This allow for simpler u-boot scripts and is a proper
+fix for: https://bugzilla.gnome.org/show_bug.cgi?id=755787
+
+With this patch admin can now:
+
+1) Edit /usr/lib/ostree-boot/uEnv.txt
+
+2) Download the update to a target. And during the deploy
+   process OSTree will prepend its env (loader/uEnv.txt)
+   to the system's uEnv.txt
+---
+ src/libostree/ostree-bootloader-uboot.c | 41 ++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/src/libostree/ostree-bootloader-uboot.c b/src/libostree/ostree-bootloader-uboot.c
+index f67e9bd..9bcde9c 100644
+--- a/src/libostree/ostree-bootloader-uboot.c
++++ b/src/libostree/ostree-bootloader-uboot.c
+@@ -29,6 +29,10 @@
+ #include "otutil.h"
+ 
+ #include <string.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <fcntl.h>
+ 
+ struct _OstreeBootloaderUboot
+ {
+@@ -69,13 +73,17 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+                                         GCancellable          *cancellable,
+                                         GError               **error)
+ {
++  gboolean ret = FALSE;
+   g_autoptr(GPtrArray) boot_loader_configs = NULL;
+   OstreeBootconfigParser *config;
+   const char *val;
++  g_autofree char *bootdir = NULL;
++  g_autoptr(GFile) uenv_file = NULL;
++  char uenv_path[PATH_MAX];
+ 
+   if (!_ostree_sysroot_read_boot_loader_configs (self->sysroot, bootversion, &boot_loader_configs,
+                                                  cancellable, error))
+-    return FALSE;
++    goto out;
+ 
+   /* U-Boot doesn't support a menu so just pick the first one since the list is ordered */
+   config = boot_loader_configs->pdata[0];
+@@ -85,10 +93,13 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+     {
+       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                    "No \"linux\" key in bootloader config");
+-      return FALSE;
++      goto out;
+     }
+   g_ptr_array_add (new_lines, g_strdup_printf ("kernel_image=%s", val));
+ 
++  bootdir = strndup (val, strrchr(val, '/') - val);
++  g_ptr_array_add (new_lines, g_strdup_printf ("bootdir=%s/", bootdir));
++
+   val = ostree_bootconfig_parser_get (config, "initrd");
+   if (val)
+     g_ptr_array_add (new_lines, g_strdup_printf ("ramdisk_image=%s", val));
+@@ -97,7 +108,31 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+   if (val)
+     g_ptr_array_add (new_lines, g_strdup_printf ("bootargs=%s", val));
+ 
+-  return TRUE;
++  /* Append user's uEnv.txt if it exists */
++  snprintf (uenv_path, sizeof(uenv_path), "boot/%s/uEnv.txt", bootdir);
++  uenv_file = g_file_get_child (self->sysroot->path, uenv_path);
++  if (g_file_query_exists (uenv_file, cancellable))
++    {
++      g_autoptr(GInputStream) instream = NULL;
++      g_autoptr(GDataInputStream) datastream = NULL;
++      gsize len;
++      instream = (GInputStream*)g_file_read (uenv_file, cancellable, error);
++      if (!instream)
++        goto out;
++
++      datastream = g_data_input_stream_new (instream);
++      while (TRUE)
++        {
++          val = g_data_input_stream_read_line (datastream, &len, cancellable, error);
++          if (!val)
++            break;
++          g_ptr_array_add (new_lines, (char *)val);
++        }
++    }
++
++  ret = TRUE;
++out:
++  return ret;
+ }
+ 
+ static gboolean
+-- 
+2.7.3
+
