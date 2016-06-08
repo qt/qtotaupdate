@@ -13,4 +13,4 @@ qhp.QtAutomotiveOTA.indexTitle          = Over the Air Update
 qhp.QtAutomotiveOTA.indexRoot           =
 
 macro.B2Q                    = "Boot to Qt"
-navigation.homepage          = "Qt Documentation (Technology Preview)"
+include(navigation.qdocconf)
