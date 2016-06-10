@@ -46,6 +46,7 @@ OTA_SYSROOT=${WORKDIR}/sysroot
 START_HTTPD=false
 INVALID_ARGS=false
 OS_NAME="qt-os"
+BOOTDIR_ON_ROOTFS=false
 # HARDWARE INTEGRATION
 DEVICE=""
 BOOTLOADER="u-boot"
@@ -402,11 +403,15 @@ clean_workdir()
 
 organize_boot_files()
 {
+    if [ $(ls ${GENERATED_TREE}/boot/ | wc -l) != 0 ]; then
+        mv -f ${GENERATED_TREE}/boot/* ${BOOT_FILE_PATH}/
+    fi
+
     # Find kernel image.
     cd ${BOOT_FILE_PATH}/
-    for kernel in *; do
-        if file -b ${kernel} | grep -qi "kernel"; then
-            kernel=${BOOT_FILE_PATH}/${kernel}
+    for boot_file in *; do
+        if file -b ${boot_file} | grep -qi "kernel"; then
+            kernel=${BOOT_FILE_PATH}/${boot_file}
             qt_ostree_info "Found kernel image ${kernel}"
             break
         fi
@@ -414,6 +419,10 @@ organize_boot_files()
     if [ -z "${kernel}" ] ; then
         qt_ostree_error "Failed to find kernel image in ${BOOT_FILE_PATH}"
     fi
+
+    # Clean up from unnecessary files and broken symbolic links.
+    rm -rf initramfs
+    find -L ${BOOT_FILE_PATH}/ -type l -exec rm {} +
 
     # OSTree deploy requires vmlinuz-*.
     release=$(basename ${INITRAMFS} | cut -f2- -d'-')
@@ -441,7 +450,11 @@ organize_boot_files()
             GRUB2_CFG_GENERATOR=${ROOT}/ostree-grub-generator
         fi
         chmod +x ${GRUB2_CFG_GENERATOR}
-        cp ${GRUB2_CFG_GENERATOR} ${GENERATED_TREE}/usr/lib/ostree/ostree/ostree-grub-generator
+        generator_path=$(find ${GENERATED_TREE} -name ostree-grub-generator)
+        if [ -z "${generator_path}" ] ; then
+            qt_ostree_error "Failed to find ostree-grub-generator in the sysroot".
+        fi
+        cp ${GRUB2_CFG_GENERATOR} "${generator_path}"
     fi
 }
 
@@ -604,8 +617,7 @@ populate_filesystem_images()
     mount boot.${BOOTFS_TYPE} boot-dd/
     mount rootfs.${ROOTFS_TYPE} rootfs-dd/
 
-    if [[ ${DEVICE} = *nuc* ]] ; then
-        mcopy -s -i boot.${BOOTFS_TYPE} ${GENERATED_TREE}/boot/EFI ::/EFI
+    if [ $BOOTDIR_ON_ROOTFS = true ]; then
         # The whole sysroot on the same partition.
         cp -rP --preserve=all ${OTA_SYSROOT}/* rootfs-dd/
     else
@@ -614,15 +626,20 @@ populate_filesystem_images()
         cp -rP --preserve=all ${OTA_SYSROOT}/boot/* boot-dd/
     fi
 
+    case "${DEVICE}" in
+        *intel-corei7*|*nuc*)
+            mcopy -s -i boot.${BOOTFS_TYPE} ${BOOT_FILE_PATH}/EFI ::/EFI
+            ;;
+    esac
+
     if [ $RECOVERY_PARTITION = true ] ; then
         mkdir recovery-dd
         mount recovery.${RECOVERYFS_TYPE} recovery-dd/
-        cp ${BOOT_FILE_PATH}/* recovery-dd/
+        cp -rf ${BOOT_FILE_PATH}/* recovery-dd/
         cd recovery-dd
         ln -s initramfs-* initramfs
         ln -s vmlinuz-* vmlinuz
         cd -
-        chattr -R -f +i recovery-dd/ || /bin/true
     fi
 
     # When mounting a loopback, the kernel doesn't know that the backing device
@@ -798,10 +815,13 @@ detect_target_device()
     fi
 
     case "${DEVICE}" in
-        *nuc*) # Intel NUC
+        # Intel NUC requires a special handling as it is quite different from
+        # other boot2qt-meta reference devices.
+        *intel-corei7*|*nuc*)
             BOOTLOADER="grub2"
             BOOTFS_TYPE="vfat"
             BOOTFS_OPT="-n boot"
+            BOOTDIR_ON_ROOTFS=true
             ;;
     esac
 

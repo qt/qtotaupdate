@@ -56,7 +56,7 @@ detect_target_device()
     fi
 
     case "${DEVICE}" in
-        *nuc*) # Intel NUC
+        *intel-corei7*|*nuc*) # Intel NUC
             BOOTLOADER="grub2"
             ;;
     esac
