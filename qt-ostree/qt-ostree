@@ -334,7 +334,7 @@ parse_args()
     # Check for OSTree dependency.
     validate_arg "--ostree" "${OSTREE}" false f
     if [ -z "${OSTREE}" ] ; then
-        OSTREE=$(readlink -m "${ROOT}"/../../../ostree/ostree)
+        OSTREE=$(readlink -m "${ROOT}"/ostree)
     fi
     if [ ! -x "${OSTREE}" ] ; then
         qt_ostree_error "Needed command 'ostree' not found in SDK"
