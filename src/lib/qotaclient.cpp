@@ -238,7 +238,7 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     \inmodule qtotaupdate
     \brief Main interface to the OTA functionality.
 
-    This class provides API to perform OTA tasks. Offline operations include
+    This class provides an API to execute OTA tasks. Offline operations include
     querying the booted and rollback system version details and atomically
     performing the rollbacks. Online operations include fetching a new system
     version from a remote server and atomically performing system updates.
@@ -268,6 +268,50 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     indicates whether the operation was successful.
 */
 
+/*!
+    \fn void QOTAClient::serverInfoChanged()
+
+    Server info can change when calling fetchServerInfo(). If OTA metadata on
+    the server is different from the local cache, the local cache is updated and
+    this signal is emitted.
+*/
+
+/*!
+    \fn void QOTAClient::rollbackInfoChanged()
+
+    This signal is emitted when rollback info changes. Rollback info changes
+    when calling rollback().
+*/
+
+/*!
+    \fn void QOTAClient::updateAvailableChanged(bool available)
+
+    This signal is emitted when the value of updateAvailable changes. The
+    \a available argument holds whether a system update is available for
+    default system.
+*/
+
+/*!
+    \fn void QOTAClient::restartRequiredChanged(bool required)
+
+    This signal is emitted when the value of restartRequired changes. The
+    \a required argument holds whether reboot is required.
+*/
+
+/*!
+    \fn void QOTAClient::errorOccurred(const QString &error)
+
+    This signal is emitted when an error occurs. The \a error argument holds
+    the error message.
+*/
+
+/*!
+    \fn void QOTAClient::initializationFinished()
+
+    This signal is emitted when the object has finished initialization. Only after
+    this signal has arrived, the object is ready for use.
+*/
+
 QOTAClient::QOTAClient(QObject *parent) : QObject(parent),
     d_ptr(new QOTAClientPrivate(this))
 {
@@ -295,9 +339,10 @@ QOTAClient::~QOTAClient()
     metadata contains information on what system version is available on a
     server. The cache is persistent as it is stored on the disk.
 
-    This method is asynchronous and returns immediately, see fetchServerInfoFinished().
+    This method is asynchronous and returns immediately. The return value
+    holds whether the operation was started successfully.
 
-    \sa updateAvailable(), serverInfo()
+    \sa fetchServerInfoFinished(), updateAvailable(), serverInfo()
 */
 bool QOTAClient::fetchServerInfo() const
 {
@@ -312,9 +357,10 @@ bool QOTAClient::fetchServerInfo() const
 /*!
     Fetch an OTA update from a server and perform the system update.
 
-    This method is asynchronous and returns immediately, see updateFinished().
+    This method is asynchronous and returns immediately. The return value
+    holds whether the operation was started successfully.
 
-    \sa fetchServerInfo(), updateAvailable(), restartRequired()
+    \sa updateFinished(), fetchServerInfo(), restartRequired()
 */
 bool QOTAClient::update() const
 {
@@ -329,9 +375,10 @@ bool QOTAClient::update() const
 /*!
     Rollback to the previous system version.
 
-    This method is asynchronous and returns immediately, see rollbackFinished().
+    This method is asynchronous and returns immediately. The return value
+    holds whether the operation was started successfully.
 
-    \sa restartRequired()
+    \sa rollbackFinished(), restartRequired()
 */
 bool QOTAClient::rollback() const
 {
@@ -358,12 +405,12 @@ bool QOTAClient::otaEnabled() const
     \brief whether the object has completed the initialization.
 
     When an object of this class is created, it asynchronously (from a non-GUI thread)
-    pre-populates the internal state and sets the initialized property accordingly, see
+    pre-populates the internal state and sets this property accordingly, and signals
     initializationFinished().
 
     Initialization is fast if there are no other processes locking access to the OSTree
     repository on a device. This could happen if there is some other process currently
-    writing to the OSTree repository, for example a daemon calling fetchServerInfo().
+    writing to the OSTree repository, for example, a daemon calling fetchServerInfo().
 
     \sa initializationFinished()
 */
@@ -388,7 +435,7 @@ QString QOTAClient::errorString() const
     \brief whether a system update is available.
 
     Holds a bool indicating the availability of a system update. This information
-    is cached - to update the local cache call fetchServerInfo().
+    is cached - to update the local cache, call fetchServerInfo().
 */
 bool QOTAClient::updateAvailable() const
 {
@@ -401,9 +448,9 @@ bool QOTAClient::updateAvailable() const
 
 /*!
     \property QOTAClient::restartRequired
-    \brief whether a reboot is required.
+    \brief whether reboot is required.
 
-    Holds a bool indicating whether a reboot is required. A reboot is required
+    Holds a bool indicating whether reboot is required. Reboot is required
     after update() and rollback() to boot into the new default system.
 
 */
@@ -455,8 +502,8 @@ QString QOTAClient::clientRevision() const
     \property QOTAClient::clientInfo
     \brief a QByteArray containing the booted system's OTA metadata.
 
-    Returns JSON formatted QByteArray containing OTA metadata for the booted
-    system. This metadata is bundled with each system's version.
+    Returns JSON-formatted QByteArray containing OTA metadata for the booted
+    system. Metadata is bundled with each system's version.
 */
 QByteArray QOTAClient::clientInfo() const
 {
@@ -502,8 +549,10 @@ QString QOTAClient::serverRevision() const
     \property QOTAClient::serverInfo
     \brief a QByteArray containing the system's OTA metadata on a server.
 
-    Returns JSON formatted QByteArray containing OTA metadata for the system
-    on a server. This metadata is bundled with each system's version.
+    Returns JSON-formatted QByteArray containing OTA metadata for the system
+    on a server. Metadata is bundled with each system's version.
+
+    \sa fetchServerInfo()
 */
 QByteArray QOTAClient::serverInfo() const
 {
@@ -549,8 +598,10 @@ QString QOTAClient::rollbackRevision() const
     \property QOTAClient::rollbackInfo
     \brief a QByteArray containing the rollback system's OTA metadata.
 
-    Returns JSON formatted QByteArray containing OTA metadata for the roolback
-    system. This metadata is bundled with each system's version.
+    Returns JSON-formatted QByteArray containing OTA metadata for the roolback
+    system. Metadata is bundled with each system's version.
+
+    \sa rollback()
 */
 QByteArray QOTAClient::rollbackInfo() const
 {
