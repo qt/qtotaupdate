@@ -31,6 +31,13 @@
 
 QT_BEGIN_NAMESPACE
 
+/*!
+
+    \inqmlmodule QtOTAUpdate
+    \qmltype OTAClient
+    \instantiates QOTAClient
+*/
+
 static QObject *otaClientSingleton(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
     Q_UNUSED(qmlEngine);

@@ -31,40 +31,29 @@
     \title Over-The-Air Update
 
     Over-The-Air (OTA) update is a mechanism of distributing software updates
-    over a wireless network, instead of requiring a physical access to a device.
+    over a wireless network without requiring physical access to a device.
     The target device needs to have a support for the OTA to be able to update
     wirelessly.
 
-    OTA package provides tools that assist in enabling OTA update functionality
-    in an embedded linux devices. Generating new updates for OTA enabled devices
-    is completely automated, given an ordinary linux sysroot as an input. This
-    includes generating updates for linux kernel, user space applications and
-    system libraries, translation fixes, anything that is part of the sysroot.
-    The OTA solution supported for the \B2Q stack is based on \l {OSTree Overview}
-    {OSTree}.
+    The Qt OTA offering provides tools that assist in enabling OTA update functionality
+    in an embedded linux images build with \l {http://code.qt.io/cgit/yocto/meta-boot2qt.git/}
+    {meta-boot2qt}. Generating new updates for OTA enabled devices is completely automated,
+    given an ordinary linux sysroot as an input. This includes OTA updates for linux kernel,
+    system libraries, user space applications, translation fixes, anything that is part of the
+    sysroot. The offering includes \l {Qt OTA Update C++ Classes} {Qt/C++} and \l {Qt OTA Update QML Types}
+    {QML} APIs to make integration with your Qt-based application a breeze.
 
-    \section1 OSTree Overview
+    The OTA solution is based on \l {https://ostree.readthedocs.org/en/latest/} {OSTree}. If you
+    would like to learn more about OSTree workings refer to the OSTree Documentation. There you
+    can read about the anatomy of an OSTree repository and the deployment system, booting, and
+    other internals of the project, as well as how OSTree compares to other update solutions.
 
-    The following is a brief summary from the \l {https://ostree.readthedocs.org/en/latest/}
-    {OSTree documentation}.
+    The following blog post series contain additional details on the Qt OTA product:
 
-    \b {What is OSTree:}
+    \l {https://blog.qt.io/blog/2016/05/31/over-the-air-updates-part-1-introduction/}
+       {Over-the-Air Updates, Part 1: Introduction}
 
-    OSTree is a tool that combines a \e git-like model for committing and downloading
-    bootable filesystem trees, along with a layer for deploying them and managing the
-    bootloader configuration. OSTree is like git in that it checksums individual files
-    and has a content-addressed object store. It's unlike git in that it \e {checks out}
-    the files via hardlinks, and they should thus be immutable. OSTree is completely
-    agnostic as to how the root filesystem is generated - bitbake recipes, shell build
-    scripts, traditional dpkg/rpm packages, and so on, or some combination of these.
-
-    It comes with a command line tool for managing multiple bootable versioned
-    filesystem trees, or just \e tree for short. In the OSTree model, operating
-    systems no longer live in the physical \c {"/"} root directory. Instead, they
-    parallel install to the new toplevel \c {/ostree} directory. At boot time,
-    one of the parallel installed trees is switched to be the real \c {"/"} root.
-
-    \b {Features of the update system:}
+    \section1 Features of the update system:
 
     \list
     \li Atomic Upgrades (all or nothing) - if an update did not fully complete,
@@ -75,22 +64,18 @@
         support.
     \li Efficient Handling of Disk Space - see the \c {/ostree} and the \c {/var}
         in \l {Layout of an OTA Enabled Sysroot}.
-    \li Predictable - traditional package managers (dpkg/rpm) build filesystem
+    \li Snapshot-based - traditional package managers (dpkg/rpm) build filesystem
         trees on the client side. In contrast, the primary focus of OSTree is on
         \e {replicating trees} composed on a server.
-    \li Bandwidth Optimized - only files that have changed are downloaded.
+    \li Bandwidth Optimized - only files that have changed are downloaded. When resuming
+        from an interrupted download, only the missing files are fetched.
     \li Configuration Management - see the \c {/etc} in \l {Layout of an OTA
         Enabled Sysroot}.
-    \li Binary History on the Server Side - quick access to all previous versions
-        of a filesystem tree.
     \li Rollback Support - atomically rollback to the previous version (tree) if
         something goes wrong.
+    \li Updates Processing in Background - no unnecessary downtime for a user.
+    \li OS updates via OTA, with support for agnostic application delivery mechanism on top.
     \endlist
-
-    If you would like to learn more about OSTree workings refer to the \l {https://ostree.readthedocs.org/en/latest/}
-    {OSTree Documentation}. There you can read about the anatomy of an OSTree repository
-    and the deployment system, booting, and other internals of the project, as
-    well as how OSTree compares to other update solutions.
 
     \section1 Requirements
 
@@ -432,10 +417,8 @@
 
                         It is advised to regenerate initramfs for each new
                         kernel release, so that the kernel and initramfs
-                        versions \e match.
-
-                        On U-Boot systems: If the new kernel/initramfs is \b
-                        {not compatible} with the boot script on a device,
+                        versions \e match. On U-Boot systems: If the new kernel/initramfs
+                        is \b {not compatible} with the boot script on a device,
                         it \b must be updated as well (see the \c --uboot-env-file
                         notes below).
                 \endlist
@@ -599,7 +582,6 @@
              the /etc) as a base and applies your local changes on top. It doesn’t
              attempt to understand the contents of files – if a configuration file
              on a device has been modified in any way, that wins.
-
     \row \li \c {/var}
 
          \li The only directory that is \e preserved and \e shared across upgrades.

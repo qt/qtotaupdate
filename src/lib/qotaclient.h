@@ -87,13 +87,13 @@ public:
     QByteArray rollbackInfo() const;
 
 Q_SIGNALS:
-    void initializationFinished();
     void serverInfoChanged();
     void rollbackInfoChanged();
     void updateAvailableChanged(bool available);
     void restartRequiredChanged(bool required);
     void errorOccurred(const QString &error);
 
+    void initializationFinished();
     void fetchServerInfoFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);

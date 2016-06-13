@@ -1,8 +1,11 @@
+include($QT_INSTALL_DOCS/global/qt-cpp-defines.qdocconf)
+
 project                      = QtOTA
 description                  = Qt OTA Update Documentation
 version                      = $QT_VERSION
 
-sourcedirs                  += ..
+sourcedirs                  += .. ../../src/lib/ ../../src/imports
+headerdirs                  += ../../src/lib/
 
 qhp.projects                 = QtOTA
 
