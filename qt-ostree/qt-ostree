@@ -422,7 +422,7 @@ organize_boot_files()
 
     # Clean up from unnecessary files and broken symbolic links.
     rm -rf initramfs
-    find -L ${BOOT_FILE_PATH}/ -type l -exec rm {} +
+    find -L ${BOOT_FILE_PATH}/ -type l -delete
 
     # OSTree deploy requires vmlinuz-*.
     release=$(basename ${INITRAMFS} | cut -f2- -d'-')
