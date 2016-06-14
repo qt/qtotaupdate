@@ -397,10 +397,11 @@
           --start-trivial-httpd
           \endcode
 
-        The above command will create a new commit in the repository at \c
+        The above command will create a new commit in the OSTree repository at \c
         {WORKDIR/ostree-repo/}, or create a new repository if one does not exist.
         Use the \c --ostree-repo argument to provide a custom path. This repository
-        can be copied to a production server at any time.
+        is the OTA update and can be copied to a production server at any time. OSTree
+        repositories can be served via a static HTTP server.
 
         Notes on the arguments passed to \c {qt-ostree}:
 
@@ -424,7 +425,7 @@
                 \endlist
             \li \b {\c --sysroot-image-path}
                 \list
-                    \li Provide a path to the new version of your sysroot images.
+                    \li Provide a path to the \e {new version} of your sysroot.
                 \endlist
             \li \b {\c --uboot-env-file}
                 \list
