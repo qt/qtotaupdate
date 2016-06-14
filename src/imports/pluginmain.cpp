@@ -44,6 +44,35 @@ QT_BEGIN_NAMESPACE
 
     Using this API is safe and won't leave the system in an inconsistent state,
     even if the power fails half-way through.
+
+    \note Remote Configuration
+
+    A remote needs to be configured for a device to be able to locate a server
+    that is hosting an OTA update. A Tech Preview release does not provide Qt API
+    to configure remotes. To configure a remote, it is necessary to use the ostree
+    command line tool. Examples for remote configurations:
+
+    No Security:
+    \badcode
+    ostree remote add --no-gpg-verify qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
+    \endcode
+
+    Using GPG Signing:
+    \badcode
+    ostree remote add --set=gpg-verify=true qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
+    \endcode
+
+    Using TLS Authentication:
+    \badcode
+    ostree remote add \
+    --tls-client-cert-path /path/client.crt \
+    --tls-client-key-path /path/client.key \
+    --tls-ca-path /trusted/server.crt qt-os https://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
+    \endcode
+
+    \c ${SERVER_ADDRESS} - the server where you have exported the OSTree repository.
+
+    \c ${PORT} - port number.
 */
 
 /*!

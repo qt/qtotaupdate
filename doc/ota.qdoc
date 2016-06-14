@@ -379,8 +379,6 @@
     When preparing a new update for a device that already has OTA enabled, the
     workflow is as follows:
 
-    \note Steps 3 - 5 are executed on a device.
-
     \list 1
 
       \li Work on your sysroot as you normally would. When the product is ready
@@ -451,41 +449,7 @@
                 \endlist
         \endlist
 
-      \li Add a remote repository.
-
-          \badcode
-          ostree remote add --no-gpg-verify qt-os ${SERVER_ADDRESS}:${PORT} linux/qt
-          \endcode
-
-          \c ${SERVER_ADDRESS} - the server where you have stored the OSTree
-          repository.
-
-          \c ${PORT} - port number.
-
-          For more examples on configuring remotes, refer to the \l {Securing a
-          Delivery of an Update} section.
-
-      \li Upgrade your device.
-
-          \badcode
-          ostree admin upgrade
-          \endcode
-
-          This command downloads the latest \e tree version (if one is available)
-          from the server that we configured in the previous step. The upgrade
-          process compares the local repository (located in the \c {/ostree}
-          directory on a device) with the remote repository to determine which
-          files need to be downloaded.
-
-          Then the downloaded tree is deployed on a device. This tree is completely
-          independent from the currently booted tree. Next a three-way merge of
-          \c /etc configurations is performed and finally an atomic swap is
-          executed to set the newly deployed tree as default for the next system
-          reboot.
-
-          It is safe to interrupt the upgrade process.
-
-      \li Reboot into the new system.
+      \li Use Qt OTA APIs to update devices.
 
       \li Go back to step 1.
 
@@ -511,12 +475,6 @@
     sudo apt-get install gnupg gnupg2
     \endcode
 
-    Example of a remote configuration:
-
-    \badcode
-    ostree remote add --set=gpg-verify=true qt-os http://address/ostree-repo linux/qt
-    \endcode
-
     \b {TLS Authentication}
 
     TLS protects data from tampering and eavesdropping. System administrators use
@@ -524,19 +482,8 @@
     devices use this to verify the identitiy of an update server (server authentication).
     Look for \c {--tls-*} command line arguments in the output of \c {./qt-ostree --help}.
 
-    Example of a remote configuration:
-
-    \badcode
-    ostree remote add \
-    --tls-client-cert-path /path/client.crt \
-    --tls-client-key-path /path/client.key \
-    --tls-ca-path /trusted/server.crt qt-os https://address/ostree-repo linux/qt
-    \endcode
-
-    It is advised to use both GPG and TLS in hostale environments.
-
-    To learn more about the security topics from the above list, consult dedicated
-    resources.
+    It is advised to use both GPG and TLS in hostale environments. To learn more about the
+    security topics from the above list, consult dedicated resources.
 
     \section1 Layout of an OTA Enabled Sysroot
 
