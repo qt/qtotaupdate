@@ -53,7 +53,7 @@
     \l {https://blog.qt.io/blog/2016/05/31/over-the-air-updates-part-1-introduction/}
        {Over-the-Air Updates, Part 1: Introduction}
 
-    \section1 Features of the update system:
+    \section1 Features of the Update System
 
     \list
     \li Atomic Upgrades (all or nothing) - if an update did not fully complete,
@@ -482,7 +482,7 @@
     devices use this to verify the identitiy of an update server (server authentication).
     Look for \c {--tls-*} command line arguments in the output of \c {./qt-ostree --help}.
 
-    It is advised to use both GPG and TLS in hostale environments. To learn more about the
+    It is advised to use both GPG and TLS in hostile environments. To learn more about the
     security topics from the above list, consult dedicated resources.
 
     \section1 Layout of an OTA Enabled Sysroot
