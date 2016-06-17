@@ -238,20 +238,23 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     \inmodule qtotaupdate
     \brief Main interface to the OTA functionality.
 
-    QOTAClient provides an API to execute OTA tasks. Offline operations include
-    querying the booted and rollback system version details and atomically
-    performing the rollbacks. Online operations include fetching a new system
-    version from a remote server and atomically performing system updates.
+    QOTAClient
+//! [client-description]
+    provides an API to execute Over-the-Air update tasks. Offline
+    operations include  querying the booted and rollback system version details,
+    and atomically performing rollbacks. Online operations include fetching a
+    new system version from a remote server, and atomically performing system
+    updates.
 
     Using this API is safe and won't leave the system in an inconsistent state,
     even if the power fails half-way through.
 
-    \note Remote Configuration
+    \b {Remote Configuration}
 
     A remote needs to be configured for a device to be able to locate a server
-    that is hosting an OTA update. A Tech Preview release does not provide Qt API
-    to configure remotes. To configure a remote, it is necessary to use the ostree
-    command line tool. Examples for remote configurations:
+    that is hosting an OTA update. A Tech Preview release does not provide Qt
+    API to configure remotes. To configure a remote, it is necessary to use the
+    ostree command line tool. Examples for remote configurations:
 
     No Security:
     \badcode
@@ -271,23 +274,23 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     --tls-ca-path /trusted/server.crt qt-os https://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
     \endcode
 
-    \c ${SERVER_ADDRESS} - the server where you have exported the OSTree repository.
-
-    \c ${PORT} - port number.
+    Above, \c ${SERVER_ADDRESS} is the server where you have exported the
+    OSTree repository, and \c ${PORT} is the port number.
+//! [client-description]
 */
 
 /*!
     \fn void QOTAClient::fetchServerInfoFinished(bool success)
 
-    This is a notifier signal for fetchServerInfo(). The \a success argument
-    indicates whether the operation was successful.
+    A notifier signal for fetchServerInfo(). The \a success argument indicates
+    whether the operation was successful.
 */
 
 /*!
     \fn void QOTAClient::updateFinished(bool success)
 
-    This is a notifier signal for update(). The \a success argument
-    indicates whether the operation was successful.
+    A notifier signal for update(). The \a success argument indicates whether
+    the operation was successful.
 */
 
 /*!
@@ -299,10 +302,11 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 
 /*!
     \fn void QOTAClient::serverInfoChanged()
-
+//! [serverinfochanged-description]
     Server info can change when calling fetchServerInfo(). If OTA metadata on
-    the server is different from the local cache, the local cache is updated and
-    this signal is emitted.
+    the server is different from the local cache, the local cache is updated
+    and this signal is emitted.
+//! [serverinfochanged-description]
 */
 
 /*!
@@ -317,14 +321,14 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 
     This signal is emitted when the value of updateAvailable changes. The
     \a available argument holds whether a system update is available for
-    default system.
+    the default system.
 */
 
 /*!
     \fn void QOTAClient::restartRequiredChanged(bool required)
 
     This signal is emitted when the value of restartRequired changes. The
-    \a required argument holds whether reboot is required.
+    \a required argument holds whether a reboot is required.
 */
 
 /*!
@@ -337,8 +341,8 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 /*!
     \fn void QOTAClient::initializationFinished()
 
-    This signal is emitted when the object has finished initialization. Only after
-    this signal has arrived, the object is ready for use.
+    This signal is emitted when the object has finished initialization. The
+    object is not ready for use until this signal is received.
 */
 
 QOTAClient::QOTAClient(QObject *parent) : QObject(parent),
@@ -364,14 +368,16 @@ QOTAClient::~QOTAClient()
 }
 
 /*!
-    Fetch OTA metadata from a server and update the local cache. This
+//! [fetchserverinfo-description]
+    Fetches OTA metadata from a server and updates the local cache. This
     metadata contains information on what system version is available on a
     server. The cache is persistent as it is stored on the disk.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
+//! [fetchserverinfo-description]
 
-    \sa fetchServerInfoFinished(), updateAvailable(), serverInfo()
+    \sa fetchServerInfoFinished(), updateAvailable, serverInfo
 */
 bool QOTAClient::fetchServerInfo() const
 {
@@ -384,12 +390,14 @@ bool QOTAClient::fetchServerInfo() const
 }
 
 /*!
-    Fetch an OTA update from a server and perform the system update.
+//! [update-description]
+    Fetches an OTA update from a server and performs the system update.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
+//! [update-description]
 
-    \sa updateFinished(), fetchServerInfo(), restartRequired()
+    \sa updateFinished(), fetchServerInfo(), restartRequired
 */
 bool QOTAClient::update() const
 {
@@ -407,7 +415,7 @@ bool QOTAClient::update() const
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
-    \sa rollbackFinished(), restartRequired()
+    \sa rollbackFinished(), restartRequired
 */
 bool QOTAClient::rollback() const
 {
@@ -431,15 +439,17 @@ bool QOTAClient::otaEnabled() const
 
 /*!
     \property QOTAClient::initialized
+//! [initialized-description]
     \brief whether the object has completed the initialization.
 
-    When an object of this class is created, it asynchronously (from a non-GUI thread)
-    pre-populates the internal state and sets this property accordingly, and signals
-    initializationFinished().
+    When an object of this class is created, it asynchronously (from a non-GUI
+    thread) pre-populates the internal state, sets this property accordingly,
+    and signals initializationFinished().
 
-    Initialization is fast if there are no other processes locking access to the OSTree
-    repository on a device. This could happen if there is some other process currently
-    writing to the OSTree repository, for example, a daemon calling fetchServerInfo().
+    Initialization is fast unless there is another process locking access to
+    the OSTree repository on a device, for example, a daemon process calling
+    fetchServerInfo().
+//! [initialized-description]
 
     \sa initializationFinished()
 */
@@ -463,8 +473,8 @@ QString QOTAClient::errorString() const
     \property QOTAClient::updateAvailable
     \brief whether a system update is available.
 
-    Holds a bool indicating the availability of a system update. This information
-    is cached - to update the local cache, call fetchServerInfo().
+    This information is cached; to update the local cache, call
+    fetchServerInfo().
 */
 bool QOTAClient::updateAvailable() const
 {
@@ -477,10 +487,10 @@ bool QOTAClient::updateAvailable() const
 
 /*!
     \property QOTAClient::restartRequired
-    \brief whether reboot is required.
+    \brief whether a reboot is required.
 
-    Holds a bool indicating whether reboot is required. Reboot is required
-    after update() and rollback() to boot into the new default system.
+    Reboot is required after update() and rollback(), to boot into the new
+    default system.
 
 */
 bool QOTAClient::restartRequired() const
@@ -497,7 +507,8 @@ bool QOTAClient::restartRequired() const
     \brief a QString containing the booted system's version.
 
     This is a convenience method.
-    \sa clientInfo()
+
+    \sa clientInfo
 */
 QString QOTAClient::clientVersion() const
 {
@@ -509,7 +520,8 @@ QString QOTAClient::clientVersion() const
     \brief a QString containing the booted system's description.
 
     This is a convenience method.
-    \sa clientInfo()
+
+    \sa clientInfo
 */
 QString QOTAClient::clientDescription() const
 {
@@ -520,7 +532,7 @@ QString QOTAClient::clientDescription() const
     \property QOTAClient::clientRevision
     \brief a QString containing the booted system's revision.
 
-    A checksum in the OSTree repository.
+    A client revision is a checksum in the OSTree repository.
 */
 QString QOTAClient::clientRevision() const
 {
@@ -531,7 +543,7 @@ QString QOTAClient::clientRevision() const
     \property QOTAClient::clientInfo
     \brief a QByteArray containing the booted system's OTA metadata.
 
-    Returns JSON-formatted QByteArray containing OTA metadata for the booted
+    Returns a JSON-formatted QByteArray containing OTA metadata for the booted
     system. Metadata is bundled with each system's version.
 */
 QByteArray QOTAClient::clientInfo() const
@@ -544,7 +556,8 @@ QByteArray QOTAClient::clientInfo() const
     \brief a QString containing the system's version on a server.
 
     This is a convenience method.
-    \sa serverInfo()
+
+    \sa serverInfo
 */
 QString QOTAClient::serverVersion() const
 {
@@ -556,7 +569,8 @@ QString QOTAClient::serverVersion() const
     \brief a QString containing the system's description on a server.
 
     This is a convenience method.
-    \sa serverInfo()
+
+    \sa serverInfo
 */
 QString QOTAClient::serverDescription() const
 {
@@ -578,7 +592,7 @@ QString QOTAClient::serverRevision() const
     \property QOTAClient::serverInfo
     \brief a QByteArray containing the system's OTA metadata on a server.
 
-    Returns JSON-formatted QByteArray containing OTA metadata for the system
+    Returns a JSON-formatted QByteArray containing OTA metadata for the system
     on a server. Metadata is bundled with each system's version.
 
     \sa fetchServerInfo()
@@ -593,7 +607,8 @@ QByteArray QOTAClient::serverInfo() const
     \brief a QString containing the rollback system's version.
 
     This is a convenience method.
-    \sa rollbackInfo()
+
+    \sa rollbackInfo
 */
 QString QOTAClient::rollbackVersion() const
 {
@@ -605,7 +620,8 @@ QString QOTAClient::rollbackVersion() const
     \brief a QString containing the rollback system's description.
 
     This is a convenience method.
-    \sa rollbackInfo()
+
+    \sa rollbackInfo
 */
 QString QOTAClient::rollbackDescription() const
 {
@@ -627,7 +643,7 @@ QString QOTAClient::rollbackRevision() const
     \property QOTAClient::rollbackInfo
     \brief a QByteArray containing the rollback system's OTA metadata.
 
-    Returns JSON-formatted QByteArray containing OTA metadata for the roolback
+    Returns a JSON-formatted QByteArray containing OTA metadata for the rollback
     system. Metadata is bundled with each system's version.
 
     \sa rollback()

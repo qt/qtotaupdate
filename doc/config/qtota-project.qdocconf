@@ -7,6 +7,8 @@ version                      = $QT_VERSION
 sourcedirs                  += .. ../../src/lib/ ../../src/imports
 headerdirs                  += ../../src/lib/
 
+indexes                      = $QT_INSTALL_DOCS/qtcore/qtcore.index
+
 qhp.projects                 = QtOTA
 
 qhp.QtAutomotiveOTA.file                = qtota.qhp

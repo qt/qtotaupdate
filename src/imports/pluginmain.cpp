@@ -37,49 +37,17 @@ QT_BEGIN_NAMESPACE
     \instantiates QOTAClient
     \brief Main interface to the OTA functionality.
 
-    OTAClient provides an API to execute OTA tasks. Offline operations include
-    querying the booted and rollback system version details and atomically
-    performing the rollbacks. Online operations include fetching a new system
-    version from a remote server and atomically performing system updates.
-
-    Using this API is safe and won't leave the system in an inconsistent state,
-    even if the power fails half-way through.
-
-    \note Remote Configuration
-
-    A remote needs to be configured for a device to be able to locate a server
-    that is hosting an OTA update. A Tech Preview release does not provide Qt API
-    to configure remotes. To configure a remote, it is necessary to use the ostree
-    command line tool. Examples for remote configurations:
-
-    No Security:
-    \badcode
-    ostree remote add --no-gpg-verify qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    Using GPG Signing:
-    \badcode
-    ostree remote add --set=gpg-verify=true qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    Using TLS Authentication:
-    \badcode
-    ostree remote add \
-    --tls-client-cert-path /path/client.crt \
-    --tls-client-key-path /path/client.key \
-    --tls-ca-path /trusted/server.crt qt-os https://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    \c ${SERVER_ADDRESS} - the server where you have exported the OSTree repository.
-
-    \c ${PORT} - port number.
+    OTAClient
+    \include qotaclient.cpp client-description
 */
 
 /*!
     \qmlproperty string OTAClient::clientVersion
     \readonly
 
-    This is a convenience property that holds a string containing the booted system's version.
+    This is a convenience property that holds a string containing the booted
+    system's version.
+
     \sa clientInfo
 */
 
@@ -87,7 +55,9 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::clientDescription
     \readonly
 
-    This is a convenience property that holds a string containing the booted system's description.
+    This is a convenience property that holds a string containing the booted
+    system's description.
+
     \sa clientInfo
 */
 
@@ -95,23 +65,25 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::clientRevision
     \readonly
 
-    This property holds a string containing the booted system's revision (a checksum in the OSTree
-    repository).
+    This property holds a string containing the booted system's revision
+    (a checksum in the OSTree repository).
 */
 
 /*!
     \qmlproperty string OTAClient::clientInfo
     \readonly
 
-    This property holds a JSON-formatted string containing the booted system's OTA metadata.
-    Metadata is bundled with each system's version.
+    This property holds a JSON-formatted string containing the booted system's
+    OTA metadata. Metadata is bundled with each system's version.
 */
 
 /*!
     \qmlproperty string OTAClient::serverVersion
     \readonly
 
-    This is a convenience property that holds a string containing the system's version on a server.
+    This is a convenience property that holds a string containing the system's
+    version on a server.
+
     \sa serverInfo
 */
 
@@ -119,7 +91,9 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::serverDescription
     \readonly
 
-    This is a convenience property that holds a string containing the system's description on a server.
+    This is a convenience property that holds a string containing the system's
+    description on a server.
+
     \sa serverInfo
 */
 
@@ -127,23 +101,25 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::serverRevision
     \readonly
 
-    This property holds a string containing the system's revision on a server (a checksum in the
-    OSTree repository).
+    This property holds a string containing the system's revision on a server
+    (a checksum in the OSTree repository).
 */
 
 /*!
     \qmlproperty string OTAClient::serverInfo
     \readonly
 
-    This property holds a JSON-formatted string containing OTA metadata for the system on a server.
-    Metadata is bundled with each system's version.
+    This property holds a JSON-formatted string containing OTA metadata for the
+    system on a server. Metadata is bundled with each system's version.
 */
 
 /*!
     \qmlproperty string OTAClient::rollbackVersion
     \readonly
 
-    This is a convenience property that holds a string containing the rollback system's version.
+    This is a convenience property that holds a string containing the rollback
+    system's version.
+
     \sa rollbackInfo
 */
 
@@ -151,7 +127,9 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::rollbackDescription
     \readonly
 
-    This is a convenience property that holds a string containing the rollback system's description.
+    This is a convenience property that holds a string containing the rollback
+    system's description.
+
     \sa rollbackInfo
 */
 
@@ -159,16 +137,16 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OTAClient::rollbackRevision
     \readonly
 
-    This property holds a string containing the rollback system's revision (a checksum in the OSTree
-    repository).
+    This property holds a string containing the rollback system's revision (a
+    checksum in the OSTree repository).
 */
 
 /*!
     \qmlproperty string OTAClient::rollbackInfo
     \readonly
 
-    This property holds a JSON-formatted string containing the rollback system's OTA metadata.
-    Metadata is bundled with each system's version.
+    This property holds a JSON-formatted string containing the rollback
+    system's OTA metadata. Metadata is bundled with each system's version.
 
     \sa rollback()
 */
@@ -176,19 +154,14 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlsignal OTAClient::rollbackInfoChanged()
 
-    This signal is emitted when rollback info changes. Rollback info changes
-    when calling rollback().
+    This signal is emitted when the rollback info changes. Rollback info
+    changes when calling rollback().
 */
 
 /*!
     \qmlmethod bool OTAClient::fetchServerInfo()
 
-    Fetch OTA metadata from a server and update the local cache. This
-    metadata contains information on what system version is available on a
-    server. The cache is persistent as it is stored on the disk.
-
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
+    \include qotaclient.cpp fetchserverinfo-description
 
     \sa fetchServerInfoFinished(), updateAvailable, serverInfo
 */
@@ -203,18 +176,13 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlsignal OTAClient::serverInfoChanged()
 
-    Server info can change when calling fetchServerInfo(). If OTA metadata on
-    the server is different from the local cache, the local cache is updated and
-    this signal is emitted.
+    \include qotaclient.cpp serverinfochanged-description
 */
 
 /*!
     \qmlmethod bool OTAClient::update()
 
-    Fetch an OTA update from a server and perform the system update.
-
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
+    \include qotaclient.cpp update-description
 
     \sa updateFinished(), fetchServerInfo, restartRequired
 */
@@ -255,15 +223,7 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool  OTAClient::initialized
     \readonly
 
-    This property holds whether the object has completed the initialization.
-
-    When an object of this class is created, it asynchronously (from a non-GUI thread)
-    pre-populates the internal state and sets this property accordingly, and signals
-    initializationFinished().
-
-    Initialization is fast if there are no other processes locking access to the OSTree
-    repository on a device. This could happen if there is some other process currently
-    writing to the OSTree repository, for example, a daemon calling fetchServerInfo().
+    \include qotaclient.cpp initialized-description
 
     \sa initializationFinished()
 */
@@ -286,8 +246,8 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool OTAClient::updateAvailable
     \readonly
 
-    Holds a bool indicating the availability of a system update. This information
-    is cached - to update the local cache, call fetchServerInfo().
+    Holds a bool indicating the availability of a system update. This
+    information is cached; to update the local cache, call fetchServerInfo().
 
     \sa update()
 */
@@ -297,29 +257,29 @@ QT_BEGIN_NAMESPACE
 
     This signal is emitted when the value of updateAvailable changes. The
     \a available argument holds whether a system update is available for
-    default system.
+    the default system.
 */
 
 /*!
     \qmlproperty bool OTAClient::restartRequired
     \readonly
 
-    Holds a bool indicating whether reboot is required. Reboot is required
-    after update() and rollback() to boot into the new default system.
+    Holds a bool indicating whether a reboot is required. Reboot is required
+    after update() and rollback(), to boot into the new default system.
 */
 
 /*!
     \qmlsignal OTAClient::restartRequiredChanged(bool required)
 
     This signal is emitted when the value of restartRequired changes. The
-    \a required argument holds whether reboot is required.
+    \a required argument holds whether a reboot is required.
 */
 
 /*!
     \qmlsignal OTAClient::initializationFinished()
 
-    This signal is emitted when the object has finished initialization. Only after
-    this signal has arrived, the object is ready for use.
+    This signal is emitted when the object has finished initialization. The
+    object is not ready for use until this signal is received.
 */
 
 static QObject *otaClientSingleton(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
