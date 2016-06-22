@@ -45,6 +45,7 @@ class Q_DECL_EXPORT QOTAClient : public QObject
     Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY updateAvailableChanged)
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
+    Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
     Q_PROPERTY(QString clientVersion READ clientVersion NOTIFY initializationFinished)
     Q_PROPERTY(QString clientDescription READ clientDescription NOTIFY initializationFinished)
     Q_PROPERTY(QString clientRevision READ clientRevision NOTIFY initializationFinished)
@@ -66,6 +67,7 @@ public:
     bool otaEnabled() const;
     bool initialized() const;
     QString errorString() const;
+    QString statusString() const;
 
     Q_INVOKABLE bool fetchServerInfo() const;
     Q_INVOKABLE bool update() const;
@@ -91,6 +93,7 @@ Q_SIGNALS:
     void rollbackInfoChanged();
     void updateAvailableChanged(bool available);
     void restartRequiredChanged(bool required);
+    void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
 
     void initializationFinished();

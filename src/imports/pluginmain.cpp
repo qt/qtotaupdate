@@ -229,6 +229,20 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty string OTAClient::status
+    \readonly
+
+    This property holds a string containing the last status message. Only
+    selected operations update this property.
+*/
+
+/*!
+    \qmlsignal OTAClient::statusChanged(string status);
+
+    \include qotaclient.cpp statusstringchanged-description
+*/
+
+/*!
     \qmlproperty string OTAClient::error
     \readonly
 

@@ -57,7 +57,7 @@ QOTAClientAsync::~QOTAClientAsync()
     g_object_unref (m_sysroot);
 }
 
-QString QOTAClientAsync::ostree(const QString &command, bool *ok)
+QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
 {
     qCDebug(otaLog) << command;
     if (!m_ostree) {
@@ -67,21 +67,25 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok)
     m_ostree->start(command);
     m_ostree->waitForStarted();
 
-    QByteArray output;
+    QString output;
     do {
         m_ostree->waitForReadyRead();
         QByteArray bytesRead = m_ostree->readAll().trimmed();
         if (!bytesRead.isEmpty()) {
-            qCDebug(otaLog) << bytesRead;
-            if (bytesRead.startsWith("error:")) {
+            QString line = QString::fromUtf8(bytesRead);
+            qCDebug(otaLog) << line;
+            if (line.startsWith(QStringLiteral("error:"))) {
                 *ok = false;
-                emit errorOccurred(QString::fromUtf8(bytesRead));
+                emit errorOccurred(line);
+            } else {
+                if (updateStatus)
+                    emit statusStringChanged(line);
             }
-            output.append(bytesRead);
+            output.append(line);
         }
     } while (m_ostree->state() != QProcess::NotRunning);
 
-    return QString::fromUtf8(output);
+    return output;
 }
 
 QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev)
@@ -174,7 +178,7 @@ void QOTAClientAsync::_fetchServerInfo()
 void QOTAClientAsync::_update(const QString &updateToRev)
 {
     bool ok = true;
-    ostree(QString(QStringLiteral("ostree admin upgrade --override-commit=%1")).arg(updateToRev), &ok);
+    ostree(QString(QStringLiteral("ostree admin upgrade --override-commit=%1")).arg(updateToRev), &ok, true);
     if (!ok) {
         emit updateFinished(QStringLiteral(""), ok);
         return;

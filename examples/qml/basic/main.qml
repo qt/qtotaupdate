@@ -35,7 +35,10 @@ import QtOTAUpdate 1.0
 Window {
     visible:true
 
-    function log(message) { logRecords.append({ "record" : (logRecords.count + 1) + " " + message }) }
+    function log(message) {
+        logRecords.append({ "record" : (logRecords.count + 1) + " " + message })
+        logView.positionViewAtEnd()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -79,7 +82,7 @@ Window {
                 visible: OTAClient.updateAvailable
                 text: "Update"
                 onClicked: {
-                    log("updating...")
+                    log("Updating...")
                     OTAClient.update()
                 }
             }
@@ -87,7 +90,7 @@ Window {
                 visible: OTAClient.restartRequired
                 text: "Restart"
                 onClicked: {
-                    log("restarting...")
+                    log("Restarting...")
                 }
             }
         }
@@ -97,12 +100,12 @@ Window {
             Layout.preferredWidth: Screen.width * 0.5
             padding: 2
             ListView {
+                id: logView
                 anchors.fill: parent
                 anchors.margins: 4
                 clip: true
                 model: ListModel { id: logRecords }
                 delegate: Label { text: record }
-                onCountChanged: positionViewAtEnd()
             }
         }
 
@@ -111,12 +114,13 @@ Window {
 
     Connections {
         target: OTAClient
-        onErrorChanged: log(OTAClient.error)
+        onErrorChanged: log(error)
+        onStatusChanged: log(status)
         onInitializationFinished: log("Initialization " + (OTAClient.initialized ? "finished" : "failed"))
         onFetchServerInfoFinished: {
             log("FetchServerInfo " + (success ? "finished" : "failed"))
             if (success)
-                log("updateAvailable: " + OTAClient.updateAvailable)
+                log("Update available: " + OTAClient.updateAvailable)
         }
         onRollbackFinished: log("Rollback " + (success ? "finished" : "failed"))
         onUpdateFinished: log("Update " + (success ? "finished" : "failed"))

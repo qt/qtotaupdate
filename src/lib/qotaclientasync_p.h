@@ -60,9 +60,10 @@ signals:
     void rollbackFinished(const QString &defaultRev, bool success);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo);
     void errorOccurred(const QString &error);
+    void statusStringChanged(const QString &status);
 
 protected:
-    QString ostree(const QString &command, bool *ok);
+    QString ostree(const QString &command, bool *ok, bool updateStatus = false);
     QJsonDocument info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
     void multiprocessLock(const QString &method);
     void multiprocessUnlock();

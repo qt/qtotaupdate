@@ -65,6 +65,7 @@ public:
     void fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success);
     void updateFinished(const QString &defaultRev, bool success);
     void rollbackFinished(const QString &defaultRev, bool success);
+    void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo);
 
@@ -81,6 +82,7 @@ public:
     bool m_updateAvailable;
     bool m_restartRequired;
     bool m_otaEnabled;
+    QString m_status;
     QString m_error;
     QThread *m_otaAsyncThread;
     QScopedPointer<QOTAClientAsync> m_otaAsync;

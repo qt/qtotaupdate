@@ -147,6 +147,13 @@ void QOTAClientPrivate::rollbackFinished(const QString &defaultRev, bool success
     emit q->rollbackFinished(success);
 }
 
+void QOTAClientPrivate::statusStringChanged(const QString &status)
+{
+    Q_Q(QOTAClient);
+    m_status = status;
+    emit q->statusStringChanged(m_status);
+}
+
 void QOTAClientPrivate::errorOccurred(const QString &error)
 {
     Q_Q(QOTAClient);
@@ -332,6 +339,15 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
+    \fn void QOTAClient::statusStringChanged(const QString &status)
+//! [statusstringchanged-description]
+    This signal is emitted when an additional status information is available
+    (for example, when a program is busy performing a long operation). The
+    \a status argument holds the status message.
+//! [statusstringchanged-description]
+*/
+
+/*!
     \fn void QOTAClient::errorOccurred(const QString &error)
 
     This signal is emitted when an error occurs. The \a error argument holds
@@ -357,6 +373,7 @@ QOTAClient::QOTAClient(QObject *parent) : QObject(parent),
         connect(async, &QOTAClientAsync::updateFinished, d, &QOTAClientPrivate::updateFinished);
         connect(async, &QOTAClientAsync::rollbackFinished, d, &QOTAClientPrivate::rollbackFinished);
         connect(async, &QOTAClientAsync::errorOccurred, d, &QOTAClientPrivate::errorOccurred);
+        connect(async, &QOTAClientAsync::statusStringChanged, d, &QOTAClientPrivate::statusStringChanged);
         connect(async, &QOTAClientAsync::rollbackChanged, d, &QOTAClientPrivate::rollbackChanged);
         d->m_otaAsync->initialize();
     }
@@ -467,6 +484,18 @@ QString QOTAClient::errorString() const
 {
     Q_D(const QOTAClient);
     return d->m_error;
+}
+
+/*!
+    \property QOTAClient::status
+    \brief a string containing the last status message.
+
+    Only selected operations update this property.
+*/
+QString QOTAClient::statusString() const
+{
+    Q_D(const QOTAClient);
+    return d->m_status;
 }
 
 /*!
