@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+    qputenv("QT_QUICK_CONTROLS_STYLE", "material");
+
     QQmlApplicationEngine engine;
     engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 

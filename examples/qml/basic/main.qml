@@ -26,103 +26,99 @@
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
-import QtQuick 2.2
+import QtQuick 2.7
 import QtQuick.Window 2.2
-import QtQuick.Controls 1.4
+import QtQuick.Controls 2.0
 import QtQuick.Layouts 1.3
 import QtOTAUpdate 1.0
 
 Window {
-    id: screen
     visible:true
-    width: Screen.width
-    height: Screen.height
 
-    Rectangle {
+    function log(message) { logRecords.append({ "record" : (logRecords.count + 1) + " " + message }) }
+
+    ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        anchors.leftMargin: 22
+        anchors.leftMargin: 10
+        anchors.topMargin: 10
 
-        ColumnLayout {
-            Text { text: "CLIENT:\n"; }
-            Text { text: "Version: " + OTAClient.clientVersion }
-            Text { text: "Description: " + OTAClient.clientDescription }
-            Text { text: "Revision: " + OTAClient.clientRevision }
+        Label { text: "CLIENT:"; Layout.bottomMargin: 14 }
+        Label { text: "Version: " + OTAClient.clientVersion }
+        Label { text: "Description: " + OTAClient.clientDescription }
+        Label { text: "Revision: " + OTAClient.clientRevision }
 
-            Text { text: "\nSERVER:\n"; }
-            Text { text: "Version: " + OTAClient.serverVersion }
-            Text { text: "Description: " + OTAClient.serverDescription }
-            Text { text: "Revision: " + OTAClient.serverRevision }
+        Label { text: "SERVER:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
+        Label { text: "Version: " + OTAClient.serverVersion }
+        Label { text: "Description: " + OTAClient.serverDescription }
+        Label { text: "Revision: " + OTAClient.serverRevision }
 
-            Text { text: "\nROLLBACK:\n"; }
-            Text { text: "Version: " + OTAClient.rollbackVersion }
-            Text { text: "Description: " + OTAClient.rollbackDescription }
-            Text { text: "Revision: " + OTAClient.rollbackRevision }
+        Label { text: "ROLLBACK:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
+        Label { text: "Version: " + OTAClient.rollbackVersion }
+        Label { text: "Description: " + OTAClient.rollbackDescription }
+        Label { text: "Revision: " + OTAClient.rollbackRevision }
 
-            RowLayout {
-                Button {
-                    id: fetchButton
-                    text: "Fetch OTA info"
-                    onClicked: {
-                        print("fetcing OTA info...")
-                        OTAClient.fetchServerInfo()
-                    }
-                }
-
-                Button {
-                    text: "Rollback"
-                    onClicked: {
-                        print("roolback...")
-                        OTAClient.rollback()
-                    }
-                }
-
-                Button {
-                    visible: OTAClient.updateAvailable
-                    text: "Update"
-                    onClicked: {
-                        print("updating...")
-                        OTAClient.update()
-                    }
-                }
-
-                Button {
-                    visible: OTAClient.restartRequired
-                    text: "Restart"
-                    onClicked: {
-                        print("restarting...")
-                    }
+        RowLayout {
+            Layout.topMargin: 20
+            Layout.bottomMargin: 10
+            Button {
+                id: fetchButton
+                text: "Fetch OTA info"
+                onClicked: {
+                    log("Fetcing OTA info...")
+                    OTAClient.fetchServerInfo()
                 }
             }
-
-            Rectangle {
-                height: fetchButton.height * 4
-                width: screen.width * 0.5
-                border.width: 2
-                border.color: "red"
-                ListView {
-                    anchors.fill: parent
-                    anchors.margins: 4
-                    clip: true
-                    model: ListModel { id: logRecords }
-                    delegate: Text { text: record }
+            Button {
+                text: "Rollback"
+                onClicked: {
+                    log("Roolback...")
+                    OTAClient.rollback()
+                }
+            }
+            Button {
+                visible: OTAClient.updateAvailable
+                text: "Update"
+                onClicked: {
+                    log("updating...")
+                    OTAClient.update()
+                }
+            }
+            Button {
+                visible: OTAClient.restartRequired
+                text: "Restart"
+                onClicked: {
+                    log("restarting...")
                 }
             }
         }
+
+        Frame {
+            Layout.preferredHeight: 200
+            Layout.preferredWidth: Screen.width * 0.5
+            padding: 2
+            ListView {
+                anchors.fill: parent
+                anchors.margins: 4
+                clip: true
+                model: ListModel { id: logRecords }
+                delegate: Label { text: record }
+                onCountChanged: positionViewAtEnd()
+            }
+        }
+
+        Item { Layout.fillHeight: true }
     }
 
     Connections {
         target: OTAClient
-        onInitializationFinished: print("onInitializationFinished")
-        onFetchServerInfoFinished: print("onFetchServerInfoFinished: " + success)
-        onRollbackFinished: print("onRollbackFinished: " + success)
-        onErrorChanged: logRecords.append({ "record" : OTAClient.error })
-        onUpdateAvailableChanged: print("onUpdateAvailableChanged: " + available)
-        onUpdateFinished: {
-            print("onUpdateFinished: " + success)
-            if (success) {
-                // .. notify user that restart is required for the new version to go live
-            }
+        onErrorChanged: log(OTAClient.error)
+        onInitializationFinished: log("Initialization " + (OTAClient.initialized ? "finished" : "failed"))
+        onFetchServerInfoFinished: {
+            log("FetchServerInfo " + (success ? "finished" : "failed"))
+            if (success)
+                log("updateAvailable: " + OTAClient.updateAvailable)
         }
+        onRollbackFinished: log("Rollback " + (success ? "finished" : "failed"))
+        onUpdateFinished: log("Update " + (success ? "finished" : "failed"))
     }
 }
