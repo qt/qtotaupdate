@@ -40,7 +40,7 @@
     {meta-boot2qt}. Generating new updates for OTA enabled devices is completely automated,
     given an ordinary linux sysroot as an input. This includes OTA updates for linux kernel,
     system libraries, user space applications, translation fixes, anything that is part of the
-    sysroot. The offering includes \l {Qt OTA Update C++ Classes} {Qt/C++} and \l {Qt OTA Update QML Types}
+    sysroot. The offering includes \l {Qt OTA Update C++ Classes} {C++} and \l {Qt OTA Update QML Types}
     {QML} APIs to make integration with your Qt-based application a breeze.
 
     The OTA solution is based on \l {https://ostree.readthedocs.org/en/latest/} {OSTree}. If you
@@ -288,6 +288,7 @@
           sudo ./qt-ostree \
           --sysroot-image-path ${PATH_TO_SYSROOT} \
           --create-ota-sysroot \
+          --ota-json ${OTA_METADATA} \
           --initramfs ../dracut/initramfs-${device}-${release} \
           --uboot-env-file ../examples/device-integration/nitrogen6x/6x_bootscript
           \endcode
@@ -314,6 +315,15 @@
                           that contains a bootable OTA enabled sysroot. You will have to
                           deploy the generated image to a device; in this guide, we use
                           an SD card as memory media (see step 4).
+                  \endlist
+
+              \li \b {\c --ota-json}
+                  \list
+                      \li A JSON file containing the system's metadata. The
+                          following top-level fields have convenience methods in
+                          the Qt/QML OTA API: \c version and \c description. This
+                          API provides the means of manually fetching and parsing
+                          the file which therefore can contain arbitrary metadata.
                   \endlist
 
               \li \b {\c --initramfs}
@@ -391,6 +401,7 @@
           \badcode
           sudo ./qt-ostree \
           --sysroot-image-path ${PATH_TO_SYSROOT} \
+          --ota-json ${OTA_METADATA} \
           --initramfs ../dracut/initramfs-${device}-${release} \
           --start-trivial-httpd
           \endcode
