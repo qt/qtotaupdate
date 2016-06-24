@@ -275,6 +275,22 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty bool OTAClient::rollbackAvailable
+    \readonly
+
+    Holds a bool indicating the availability of a rollback system.
+
+    \sa rollbackAvailableChanged()
+*/
+
+/*!
+    \qmlsignal OTAClient::rollbackAvailableChanged()
+
+    This signal is emitted when the value of rollbackAvailable changes. A rollback
+    system becomes available when a device has performed at least one system update.
+*/
+
+/*!
     \qmlproperty bool OTAClient::restartRequired
     \readonly
 

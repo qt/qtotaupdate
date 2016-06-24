@@ -67,7 +67,7 @@ public:
     void rollbackFinished(const QString &defaultRev, bool success);
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
-    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo);
+    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
 
     QString version(QueryTarget target) const;
     QString description(QueryTarget target) const;
@@ -80,6 +80,7 @@ public:
     QOTAClient *const q_ptr;
     bool m_initialized;
     bool m_updateAvailable;
+    bool m_rollbackAvailable;
     bool m_restartRequired;
     bool m_otaEnabled;
     QString m_status;

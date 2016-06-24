@@ -58,7 +58,7 @@ signals:
     void updateFinished(const QString &defaultRev, bool success);
     void rollback();
     void rollbackFinished(const QString &defaultRev, bool success);
-    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo);
+    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
 

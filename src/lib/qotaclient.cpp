@@ -41,6 +41,7 @@ QOTAClientPrivate::QOTAClientPrivate(QOTAClient *client) :
     q_ptr(client),
     m_initialized(false),
     m_updateAvailable(false),
+    m_rollbackAvailable(false),
     m_restartRequired(false)
 {
     m_otaEnabled = QFile().exists(QStringLiteral("/run/ostree-booted"));
@@ -161,12 +162,13 @@ void QOTAClientPrivate::errorOccurred(const QString &error)
     emit q->errorOccurred(m_error);
 }
 
-void QOTAClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo)
+void QOTAClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
 {
     Q_Q(QOTAClient);
-    if (m_rollbackRev == rollbackRev)
-        return;
-
+    if (!m_rollbackAvailable && treeCount > 1) {
+        m_rollbackAvailable = true;
+        emit q->rollbackAvailableChanged();
+    }
     m_rollbackRev = rollbackRev;
     updateInfoMembers(rollbackInfo, &m_rollbackInfo, &m_rollbackVersion, &m_rollbackDescription);
     q->rollbackInfoChanged();
@@ -329,6 +331,13 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     This signal is emitted when the value of updateAvailable changes. The
     \a available argument holds whether a system update is available for
     the default system.
+*/
+
+/*!
+    \fn void QOTAClient::rollbackAvailableChanged()
+
+    This signal is emitted when the value of rollbackAvailable changes. A rollback
+    system becomes available when a device has performed at least one system update.
 */
 
 /*!
@@ -512,6 +521,18 @@ bool QOTAClient::updateAvailable() const
         return false;
 
     return d->m_updateAvailable;
+}
+
+/*!
+    \property QOTAClient::rollbackAvailable
+    \brief whether a rollback system is available.
+
+    \sa rollbackAvailableChanged()
+*/
+bool QOTAClient::rollbackAvailable() const
+{
+    Q_D(const QOTAClient);
+    return d->m_rollbackAvailable;
 }
 
 /*!

@@ -234,7 +234,7 @@ void QOTAClientAsync::refreshRollbackState(int index)
     QString rollbackRev = QLatin1String(ostree_deployment_get_csum (rollbackDeployment));
     bool ok = true;
     QJsonDocument rollbackInfo = info(QOTAClientPrivate::QueryTarget::Rollback, &ok, rollbackRev);
-    emit rollbackChanged(rollbackRev, rollbackInfo);
+    emit rollbackChanged(rollbackRev, rollbackInfo, deployments->len);
 }
 
 void QOTAClientAsync::rollbackFailed(const QString &error)

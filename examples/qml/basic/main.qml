@@ -72,6 +72,7 @@ Window {
                 }
             }
             Button {
+                visible: OTAClient.rollbackAvailable
                 text: "Rollback"
                 onClicked: {
                     log("Roolback...")
