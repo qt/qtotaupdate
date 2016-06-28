@@ -51,7 +51,9 @@
     The following blog post series contain additional details on the Qt OTA product:
 
     \l {https://blog.qt.io/blog/2016/05/31/over-the-air-updates-part-1-introduction/}
-       {Over-the-Air Updates, Part 1: Introduction}
+       {Over-the-Air Updates, Part 1: Introduction}\br
+    \l {https://blog.qt.io/blog/2016/06/28/over-the-air-updates-part-2-device-integration-api-and-creating-updates/}
+       {Over-the-Air Updates, Part 2: Device Integration, API and Creating Updates}
 
     \section1 Features of the Update System
 
