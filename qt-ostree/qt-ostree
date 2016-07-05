@@ -499,11 +499,32 @@ clean_workdir()
     cd ${WORKDIR}/
 
     # Remove immutable attribute.
-    chattr -if ${OTA_SYSROOT}/ostree/deploy/*/deploy/* || /bin/true
+    chattr -if ${OTA_SYSROOT}/ostree/deploy/*/deploy/* || true
     rm -rf ${OTA_SYSROOT}
     rm -rf ${GENERATED_TREE}
 
     chmod -x ${ROOT}/ostree-grub-generator
+}
+
+find_in_sysroot()
+{
+    target=${1}
+    target_path=$(find ${GENERATED_TREE} -type f -name ${target})
+    if [ -z "${target_path}" ] ; then
+        qt_ostree_error "Failed to find \"${target}\" in the provided sysroot"
+    fi
+}
+
+# Doc: call find_in_sysroot() before using path_in_sysroot(). Combining these
+# two functions would result in executing handle_non_zero_exit() when a target
+# file is not found. And instead of getting a normal error message we would also
+# get an error message from handle_non_zero_exit(), when using the "combined"
+# version within command substitutions: path=$(find_in_sysroot "some-file").
+path_in_sysroot()
+{
+    target=${1}
+    target_path=$(find ${GENERATED_TREE} -type f -name ${target})
+    echo ${target_path}
 }
 
 organize_boot_files()
@@ -555,11 +576,8 @@ organize_boot_files()
             GRUB2_CFG_GENERATOR=${ROOT}/ostree-grub-generator
         fi
         chmod +x ${GRUB2_CFG_GENERATOR}
-        generator_path=$(find ${GENERATED_TREE} -name ostree-grub-generator)
-        if [ -z "${generator_path}" ] ; then
-            qt_ostree_error "Failed to find ostree-grub-generator in the sysroot".
-        fi
-        cp ${GRUB2_CFG_GENERATOR} "${generator_path}"
+        find_in_sysroot "ostree-grub-generator"
+        cp ${GRUB2_CFG_GENERATOR} $(path_in_sysroot "ostree-grub-generator")
     fi
 }
 
@@ -612,9 +630,8 @@ adjust_sysroot_layout()
 convert_to_ostree_sysroot()
 {
     cd ${GENERATED_TREE}
-    if [[ ! -e usr/bin/ostree || ! -e usr/sbin/ostree-remount ]] ; then
-        qt_ostree_error "The provided sysroot does not contain required binaries"
-    fi
+    find_in_sysroot "ostree"
+    find_in_sysroot "ostree-remount"
 
     organize_boot_files
 
