@@ -132,37 +132,97 @@ usage()
 {
     print_usage_header ""
 
-    echo "--sysroot-image-path DIR              A path to embedded linux sysroot *.tar.gz or *.img image files."
-    echo "--initramfs FILE                      OSTree boot compatible initramfs. Used also for recovery booting (see --create-recovery-partition)."
-    echo "--uboot-env-file FILE                 OSTree boot compatible u-boot environment file."
-    echo "--grub2-cfg-generator FILE            GRUB2 configuration generator script."
-    echo "--ota-json FILE                       JSON file containing an OTA update metadata, can be arbitrary formatted. The following top-level fields have"
-    echo "                                      convenience methods in the Qt/QML OTA API: version, description."
+    echo "OPTIONS:"
     echo
-    echo "--ostree-repo DIR                     Commits the generated tree into this repository. If the repository does not exist, "
-    echo "                                      one is created in the specified location. If this argument is not provided, "
-    echo "                                      a default repository is created in the working directory."
-    echo "--start-trivial-httpd                 Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
-    echo "                                      The address to the hosted repository is listed in the httpd/httpd-address file in the working directory."
+    echo "--sysroot-image-path DIR"
+    echo
+    echo "    A path to embedded linux sysroot *.tar.gz or *.img image files."
+    echo
+    echo "--initramfs FILE"
+    echo
+    echo "    OSTree boot compatible initramfs. Used also for recovery booting (see"
+    echo "    --create-recovery-partition)."
+    echo
+    echo "--uboot-env-file FILE"
+    echo
+    echo "    OSTree boot compatible u-boot environment file."
+    echo
+    echo "--grub2-cfg-generator FILE"
+    echo
+    echo "    GRUB2 configuration generator script."
+    echo
+    echo "--ota-json FILE"
+    echo
+    echo "    JSON file containing an OTA update metadata, can be arbitrary formatted. The"
+    echo "    following top-level fields have convenience methods in the Qt/QML OTA API:"
+    echo "    version, description."
+    echo
+    echo "--ostree-repo DIR"
+    echo
+    echo "    Commits the generated tree into this repository. If the repository does not"
+    echo "    exist, one is created in the specified location. If this argument is not"
+    echo "    provided, a default repository is created in the working directory."
+    echo
+
     # NOTE: Disabling, as we don't really use them at the moment.
     #echo "--ostree-branch os/branch-name        Commits the generated update in the specified OSTree branch. A default branch is linux/qt."
     #echo "--ostree-commit-subject \"SUBJECT\"     Commits the generated update with the specified commit subject. A default commit subject is the"
     #echo "                                      date and time when the update was committed."
+
+    echo "--start-trivial-httpd"
     echo
-    echo "--create-ota-sysroot                  Generates Over-The-Air Update enabled sysroot."
-    echo "--create-recovery-partition           When provided, a dedicated partition is created right after the rootfs partition. It duplicates contents of /boot,"
-    echo "                                      this partition should be treated as read-only."
+    echo "    Starts a simple web server, hosting the OSTree repository (see --ostree-repo)."
+    echo "    The address to the hosted repository is listed in the httpd/httpd-address"
+    echo "    file in the working directory."
     echo
-    echo "--tls-ca-path FILE                    Path to file containing trusted anchors instead of the system CA database. Pins the certificate and"
-    echo "                                      uses it for servers authentication."
-    echo "--tls-client-cert-path FILE           Path to file for client-side certificate, to present when making requests to a remote repository."
-    echo "--tls-client-key-path FILE            Path to file containing client-side certificate key, to present when making requests to a remote repository."
+    echo "--create-ota-sysroot"
     echo
-    echo "--gpg-sign KEY-ID                     GPG Key ID to use for signing the commit."
-    echo "--gpg-homedir DIR                     GPG home directory to use when looking for keyrings."
-    echo "--gpg-trusted-keyring FILE            Adds the provided keyring file to the generated sysroot (see --create-ota-sysroot) or to"
-    echo "                                      the generated update. When providing a new keyring via update, the new keyring will be used for"
-    echo "                                      signature verification only after this update has been applied."
+    echo "    Generates Over-The-Air Update enabled sysroot."
+    echo
+    echo "--create-recovery-partition"
+    echo
+    echo "    When provided, a dedicated partition is created right after the rootfs"
+    echo "    partition. It duplicates contents of /boot, this partition should be treated"
+    echo "    as read-only."
+    echo
+    echo "TLS AUTHENTICATION"
+    echo
+    echo "    The --tls-* files will be installed in ${TLS_CERT_PATH#*qt-ostree/tree}."
+    echo "    If the sysroot already has pre-installed certificates in this path, the"
+    echo "    --tls-* command line arguments can be omitted."
+    echo
+    echo "--tls-ca-path FILE"
+    echo
+    echo "    Path to file containing trusted anchors instead of the system CA database."
+    echo "    Pins the certificate and uses it for servers authentication."
+    echo
+    echo "--tls-client-cert-path FILE"
+    echo
+    echo "    Path to a file for client-side certificate, to present when making requests"
+    echo "    to a remote repository."
+    echo
+    echo "--tls-client-key-path FILE"
+    echo
+    echo "    Path to a file containing client-side certificate key, to present when making"
+    echo "    requests to a remote repository."
+    echo
+    echo "GPG SIGNING"
+    echo
+    echo "--gpg-sign KEY-ID"
+    echo
+    echo "    GPG Key ID to use for signing the commit."
+    echo
+    echo "--gpg-homedir DIR"
+    echo
+    echo "    GPG home directory to use when looking for keyrings."
+    echo
+    echo "--gpg-trusted-keyring FILE"
+    echo
+    echo "    Adds the provided keyring file to the generated sysroot (see --create-ota-sysroot)"
+    echo "    or to the generated update. When providing a new keyring via update, the"
+    echo "    new keyring will be used for signature verification only after this update"
+    echo "    has been applied. GPG keyring will be installed in:"
+    echo "    ${GPG_KEYS_PATH#*qt-ostree/tree}."
     echo
 }
 
