@@ -53,6 +53,7 @@ BOOTLOADER="u-boot"
 UBOOT_ENV_FILE=""
 GRUB2_CFG_GENERATOR=""
 # REPO
+FIRST_COMMIT=false
 OSTREE_REPO=${WORKDIR}/ostree-repo
 OSTREE_BRANCH=linux/qt
 OSTREE_COMMIT_SUBJECT=""
@@ -623,7 +624,6 @@ commit_generated_tree()
 {
     # Commit the generated tree into OSTree repository.
     mkdir -p ${OSTREE_REPO}
-    FIRST_COMMIT=false
     if [ ! -d ${OSTREE_REPO}/objects ] ; then
         FIRST_COMMIT=true
         qt_ostree_info "Initializing new OSTree repository in ${OSTREE_REPO}"
@@ -902,6 +902,15 @@ detect_target_device()
     qt_ostree_info "Detected ${DEVICE} device with ${BOOTLOADER} boot loader"
 }
 
+print_summary()
+{
+    # Print sysroot diff.
+    if [ $FIRST_COMMIT = false ] ; then
+        qt_ostree_info "Files (C)hanged / (M)odified / (D)eleted since the previous version:"
+        "${OSTREE}" --repo=${OSTREE_REPO} diff ${OSTREE_BRANCH}^ ${OSTREE_BRANCH}
+    fi
+}
+
 main()
 {
     parse_args "$@"
@@ -925,6 +934,8 @@ main()
 
     umount_mount_points
     clean_workdir
+
+    print_summary
 
     qt_ostree_info "All done."
     qt_ostree_exit 0
