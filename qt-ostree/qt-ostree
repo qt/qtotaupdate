@@ -638,12 +638,12 @@ commit_generated_tree()
         GPG_ARGS="--gpg-sign=${GPG_KEY} --gpg-homedir=${GPG_HOMEDIR}"
     fi
 
-    cd ${GENERATED_TREE}
     if [ $FIRST_COMMIT = false ] ; then
         prev_rev=$("${OSTREE}" --repo=${OSTREE_REPO} rev-parse ${OSTREE_BRANCH})
     fi
     qt_ostree_info "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
     "${OSTREE}" --repo=${OSTREE_REPO} commit \
+                --tree=dir=${GENERATED_TREE} \
                 -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" \
                 --skip-if-unchanged \
                 ${GPG_ARGS} \
