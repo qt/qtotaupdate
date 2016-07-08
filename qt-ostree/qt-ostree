@@ -623,7 +623,9 @@ commit_generated_tree()
 {
     # Commit the generated tree into OSTree repository.
     mkdir -p ${OSTREE_REPO}
+    FIRST_COMMIT=false
     if [ ! -d ${OSTREE_REPO}/objects ] ; then
+        FIRST_COMMIT=true
         qt_ostree_info "Initializing new OSTree repository in ${OSTREE_REPO}"
         "${OSTREE}" --repo=${OSTREE_REPO} init --mode=archive-z2
     fi
@@ -637,9 +639,21 @@ commit_generated_tree()
     fi
 
     cd ${GENERATED_TREE}
+    if [ $FIRST_COMMIT = false ] ; then
+        prev_rev=$("${OSTREE}" --repo=${OSTREE_REPO} rev-parse ${OSTREE_BRANCH})
+    fi
     qt_ostree_info "Committing the generated tree into a repository at ${OSTREE_REPO} ..."
-    "${OSTREE}" --repo=${OSTREE_REPO} commit -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" ${GPG_ARGS} \
-           --owner-uid=0 --owner-gid=0
+    "${OSTREE}" --repo=${OSTREE_REPO} commit \
+                -b ${OSTREE_BRANCH} -s "${OSTREE_COMMIT_SUBJECT}" \
+                --skip-if-unchanged \
+                ${GPG_ARGS} \
+                --owner-uid=0 --owner-gid=0
+    new_rev=$("${OSTREE}" --repo=${OSTREE_REPO} rev-parse ${OSTREE_BRANCH})
+    if [[ $FIRST_COMMIT = false && ${prev_rev} = ${new_rev} ]] ; then
+        qt_ostree_info "There are no new changes in the sysroot. A new update won't be generated."
+        qt_ostree_exit 0
+    fi
+
     qt_ostree_info "Checking the repository for consistency ..."
     "${OSTREE}" --repo=${OSTREE_REPO} fsck
 }
