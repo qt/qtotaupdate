@@ -47,6 +47,11 @@ START_HTTPD=false
 INVALID_ARGS=false
 OS_NAME="qt-os"
 BOOTDIR_ON_ROOTFS=false
+# INPUT SYSROOT
+INPUT_SYSROOT_ARG_COUNTER=0
+BINARY_IMAGE=false
+ARCHIVED_SYSROOT=false
+DIRTREE_SYSROOT=false
 # HARDWARE INTEGRATION
 DEVICE=""
 BOOTLOADER="u-boot"
@@ -70,7 +75,6 @@ GPG_HOMEDIR=""
 GPG_TRUSTED_KEYRING=""
 GPG_KEYS_PATH=${GENERATED_TREE}/usr/share/ostree/trusted.gpg.d/
 # DD IMAGE
-BINARY_IMAGE=false
 ROOTFS_TYPE="ext3"
 ROOTFS_OPT="-F -L rootfs"
 BOOTFS_TYPE="ext2"
@@ -135,9 +139,15 @@ usage()
 
     echo "OPTIONS:"
     echo
-    echo "--sysroot-image-path DIR"
+    echo "--sysroot-image-path FILE or DIR"
     echo
-    echo "    A path to embedded linux sysroot *.tar.gz or *.img image files."
+    echo "    A path to a linux sysroot. This argument accepts binary *.img file,"
+    echo "    *.tar.gz file or a path to an extracted sysroot."
+    echo
+    echo "--sysroot-image-path-list \"LIST\""
+    echo
+    echo "    A space separated list of absolute paths to *.tar.gz files. Use this argument"
+    echo "    when a sysroot is composed of several *.tar.gz files."
     echo
     echo "--initramfs FILE"
     echo
@@ -255,13 +265,16 @@ validate_arg()
         return 0
     fi
 
-    if [ ! -${flag} ${value} ] ; then
+    if [ -n "${flag}" ] && [ ! -${flag} ${value} ] ; then
         case ${flag} in
             d)
                 validation_error "${arg} requires a directory path, but ${value} was provided."
                 ;;
             f)
                 validation_error "${arg} requires a path to a file, but ${value} was provided."
+                ;;
+            e)
+                validation_error "${arg} ${value} is not pointing to an existing file or directory."
                 ;;
         esac
         return 0
@@ -281,17 +294,30 @@ validate_arg()
             fi
             ;;
         --sysroot-image-path)
-            count=$(ls ${SYSROOT_IMAGE_PATH}/*.img 2> /dev/null | wc -l)
-            if [ ${count} -gt 1 ] ; then
-                validation_error "Found ${count} *.img files in --sysroot-image-path ${SYSROOT_IMAGE_PATH}/, but expected to find 1 *.img file."
-            elif [ ${count} = 1 ] ; then
-                BINARY_IMAGE=true
-            else
-                count=$(ls ${SYSROOT_IMAGE_PATH}/*.tar.gz 2> /dev/null | wc -l)
-                if [ ${count} = 0 ] ; then
-                    validation_error "--sysroot-image-path ${SYSROOT_IMAGE_PATH}/ must contain *.img or *.tar.gz sysroot image files."
+            INPUT_SYSROOT_ARG_COUNTER=$(( $INPUT_SYSROOT_ARG_COUNTER + 1 ))
+            if [ -d "${SYSROOT_IMAGE_PATH}" ] ; then
+                if [[ ! -e "${SYSROOT_IMAGE_PATH}/usr" || ! -e "${SYSROOT_IMAGE_PATH}/bin" ]] ; then
+                    validation_error "--sysroot-image-path ${SYSROOT_IMAGE_PATH} does not seem to point to an linux sysroot."
+                fi
+                DIRTREE_SYSROOT=true
+            elif [ -f "${SYSROOT_IMAGE_PATH}" ] ; then
+                if [[ ${SYSROOT_IMAGE_PATH} = *.img ]] ; then
+                    BINARY_IMAGE=true
+                elif [[ ${SYSROOT_IMAGE_PATH} = *.tar.gz ]] ; then
+                    ARCHIVED_SYSROOT=true
                 fi
             fi
+            ;;
+        --sysroot-image-path-list)
+            INPUT_SYSROOT_ARG_COUNTER=$(( $INPUT_SYSROOT_ARG_COUNTER + 1 ))
+            ARCHIVED_SYSROOT=true
+            SYSROOT_IMAGE_PATH="${SYSROOT_IMAGE_PATH_LIST}"
+            for archive in ${SYSROOT_IMAGE_PATH} ; do
+                if [[ "${archive}" != /* || "${archive}" != *.tar.gz || ! -e "${archive}" ]] ; then
+                    validation_error "--sysroot-image-path-list expects list of absolute paths to an existing *.tar.gz files, but \"${SYSROOT_IMAGE_PATH_LIST}\" was provided."
+                    break
+                fi
+            done
             ;;
     esac
 }
@@ -351,6 +377,10 @@ parse_args()
               SYSROOT_IMAGE_PATH=$(readlink -m ${2})
               shift 1
               ;;
+          --sysroot-image-path-list)
+              SYSROOT_IMAGE_PATH_LIST=${2}
+              shift 1
+              ;;
           --initramfs)
               INITRAMFS=$(readlink -m ${2})
               shift 1
@@ -401,34 +431,41 @@ parse_args()
         qt_ostree_error "Needed command 'ostree' not found in SDK"
     fi
 
-    # Other validation tasks.
-    validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" true d
+    validate_arg "--sysroot-image-path" "${SYSROOT_IMAGE_PATH}" false e
+    validate_arg "--sysroot-image-path-list" "${SYSROOT_IMAGE_PATH_LIST}" false
+    case ${INPUT_SYSROOT_ARG_COUNTER} in
+      0) validation_error "--sysroot-image-path or --sysroot-image-path-list is required." ;;
+      2) validation_error "--sysroot-image-path and --sysroot-image-path-list are mutually exclusive." ;;
+    esac
+
     validate_arg "--initramfs" "${INITRAMFS}" true f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
     validate_arg "--grub2-cfg-generator" "${GRUB2_CFG_GENERATOR}" false f
     validate_arg "--ota-json" "${OTA_JSON}" true f
+
     validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
-    validate_arg "--tls-ca-path" "${SERVER_CERT}" false f
-    validate_arg "--tls-client-cert-path" "${CLIENT_CERT}" false f
-    validate_arg "--tls-client-key-path" "${CLIENT_KEY}" false f
-
     if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}" ) ]] ; then
         # Note: --gpg-homedir is not required when keyring is stored in a standard path,
         # but just to me sure that a commit won't fail, we require both of these args.
         validation_error "Must specify both --gpg-sign and --gpg-homedir for GPG signing feature."
     fi
+
+    validate_arg "--tls-ca-path" "${SERVER_CERT}" false f
+    validate_arg "--tls-client-cert-path" "${CLIENT_CERT}" false f
+    validate_arg "--tls-client-key-path" "${CLIENT_KEY}" false f
     if [[ $USE_CLIENT_TLS = true && ( -z "${CLIENT_CERT}" || -z "${CLIENT_KEY}" ) ]] ; then
         validation_error "Must specify both --tls-client-cert-path and --tls-client-key-path for TLS client authentication feature."
     fi
+
     if [ $INVALID_ARGS = true ] ; then
         usage
         qt_ostree_exit 1
     fi
-
     # Report.
     qt_ostree_info "Using ostree ${OSTREE}"
     qt_ostree_info "OTA JSON: " && echo "$(cat ${OTA_JSON})"
+
 }
 
 umount_mount_points()
@@ -835,7 +872,7 @@ extract_sysroot()
 
     if [ $BINARY_IMAGE = true ] ; then
         # Extract binary image.
-        image=$(ls ${SYSROOT_IMAGE_PATH}/*.img)
+        image=${SYSROOT_IMAGE_PATH}
         qt_ostree_info "Extracting ${image} ..."
         units=$(fdisk -l ${image} | grep Units | awk '{print $(NF-1)}')
         # The boot partition not always is marked properly.
@@ -853,9 +890,9 @@ extract_sysroot()
         mount -o loop,offset=${rootfs_offset} ${image} rootfs-mount/
         cp -rp${VERBOSE}d boot-mount/* ${BOOT_FILE_PATH}
         cp -rp${VERBOSE}d rootfs-mount/* ${GENERATED_TREE}
-    else
+    elif [ $ARCHIVED_SYSROOT = true ] ; then
         # Extract *.tar.gz image files.
-        for image in ${SYSROOT_IMAGE_PATH}/*.tar.gz ; do
+        for image in ${SYSROOT_IMAGE_PATH} ; do
             qt_ostree_info "Extracting ${image} ..."
             if [[ $(basename ${image}) == *boot* ]] ; then
                 tar --preserve -C ${BOOT_FILE_PATH} -x${VERBOSE}f ${image}
@@ -863,6 +900,10 @@ extract_sysroot()
                 tar --preserve -C ${GENERATED_TREE} -x${VERBOSE}f ${image}
             fi
         done
+    elif [ $DIRTREE_SYSROOT = true ] ; then
+        image=${SYSROOT_IMAGE_PATH}
+        qt_ostree_info "Copying ${image} ..."
+        cp -rp${VERBOSE}d ${image}/* ${GENERATED_TREE}
     fi
 }
 

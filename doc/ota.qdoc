@@ -306,9 +306,9 @@
           \list
               \li \b {\c --sysroot-image-path}
                   \list
-                      \li A path to your sysroot image file(s). Binary images
-                          (\c {*.img}) and archive images (\c {*.tar.gz}) are
-                          accepted.
+                      \li A path to your sysroot. Binary image (\c {*.img})
+                          and archive image (\c {*.tar.gz}) is accepted as
+                          well as a path to an extracted sysroot.
                   \endlist
 
               \li \b {\c --create-ota-sysroot}
