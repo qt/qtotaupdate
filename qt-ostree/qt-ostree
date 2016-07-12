@@ -47,6 +47,7 @@ START_HTTPD=false
 INVALID_ARGS=false
 OS_NAME="qt-os"
 BOOTDIR_ON_ROOTFS=false
+DEVELOPER=false
 # INPUT SYSROOT
 INPUT_SYSROOT_ARG_COUNTER=0
 BINARY_IMAGE=false
@@ -135,6 +136,9 @@ print_usage_header()
 
 usage()
 {
+    if [ $DEVELOPER = true ] ; then
+        return 0
+    fi
     print_usage_header ""
 
     echo "OPTIONS:"
@@ -403,6 +407,9 @@ parse_args()
               OSTREE=$(readlink -m ${2})
               shift 1
               ;;
+          --developer) # intentionally undocumented
+              DEVELOPER=true
+              ;;
           -h | -help | --help)
               usage
               qt_ostree_exit 0
@@ -447,7 +454,7 @@ parse_args()
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
     if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}" ) ]] ; then
         # Note: --gpg-homedir is not required when keyring is stored in a standard path,
-        # but just to me sure that a commit won't fail, we require both of these args.
+        # but just to be sure that a commit won't fail, we require both of these args.
         validation_error "Must specify both --gpg-sign and --gpg-homedir for GPG signing feature."
     fi
 
@@ -692,7 +699,9 @@ commit_generated_tree()
     fi
 
     qt_ostree_info "Checking the repository for consistency ..."
-    "${OSTREE}" --repo=${OSTREE_REPO} fsck
+    if [ $DEVELOPER = false ] ; then
+        "${OSTREE}" --repo=${OSTREE_REPO} fsck
+    fi
 }
 
 configure_boot_loader()
@@ -974,10 +983,11 @@ main()
     fi
 
     umount_mount_points
-    clean_workdir
+    if [ $DEVELOPER = false ] ; then
+        clean_workdir
+    fi
 
     print_summary
-
     qt_ostree_info "All done."
     qt_ostree_exit 0
 }
