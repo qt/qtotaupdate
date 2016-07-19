@@ -39,6 +39,7 @@
 QT_BEGIN_NAMESPACE
 
 struct OstreeSysroot;
+struct OstreeRepo;
 // from gerror.h
 typedef struct _GError GError;
 
@@ -61,6 +62,8 @@ signals:
     void updateFinished(const QString &defaultRev, bool success);
     void rollback();
     void rollbackFinished(const QString &defaultRev, bool success);
+    void applyOffline(const QString &packagePath);
+    void applyOfflineFinished(bool success);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
@@ -74,14 +77,17 @@ protected:
     int rollbackIndex();
     void resetRollbackState();
     bool emitGError(GError *error);
+    bool deployCommit(const QString &commit);
 
     void _initialize();
     void _fetchRemoteInfo();
     void _update(const QString &updateToRev);
     void _rollback();
+    void _applyOffline(const QString &packagePath);
 
 private:
     OstreeSysroot *m_sysroot;
+    OstreeRepo *m_repo;
 };
 
 QT_END_NAMESPACE

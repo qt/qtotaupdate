@@ -67,6 +67,7 @@ public:
     void fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success);
     void updateFinished(const QString &defaultRev, bool success);
     void rollbackFinished(const QString &defaultRev, bool success);
+    void applyOfflineFinished(bool success);
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);

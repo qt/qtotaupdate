@@ -37,14 +37,22 @@
 
 QT_BEGIN_NAMESPACE
 
+#define OSTREE_STATIC_DELTA_META_ENTRY_FORMAT "(uayttay)"
+#define OSTREE_STATIC_DELTA_FALLBACK_FORMAT "(yaytt)"
+#define OSTREE_STATIC_DELTA_SUPERBLOCK_FORMAT "(a{sv}tayay" OSTREE_COMMIT_GVARIANT_STRING "aya" OSTREE_STATIC_DELTA_META_ENTRY_FORMAT "a" OSTREE_STATIC_DELTA_FALLBACK_FORMAT ")"
+
 QOtaClientAsync::QOtaClientAsync() :
     m_sysroot(ostree_sysroot_new(0))
 {
+    GError *error = nullptr;
+    ostree_sysroot_get_repo (m_sysroot, &m_repo, 0, &error);
+    emitGError(error);
     // async mapper
     connect(this, &QOtaClientAsync::initialize, this, &QOtaClientAsync::_initialize);
     connect(this, &QOtaClientAsync::fetchRemoteInfo, this, &QOtaClientAsync::_fetchRemoteInfo);
     connect(this, &QOtaClientAsync::update, this, &QOtaClientAsync::_update);
     connect(this, &QOtaClientAsync::rollback, this, &QOtaClientAsync::_rollback);
+    connect(this, &QOtaClientAsync::applyOffline, this, &QOtaClientAsync::_applyOffline);
 }
 
 QOtaClientAsync::~QOtaClientAsync()
@@ -146,7 +154,7 @@ bool QOtaClientAsync::multiprocessLock(const QString &method)
     ostree_sysroot_lock (m_sysroot, &error);
     if (emitGError(error))
         return false;
-    qCDebug(qota) << QTime::currentTime().toString() << " lock acquired";
+    qCDebug(qota) << QTime::currentTime().toString() << "lock acquired";
     return true;
 }
 
@@ -193,12 +201,34 @@ void QOtaClientAsync::_fetchRemoteInfo()
     QString remoteRev;
     QJsonDocument remoteInfo;
     bool ok = true;
-    ostree(QStringLiteral("ostree pull --commit-metadata-only qt-os linux/qt"), &ok);
+    ostree(QStringLiteral("ostree pull --commit-metadata-only --disable-static-deltas qt-os linux/qt"), &ok);
     if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     if (ok) remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
     emit fetchRemoteInfoFinished(remoteRev, remoteInfo, ok);
     multiprocessUnlock();
+}
+
+bool QOtaClientAsync::deployCommit(const QString &commit)
+{
+    bool ok = true;
+    QString kernelArgs;
+    GError *error = nullptr;
+    g_autoptr(GFile) root = nullptr;
+    if (!ostree_repo_read_commit (m_repo, commit.toLatin1().constData(),
+                                  &root, nullptr, nullptr, &error)) {
+        emitGError(error);
+        return false;
+    }
+    g_autoptr(GFile) kargsInRev = g_file_resolve_relative_path (root, "/usr/lib/ostree-boot/kargs");
+    g_autoptr(GInputStream) in = (GInputStream*)g_file_read (kargsInRev, 0, 0);
+    if (in)
+        kernelArgs = ostree(QString(QStringLiteral("ostree cat %1 /usr/lib/ostree-boot/kargs")).arg(commit), &ok);
+
+    emit statusStringChanged(QStringLiteral("Deploying..."));
+    if (ok) ostree(QString(QStringLiteral("ostree admin deploy --karg-none %1 %2"))
+                   .arg(kernelArgs).arg(commit), &ok, true);
+    return ok;
 }
 
 void QOtaClientAsync::_update(const QString &updateToRev)
@@ -207,16 +237,13 @@ void QOtaClientAsync::_update(const QString &updateToRev)
         return;
     bool ok = true;
     QString defaultRev;
-    QString kernelArgs;
     GError *error = nullptr;
     emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
     ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
     multiprocessUnlock();
     if (!ok) goto out;
 
-    emit statusStringChanged(QStringLiteral("Deploying..."));
-    kernelArgs = ostree(QString(QStringLiteral("ostree cat %1 /usr/lib/ostree-boot/kargs")).arg(updateToRev), &ok);
-    if (ok) ostree(QString(QStringLiteral("ostree admin deploy --karg-none %1 linux/qt")).arg(kernelArgs), &ok, true);
+    ok = deployCommit(updateToRev);
     if (!ok) goto out;
 
     ostree_sysroot_load (m_sysroot, 0, &error);
@@ -309,6 +336,69 @@ void QOtaClientAsync::_rollback()
     QString defaultRev = defaultRevision();
     emit rollbackFinished(defaultRev, true);
     multiprocessUnlock();
+}
+
+void QOtaClientAsync::_applyOffline(const QString &packagePath)
+{
+    bool success = false;
+    GError *error = nullptr;
+    g_autofree char *toCsum = nullptr;
+    g_autoptr(GBytes) bytes = nullptr;
+    g_autoptr(GVariant) deltaSuperblock = nullptr;
+    g_autoptr(GVariant) toCsumV = nullptr;
+    g_autoptr(GVariant) packageCommitV = nullptr;
+    g_autoptr(GVariant) currentCommitV = nullptr;
+    QString currentCommit;
+    guint64 currentTimestamp;
+    guint64 packageTimestamp;
+    bool ok = true;
+
+    // load delta superblock
+    GMappedFile *mfile = g_mapped_file_new (packagePath.toLatin1().data(), FALSE, &error);
+    if (!mfile)
+        goto out;
+    bytes = g_mapped_file_get_bytes (mfile);
+    g_mapped_file_unref (mfile);
+    deltaSuperblock = g_variant_new_from_bytes (G_VARIANT_TYPE (OSTREE_STATIC_DELTA_SUPERBLOCK_FORMAT),
+                                                bytes, FALSE);
+    g_variant_ref_sink (deltaSuperblock);
+
+    // get a timestamp of the commit object from the superblock
+    packageCommitV = g_variant_get_child_value (deltaSuperblock, 4);
+    if (!ostree_validate_structureof_commit (packageCommitV, &error))
+        goto out;
+    packageTimestamp = ostree_commit_get_timestamp (packageCommitV);
+    // get timestamp of the head commit from the repository
+    currentCommit = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
+    if (!ok || !ostree_repo_load_commit (m_repo, currentCommit.toLatin1().constData(),
+                                         &currentCommitV, nullptr, &error)) {
+        goto out;
+    }
+    currentTimestamp = ostree_commit_get_timestamp (currentCommitV);
+    qCDebug(qota) << "current timestamp:" << currentTimestamp;
+    qCDebug(qota) << "package timestamp:" << packageTimestamp;
+    if (packageTimestamp < currentTimestamp) {
+        emit errorOccurred(QString(QStringLiteral("Not allowed to downgrade - current timestamp: %1,"
+                           " package timestamp: %2")).arg(currentTimestamp).arg(packageTimestamp));
+        goto out;
+    }
+
+    emit statusStringChanged(QStringLiteral("Applying the update package..."));
+    ostree(QString(QStringLiteral("ostree static-delta apply-offline %1")).arg(packagePath), &ok);
+    if (!ok) goto out;
+
+    toCsumV = g_variant_get_child_value (deltaSuperblock, 3);
+    if (!ostree_validate_structureof_csum_v (toCsumV, &error))
+        goto out;
+    toCsum = ostree_checksum_from_bytes_v (toCsumV);
+    ostree(QString(QStringLiteral("ostree reset qt-os:linux/qt %1")).arg(QLatin1String(toCsum)), &ok);
+    if (!ok || !deployCommit(QLatin1String(toCsum)))
+        goto out;
+
+    success = true;
+out:
+    emitGError(error);
+    emit applyOfflineFinished(success);
 }
 
 QT_END_NAMESPACE

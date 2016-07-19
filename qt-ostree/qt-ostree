@@ -63,6 +63,12 @@ FIRST_COMMIT=false
 OSTREE_REPO=${WORKDIR}/ostree-repo
 OSTREE_BRANCH=linux/qt
 OSTREE_COMMIT_SUBJECT=""
+# STATIC DELTA
+STATIC_DELTA_ARGS=""
+SELF_CONTAINED_PACKAGE=false
+SUPERBLOCK=${WORKDIR}/superblock
+DELTA_FROM=${OSTREE_BRANCH}^
+DELTA_TO=${OSTREE_BRANCH}
 # TLS
 USE_CLIENT_TLS=false
 SERVER_CERT=""
@@ -85,7 +91,7 @@ RECOVERY_PARTITION=false
 RECOVERYFS_TYPE="ext2"
 RECOVERYFS_OPT="-F -L recovery"
 RECOVERYFS_SIZE="65536"         # Recovery partition size [in KiB]
-ROOT_OVERHEAD_FACTOR="1.3"      # Add 30% extra space in rootfs
+ROOT_OVERHEAD_FACTOR="3"
 PARTITION_ALIGNMENT="4096"      # Set alignment to 4MB [in KiB]
 # LOG COLORS
 COLOR_DEFAULT='\e[0m'
@@ -188,6 +194,19 @@ usage()
     echo "    Commits the generated tree into this repository. If the repository does not"
     echo "    exist, one is created in the specified location. If this argument is not"
     echo "    provided, a default repository is created in the working directory."
+    echo
+    echo "--create-self-contained-package"
+    echo
+    echo "    Creates a self-contained (superblock) update package. This package is saved in the"
+    echo "    current working directory."
+    echo
+    echo "--disable-bsdiff"
+    echo
+    echo "    The bsdiff algorithm produces smaller updates by taking advantage of how executable"
+    echo "    files change. Smaller updates mean a better download efficiency. Applying bsdiff deltas"
+    echo "    on the client devices requires extra CPU and memory resources, as well as I/O requests."
+    echo "    When generating an update for resource-constrained devices it might be desirable"
+    echo "    to disable bsdiff."
     echo
 
     # NOTE: Disabling, as we don't really use them at the moment.
@@ -347,6 +366,12 @@ parse_args()
               OSTREE_REPO=$(realpath -ms ${2})
               shift 1
               ;;
+          --create-self-contained-package)
+              SELF_CONTAINED_PACKAGE=true
+              ;;
+          --disable-bsdiff)
+              STATIC_DELTA_ARGS="--disable-bsdiff"
+              ;;
           --uboot-env-file)
               UBOOT_ENV_FILE=$(realpath -ms ${2})
               shift 1
@@ -474,6 +499,13 @@ parse_args()
     validate_arg "--tls-client-key-path" "${CLIENT_KEY}" false f
     if [[ $USE_CLIENT_TLS = true && ( -z "${CLIENT_CERT}" || -z "${CLIENT_KEY}" ) ]] ; then
         validation_error "Must specify both --tls-client-cert-path and --tls-client-key-path for TLS client authentication feature."
+    fi
+
+    if [ ! -d ${OSTREE_REPO}/objects ] ; then
+        FIRST_COMMIT=true
+    fi
+    if [[ $FIRST_COMMIT = true && $SELF_CONTAINED_PACKAGE = true ]] ; then
+        validation_error "Can not generate a self-contained package (--create-self-contained-package), when --ostree-repo points to a non-existing repository."
     fi
 
     if [ $INVALID_ARGS = true ] ; then
@@ -732,12 +764,25 @@ convert_to_ostree_sysroot()
     fi
 }
 
+create_self_contained_package()
+{
+    qt_ostree_info "Generating a self-contained update package ..."
+    # Disable fallback objects, so all objects would be included in the generated
+    # delta and applying the delta would not require an Internet connection.
+    "${OSTREE}" --repo=${OSTREE_REPO} static-delta generate  ${STATIC_DELTA_ARGS} \
+                --min-fallback-size=0 --inline --filename=${SUPERBLOCK}
+
+    if [ ! -e "${SUPERBLOCK}" ] ; then
+        qt_ostree_error "Something failed, ${SUPERBLOCK} does not exist"
+    fi
+    qt_ostree_info "Generated a self-contained update package: ${SUPERBLOCK}"
+}
+
 commit_generated_tree()
 {
     # Commit the generated tree into OSTree repository.
-    mkdir -p ${OSTREE_REPO}
-    if [ ! -d ${OSTREE_REPO}/objects ] ; then
-        FIRST_COMMIT=true
+    if [ $FIRST_COMMIT = true ] ; then
+        mkdir -p ${OSTREE_REPO}
         qt_ostree_info "Initializing new OSTree repository in ${OSTREE_REPO}"
         "${OSTREE}" --repo=${OSTREE_REPO} init --mode=archive-z2
     fi
@@ -765,6 +810,18 @@ commit_generated_tree()
         qt_ostree_info "There are no new changes in the sysroot. A new update won't be generated."
         qt_ostree_exit 0
     fi
+
+    STATIC_DELTA_ARGS="${STATIC_DELTA_ARGS} --from=${DELTA_FROM} --to=${DELTA_TO}"
+    if [ $SELF_CONTAINED_PACKAGE = true ] ; then
+        create_self_contained_package
+    fi
+    # Pulling static deltas via HTTP is on hold due to several UX issues: https://github.com/ostreedev/ostree/issues/475
+    # if [ $FIRST_COMMIT = false ] ; then
+    #     qt_ostree_info "Generating static delta  ..."
+    #     "${OSTREE}" --repo=${OSTREE_REPO} static-delta generate ${STATIC_DELTA_ARGS}
+    # fi
+
+    "${OSTREE}" --repo=${OSTREE_REPO} summary -u ${GPG_ARGS}
 
     qt_ostree_info "Checking the repository for consistency ..."
     if [ $DEVELOPER = false ] ; then

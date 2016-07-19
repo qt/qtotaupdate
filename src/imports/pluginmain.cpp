@@ -185,7 +185,7 @@ QT_BEGIN_NAMESPACE
 
     \include qotaclient.cpp update-description
 
-    \sa updateFinished(), fetchRemoteInfo, restartRequired
+    \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
 */
 
 /*!
@@ -208,6 +208,24 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlsignal OtaClient::rollbackFinished(bool success)
+
+    This is a notifier signal for rollback(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
+    \qmlmethod bool OtaClient::applyOffline(string packagePath)
+
+    \include qotaclient.cpp apply-offline
+
+    This is a notifier signal for applyOffline(). The \a success argument
+    indicates whether the operation was successful.
+
+    \sa applyOfflineFinished()
+*/
+
+/*!
+    \qmlsignal OtaClient::applyOfflineFinished(bool success)
 
     This is a notifier signal for rollback(). The \a success argument
     indicates whether the operation was successful.
@@ -341,7 +359,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OtaClient::repositoryConfigsEqual()
+    \qmlmethod bool OtaClient::repositoryConfigsEqual(OtaRepositoryConfig a, OtaRepositoryConfig b)
 
     \include qotaclient.cpp repository-configs-equal
 */

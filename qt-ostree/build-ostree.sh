@@ -50,6 +50,7 @@ git am "${DIR}"/patches/Support-for-booting-without-initramfs.patch
 git am "${DIR}"/patches/Allow-updating-files-in-the-boot-directory.patch
 git am "${DIR}"/patches/u-boot-add-bootdir-to-the-generated-uEnv.txt.patch
 git am "${DIR}"/patches/Create-firmware-convenience-symlinks.patch
+git am "${DIR}"/patches/deltas-Expose-the-filename-parameter.patch
 
 ./autogen.sh \
     --with-soup \

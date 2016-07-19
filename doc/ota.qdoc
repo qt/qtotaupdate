@@ -109,6 +109,7 @@
       \li Generating an update from the new version of your product's sysroot.
       \li Delivering this update to a customer device via OTA.
       \li Securing a delivery of an update.
+      \li Support for custom update delivery mechanisms.
     \endlist
 
     \section2 Installation
@@ -501,6 +502,23 @@
 
     It is advised to use both GPG and TLS in hostile environments. To learn more about the
     security topics from the above list, consult dedicated resources.
+
+    \section2 Offline Updates and Custom Delivery Mechanisms
+
+    Updating devices via OtaClient::update() requires a target device to be connected to the
+    Internet and this mechanism is limited to HTTP(S) only (OtaRepositoryConfig::url). An
+    alternative approach is to generate a self-contained update package. A self-contained
+    package support can be enabled by passing \c {--create-self-contained-package} to the
+    \c {qt-ostree} tool. This will generate a \c {WORKDIR/superblock} binary file. Generating
+    a self-contained update package is required when:
+    \list
+      \li A device has no network connection and is intended to be
+          updated via external media such as a USB drive, or
+      \li Some other protocol or proprietary mechanism is used to
+          deliver software to a device.
+    \endlist
+    As all APIs in the Qt OTA Update module, applying a self-contained update package is an
+    atomic process, and is done via OtaClient::applyOffline().
 
     \section1 Layout of an OTA Enabled Sysroot
 

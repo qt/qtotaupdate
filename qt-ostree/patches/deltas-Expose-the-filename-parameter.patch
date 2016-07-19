@@ -1,0 +1,45 @@
+From 4537b1d2c89d3c9b24f0c08874ec6a1f720add0a Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Thu, 24 Nov 2016 15:59:36 +0100
+Subject: [PATCH] deltas: Expose the filename parameter
+
+The C API (ostree_repo_static_delta_generate) knows what to do
+with it, but this parameter was never exposed via command line
+tool.
+---
+ src/ostree/ot-builtin-static-delta.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/ostree/ot-builtin-static-delta.c b/src/ostree/ot-builtin-static-delta.c
+index a1c220b..57799d4 100644
+--- a/src/ostree/ot-builtin-static-delta.c
++++ b/src/ostree/ot-builtin-static-delta.c
+@@ -33,6 +33,7 @@ static char *opt_min_fallback_size;
+ static char *opt_max_bsdiff_size;
+ static char *opt_max_chunk_size;
+ static char *opt_endianness;
++static char *opt_filename;
+ static gboolean opt_empty;
+ static gboolean opt_swap_endianness;
+ static gboolean opt_inline;
+@@ -71,6 +72,7 @@ static GOptionEntry generate_options[] = {
+   { "min-fallback-size", 0, 0, G_OPTION_ARG_STRING, &opt_min_fallback_size, "Minimum uncompressed size in megabytes for individual HTTP request", NULL},
+   { "max-bsdiff-size", 0, 0, G_OPTION_ARG_STRING, &opt_max_bsdiff_size, "Maximum size in megabytes to consider bsdiff compression for input files", NULL},
+   { "max-chunk-size", 0, 0, G_OPTION_ARG_STRING, &opt_max_chunk_size, "Maximum size of delta chunks in megabytes", NULL},
++  { "filename", 0, 0, G_OPTION_ARG_STRING, &opt_filename, "Sets where to store the delta. By default gets stored in the ostree repository", NULL},
+   { NULL }
+ };
+ 
+@@ -328,6 +330,9 @@ ot_static_delta_builtin_generate (int argc, char **argv, GCancellable *cancellab
+       if (opt_inline)
+         g_variant_builder_add (parambuilder, "{sv}",
+                                "inline-parts", g_variant_new_boolean (TRUE));
++      if (opt_filename)
++        g_variant_builder_add (parambuilder, "{sv}",
++                               "filename", g_variant_new_bytestring (opt_filename));
+ 
+       g_variant_builder_add (parambuilder, "{sv}", "verbose", g_variant_new_boolean (TRUE));
+       if (opt_endianness || opt_swap_endianness)
+-- 
+2.7.4
+

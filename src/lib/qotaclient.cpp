@@ -168,6 +168,12 @@ void QOtaClientPrivate::rollbackFinished(const QString &defaultRev, bool success
     emit q->rollbackFinished(success);
 }
 
+void QOtaClientPrivate::applyOfflineFinished(bool success)
+{
+    Q_Q(QOtaClient);
+    emit q->applyOfflineFinished(success);
+}
+
 void QOtaClientPrivate::statusStringChanged(const QString &status)
 {
     Q_Q(QOtaClient);
@@ -304,6 +310,13 @@ QString QOtaClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
+    \fn void QOtaClient::applyOfflineFinished(bool success)
+
+    This is a notifier signal for applyOffline(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
     \fn void QOtaClient::remoteInfoChanged()
 //! [remoteinfochanged-description]
     Remote info can change when calling fetchRemoteInfo(). If OTA metadata on
@@ -384,6 +397,7 @@ QOtaClient::QOtaClient(QObject *parent) :
         connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, d, &QOtaClientPrivate::fetchRemoteInfoFinished);
         connect(async, &QOtaClientAsync::updateFinished, d, &QOtaClientPrivate::updateFinished);
         connect(async, &QOtaClientAsync::rollbackFinished, d, &QOtaClientPrivate::rollbackFinished);
+        connect(async, &QOtaClientAsync::applyOfflineFinished, d, &QOtaClientPrivate::applyOfflineFinished);
         connect(async, &QOtaClientAsync::errorOccurred, d, &QOtaClientPrivate::errorOccurred);
         connect(async, &QOtaClientAsync::statusStringChanged, d, &QOtaClientPrivate::statusStringChanged);
         connect(async, &QOtaClientAsync::rollbackChanged, d, &QOtaClientPrivate::rollbackChanged);
@@ -426,7 +440,7 @@ bool QOtaClient::fetchRemoteInfo() const
     holds whether the operation was started successfully.
 //! [update-description]
 
-    \sa updateFinished(), fetchRemoteInfo(), restartRequired
+    \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
 */
 bool QOtaClient::update() const
 {
@@ -456,11 +470,41 @@ bool QOtaClient::rollback() const
     return true;
 }
 
+
+/*!
+//! [apply-offline]
+    Applies a self-contained update package.
+
+    This method is asynchronous and returns immediately. The return value
+    holds whether the operation was started successfully. The \a packagePath
+    holds a path to the package file.
+
+//! [apply-offline]
+
+    \sa applyOfflineFinished()
+*/
+bool QOtaClient::applyOffline(const QString &packagePath)
+{
+    Q_D(QOtaClient);
+    if (!d->isReady())
+        return false;
+
+    QFileInfo package(packagePath);
+    if (!package.exists()) {
+        d->errorOccurred(QString(QStringLiteral("The package %1 does not exist"))
+                         .arg(package.absoluteFilePath()));
+        return false;
+    }
+
+    d->m_otaAsync->applyOffline(package.absoluteFilePath());
+    return true;
+}
+
 /*!
 //! [remove-repository-config]
     Remove a configuration file for the repository.
 
-    The repository configuration is stored on a file system in \c {/etc/ostree/remotes.d/\*.conf}
+    The repository configuration is stored on a file system in \c {/etc/ostree/remotes.d/*.conf}
 
     If the configuration file does not exist, this function returns \c true.
     If the configuration file exists, this function returns \c true if the file
@@ -509,7 +553,7 @@ static inline bool pathExists(QOtaClientPrivate *d, const QString &path)
 /*!
 //! [set-repository-config]
     Change the configuration for the repository. The repository configuration
-    is stored on a file system in \c {/etc/ostree/remotes.d/\*.conf}
+    is stored on a file system in \c {/etc/ostree/remotes.d/*.conf}
 
     Returns \c true if the configuration file is changed successfully;
     otherwise returns \c false.
