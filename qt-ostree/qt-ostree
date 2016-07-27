@@ -166,6 +166,10 @@ usage()
     echo
     echo "    GRUB2 configuration generator script."
     echo
+    echo "--kernel-args \"ARGS\""
+    echo
+    echo "    A list of an additional kernel parameters (passed to the boot loader integration code)."
+    echo
     echo "--ota-json FILE"
     echo
     echo "    JSON file containing an OTA update metadata, can be arbitrary formatted. The"
@@ -344,6 +348,10 @@ parse_args()
               GRUB2_CFG_GENERATOR=$(realpath -ms ${2})
               shift 1
               ;;
+          --kernel-args)
+              KERNEL_ARGS="${2}"
+              shift 1
+              ;;
           --ota-json)
               OTA_JSON=$(realpath -ms ${2})
               shift 1
@@ -438,11 +446,10 @@ parse_args()
       2) validation_error "--sysroot-image-path and --sysroot-image-path-list are mutually exclusive." ;;
     esac
 
-    validate_arg "--initramfs" "${INITRAMFS}" true f
+    validate_arg "--initramfs" "${INITRAMFS}" false f
     validate_arg "--uboot-env-file" "${UBOOT_ENV_FILE}" false f
     validate_arg "--grub2-cfg-generator" "${GRUB2_CFG_GENERATOR}" false f
     validate_arg "--ota-json" "${OTA_JSON}" true f
-
     validate_arg "--gpg-homedir" "${GPG_HOMEDIR}" false d
     validate_arg "--gpg-trusted-keyring" "${GPG_TRUSTED_KEYRING}" false f
     if [[ $USE_GPG = true && ( -z "${GPG_KEY}" || -z "${GPG_HOMEDIR}" ) ]] ; then
@@ -465,7 +472,6 @@ parse_args()
     # Report.
     qt_ostree_info "Using ostree ${OSTREE}"
     qt_ostree_info "OTA JSON: " && echo "$(cat ${OTA_JSON})"
-
 }
 
 umount_mount_points()
@@ -562,14 +568,21 @@ organize_boot_files()
 
     get_kernel_info
 
-    # Clean up from unnecessary files and broken symbolic links.
-    rm -rf initramfs
+    # Clean up from broken symbolic links.
     find -L ${BOOT_FILE_PATH}/ -type l -delete
+    # .. and files with a reserved prefix.
+    rm -rf initramfs*
 
-    # OSTree deploy requires vmlinuz-*.
-    bootcsum=$(cat ${KERNEL} ${INITRAMFS} | sha256sum | cut -f 1 -d ' ')
+    # OSTree deploy requires vmlinuz-*, with optional initramfs-*.
+    if [ -n "${INITRAMFS}" ] ; then
+        bootcsum=$(cat ${KERNEL} ${INITRAMFS} | sha256sum | cut -f 1 -d ' ')
+        cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs-${KERNEL_VERSION}-${bootcsum}
+        qt_ostree_info "Using initramfs for booting"
+    else
+        qt_ostree_info "Not using initramfs for booting"
+        bootcsum=$(cat ${KERNEL} | sha256sum | cut -f 1 -d ' ')
+    fi
     mv ${KERNEL} ${BOOT_FILE_PATH}/vmlinuz-${KERNEL_VERSION}-${bootcsum}
-    cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs-${KERNEL_VERSION}-${bootcsum}
 
     touch ${BOOT_FILE_PATH}/.ostree-bootcsumdir-source
 
@@ -586,8 +599,7 @@ organize_boot_files()
                 rm ${name}-tmp
             fi
         fi
-    fi
-    if [ "${BOOTLOADER}" = "grub2" ] ; then
+    elif [ "${BOOTLOADER}" = "grub2" ] ; then
         if [ -z "${GRUB2_CFG_GENERATOR}" ] ; then
             # Use default generator.
             GRUB2_CFG_GENERATOR=${ROOT}/ostree-grub-generator
@@ -595,6 +607,19 @@ organize_boot_files()
         chmod +x ${GRUB2_CFG_GENERATOR}
         find_in_sysroot "ostree-grub-generator"
         cp ${GRUB2_CFG_GENERATOR} $(path_in_sysroot "ostree-grub-generator")
+        # Add default root= for initramfs context.
+        if [[ -z "${KERNEL_ARGS}" && -n "${INITRAMFS}" ]] ; then
+            KERNEL_ARGS="root=LABEL=rootfs"
+        fi
+    fi
+
+    if [ -n "${KERNEL_ARGS}" ] ; then
+        qt_ostree_info "Additional kernel command line arguments: $KERNEL_ARGS"
+        for karg in ${KERNEL_ARGS} ; do
+            kargs="${kargs} --karg=$karg"
+        done
+        # NOTE: This file is used by higher level API.
+        echo $kargs > ${BOOT_FILE_PATH}/kargs
     fi
 }
 
@@ -755,12 +780,9 @@ configure_boot_loader()
             fi
             ln -sf loader/${name} ${OTA_SYSROOT}/boot/${name}
         done
-    fi
-
-    if [ "${BOOTLOADER}" = "grub2" ] ; then
+    elif [ "${BOOTLOADER}" = "grub2" ] ; then
         mkdir -p ${OTA_SYSROOT}/boot/grub2/
         ln -s ../loader/grub.cfg ${OTA_SYSROOT}/boot/grub2/grub.cfg
-        KERNEL_ARGS="--karg=root=LABEL=rootfs ${KERNEL_ARGS}"
         export OSTREE_GRUB2_EXEC=${GRUB2_CFG_GENERATOR}
     fi
 }
@@ -791,8 +813,10 @@ populate_filesystem_images()
         mount recovery.${RECOVERYFS_TYPE} recovery-dd/
         cp -rf ${BOOT_FILE_PATH}/* recovery-dd/
         cd recovery-dd
-        ln -s initramfs-* initramfs
         ln -s vmlinuz-* vmlinuz
+        if [ -n "${INITRAMFS}" ] ; then
+            ln -s initramfs-* initramfs
+        fi
         cd -
     fi
 
@@ -898,7 +922,13 @@ create_ota_sysroot()
 
     qt_ostree_info "Checking out filesystem tree from ${OSTREE_REPO} repository"
     "${OSTREE}" --repo=${OTA_SYSROOT}/ostree/repo pull-local --remote=${OS_NAME} ${OSTREE_REPO} ${OSTREE_BRANCH}
-    "${OSTREE}" admin deploy ${KERNEL_ARGS} --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+
+    if [ -e "${BOOT_FILE_PATH}"/kargs ] ; then
+        "${OSTREE}" admin deploy $(cat "${BOOT_FILE_PATH}"/kargs) --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+    else
+        "${OSTREE}" admin deploy --os=${OS_NAME} ${OS_NAME}:${OSTREE_BRANCH}
+    fi
+
     "${OSTREE}" admin status
 
     # OSTree does not touch the contents of /var, it is the OS responsibility to manage this directory.

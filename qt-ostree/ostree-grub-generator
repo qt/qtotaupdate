@@ -56,7 +56,7 @@ entries_path=$(dirname $new_grub2_cfg)/entries
 
 read_config()
 {
-    config_file=${entries_path}/${1}
+    config_file=${1}
     title=""
     initrd=""
     options=""
@@ -95,11 +95,13 @@ populate_menu()
     # will be more boards, determine boot_prefix at runtime.
     boot_prefix="/boot"
 
-    for config in $(ls ${entries_path}); do
+    for config in $(ls $entries_path/*.conf); do
         read_config ${config}
         menu="${menu}menuentry '${title}' {\n"
         menu="${menu}\t linux ${boot_prefix}/${linux} ${options}\n"
-        menu="${menu}\t initrd ${boot_prefix}/${initrd}\n"
+        if [ -n "${initrd}" ] ; then
+            menu="${menu}\t initrd ${boot_prefix}/${initrd}\n"
+        fi
         menu="${menu}}\n\n"
     done
     # printf seems to be more reliable across shells for special character (\n, \t) evaluation
