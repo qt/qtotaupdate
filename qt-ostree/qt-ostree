@@ -333,32 +333,32 @@ parse_args()
               START_HTTPD=true
               ;;
           --ostree-repo)
-              OSTREE_REPO=$(readlink -m ${2})
+              OSTREE_REPO=$(realpath -ms ${2})
               shift 1
               ;;
           --uboot-env-file)
-              UBOOT_ENV_FILE=$(readlink -m ${2})
+              UBOOT_ENV_FILE=$(realpath -ms ${2})
               shift 1
               ;;
           --grub2-cfg-generator)
-              GRUB2_CFG_GENERATOR=$(readlink -m ${2})
+              GRUB2_CFG_GENERATOR=$(realpath -ms ${2})
               shift 1
               ;;
           --ota-json)
-              OTA_JSON=$(readlink -m ${2})
+              OTA_JSON=$(realpath -ms ${2})
               shift 1
               ;;
           --tls-ca-path)
-              SERVER_CERT=$(readlink -m ${2})
+              SERVER_CERT=$(realpath -ms ${2})
               shift 1
               ;;
           --tls-client-cert-path)
-              CLIENT_CERT=$(readlink -m ${2})
+              CLIENT_CERT=$(realpath -ms ${2})
               USE_CLIENT_TLS=true
               shift 1
               ;;
           --tls-client-key-path)
-              CLIENT_KEY=$(readlink -m ${2})
+              CLIENT_KEY=$(realpath -ms ${2})
               USE_CLIENT_TLS=true
               shift 1
               ;;
@@ -371,7 +371,7 @@ parse_args()
               shift 1
               ;;
           --sysroot-image-path)
-              SYSROOT_IMAGE_PATH=$(readlink -m ${2})
+              SYSROOT_IMAGE_PATH=$(realpath -ms ${2})
               shift 1
               ;;
           --sysroot-image-path-list)
@@ -379,7 +379,7 @@ parse_args()
               shift 1
               ;;
           --initramfs)
-              INITRAMFS=$(readlink -m ${2})
+              INITRAMFS=$(realpath -ms ${2})
               shift 1
               ;;
           --gpg-sign)
@@ -388,16 +388,16 @@ parse_args()
               shift 1
               ;;
           --gpg-homedir)
-              GPG_HOMEDIR=$(readlink -m ${2})
+              GPG_HOMEDIR=$(realpath -ms ${2})
               USE_GPG=true
               shift 1
               ;;
           --gpg-trusted-keyring)
-              GPG_TRUSTED_KEYRING=$(readlink -m ${2})
+              GPG_TRUSTED_KEYRING=$(realpath -ms ${2})
               shift 1
               ;;
           --ostree) # intentionally undocumented
-              OSTREE=$(readlink -m ${2})
+              OSTREE=$(realpath -ms ${2})
               shift 1
               ;;
           --developer) # intentionally undocumented
@@ -945,6 +945,8 @@ extract_sysroot()
         image=${SYSROOT_IMAGE_PATH}
         qt_ostree_info "Copying ${image} ..."
         cp -rp${VERBOSE}d ${image}/* ${GENERATED_TREE}
+    else
+        qt_ostree_error "Failed to extract ${SYSROOT_IMAGE_PATH}"
     fi
 }
 
