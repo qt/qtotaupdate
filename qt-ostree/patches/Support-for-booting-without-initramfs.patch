@@ -1,0 +1,131 @@
+From a31c9083870fd934e242cc9cc56fdd39ad0a42cb Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Wed, 24 Aug 2016 12:00:14 +0200
+Subject: [PATCH 3/4] Support for booting without initramfs
+
+Previously when initramfs-* was not found in a deployment's
+boot directory, it was assumed that rootfs is prepared for
+ostree booting by a kernel patch.
+
+With this patch, the behaviour changes to be - if initramfs-*
+is not found, assume that system is using a static
+ostree-prepare-root as init process. Booting without initramfs
+is a common use case on embedded systems. This approach is
+also more convenient, than having to patch the kernel.
+---
+ Makefile-switchroot.am                |  3 +++
+ configure.ac                          |  8 ++++++++
+ src/boot/grub2/ostree-grub-generator  |  8 +++++---
+ src/libostree/ostree-sysroot-deploy.c | 18 +++++++++++++-----
+ 4 files changed, 29 insertions(+), 8 deletions(-)
+
+diff --git a/Makefile-switchroot.am b/Makefile-switchroot.am
+index ef837ce..70a6de7 100644
+--- a/Makefile-switchroot.am
++++ b/Makefile-switchroot.am
+@@ -29,6 +29,9 @@ libswitchroot_mountutil_la_SOURCES = \
+ ostree_prepare_root_SOURCES = src/switchroot/ostree-prepare-root.c
+ ostree_prepare_root_LDADD = libswitchroot-mountutil.la
+ ostree_prepare_root_CFLAGS = $(AM_CFLAGS) -Isrc/switchroot
++if BUILDOPT_STATIC_PREPARE_ROOT
++ostree_prepare_root_LDFLAGS = --static
++endif
+ 
+ ostree_remount_SOURCES = src/switchroot/ostree-remount.c
+ ostree_remount_LDADD = libswitchroot-mountutil.la
+diff --git a/configure.ac b/configure.ac
+index 4831bcc..97f3112 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -294,6 +294,13 @@ AS_IF([test x$with_grub2_mkconfig_path = x], [
+ ],[GRUB2_MKCONFIG=$with_grub2_mkconfig_path])
+ AC_DEFINE_UNQUOTED([GRUB2_MKCONFIG_PATH], ["$GRUB2_MKCONFIG"], [The system grub2-mkconfig executible name])
+ 
++AC_ARG_WITH(static-prepare-root,
++            AS_HELP_STRING([--with-static-prepare-root],
++                           [Build static version of the 'ostree-prepare-root' binary. Useful when
++                            using 'ostree-prepare-root' as the init (PID 1) process. (default: no)]),,
++              [with_static_prepare_root=no])
++AM_CONDITIONAL(BUILDOPT_STATIC_PREPARE_ROOT, test x$with_static_prepare_root = xyes)
++
+ dnl for tests
+ AS_IF([test "x$found_introspection" = xyes], [
+   AC_PATH_PROG(GJS, [gjs])
+@@ -327,6 +334,7 @@ echo "
+     libarchive (parse tar files directly):        $with_libarchive
+     static deltas:                                yes (always enabled now)
+     O_TMPFILE:                                    $enable_otmpfile
++    static ostree-prepare-root                    $with_static_prepare_root
+     man pages (xsltproc):                         $enable_man
+     api docs (gtk-doc):                           $enable_gtk_doc
+     gjs-based tests:                              $have_gjs
+diff --git a/src/boot/grub2/ostree-grub-generator b/src/boot/grub2/ostree-grub-generator
+index 5673b26..ceca806 100644
+--- a/src/boot/grub2/ostree-grub-generator
++++ b/src/boot/grub2/ostree-grub-generator
+@@ -28,7 +28,7 @@ entries_path=$(dirname $new_grub2_cfg)/entries
+ 
+ read_config()
+ {
+-    config_file=${entries_path}/${1}
++    config_file=${1}
+     title=""
+     initrd=""
+     options=""
+@@ -62,11 +62,13 @@ read_config()
+ populate_menu()
+ {
+     boot_prefix="${OSTREE_BOOT_PARTITION}"
+-    for config in $(ls ${entries_path}); do
++    for config in $(ls $entries_path/*.conf); do
+         read_config ${config}
+         menu="${menu}menuentry '${title}' {\n"
+         menu="${menu}\t linux ${boot_prefix}${linux} ${options}\n"
+-        menu="${menu}\t initrd ${boot_prefix}${initrd}\n"
++        if [ -n "${initrd}" ] ; then
++            menu="${menu}\t initrd ${boot_prefix}${initrd}\n"
++        fi
+         menu="${menu}}\n\n"
+     done
+     # The printf command seems to be more reliable across shells for special character (\n, \t) evaluation
+diff --git a/src/libostree/ostree-sysroot-deploy.c b/src/libostree/ostree-sysroot-deploy.c
+index a05ca30..c0a0347 100644
+--- a/src/libostree/ostree-sysroot-deploy.c
++++ b/src/libostree/ostree-sysroot-deploy.c
+@@ -1458,20 +1458,28 @@ install_deployment_kernel (OstreeSysroot   *sysroot,
+     ostree_bootconfig_parser_set (bootconfig, "linux", boot_relpath);
+   }
+ 
++  val = ostree_bootconfig_parser_get (bootconfig, "options");
++  kargs = _ostree_kernel_args_from_string (val);
++
+   if (dest_initramfs_name)
+     {
+       g_autofree char * boot_relpath = g_strconcat ("/", bootcsumdir, "/", dest_initramfs_name, NULL);
+       ostree_bootconfig_parser_set (bootconfig, "initrd", boot_relpath);
+     }
+-
+-  val = ostree_bootconfig_parser_get (bootconfig, "options");
++  else
++    {
++      g_autofree char *prepare_root_arg = NULL;
++      prepare_root_arg = g_strdup_printf ("init=/ostree/boot.%d/%s/%s/%d/usr/lib/ostree/ostree-prepare-root",
++                                             new_bootversion, osname, bootcsum,
++                                             ostree_deployment_get_bootserial (deployment));
++      _ostree_kernel_args_replace_take (kargs, g_steal_pointer (&prepare_root_arg));
++    }
+ 
+   ostree_kernel_arg = g_strdup_printf ("ostree=/ostree/boot.%d/%s/%s/%d",
+                                        new_bootversion, osname, bootcsum,
+                                        ostree_deployment_get_bootserial (deployment));
+-  kargs = _ostree_kernel_args_from_string (val);
+-  _ostree_kernel_args_replace_take (kargs, ostree_kernel_arg);
+-  ostree_kernel_arg = NULL;
++  _ostree_kernel_args_replace_take (kargs, g_steal_pointer (&ostree_kernel_arg));
++
+   options_key = _ostree_kernel_args_to_string (kargs);
+   ostree_bootconfig_parser_set (bootconfig, "options", options_key);
+   
+-- 
+2.7.4
+

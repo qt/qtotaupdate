@@ -68,13 +68,7 @@ generate_initramfs()
 {
     MODULE_PATH=/usr/lib/dracut/modules.d/
 
-    output=$("${ADB}" shell ls /usr/sbin/ostree-prepare-root)
     substring="No such file or directory"
-    if [[ $output == *${substring}* ]] ; then
-        echo "error: Failed to find the required binary /usr/sbin/ostree-prepare-root on a device."
-        exit 1
-    fi
-
     output=$("${ADB}" shell ls /lib/systemd/systemd)
     systemd=false
     if [[ $output != *${substring}* ]] ; then

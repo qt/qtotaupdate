@@ -1,0 +1,161 @@
+From cc31c80658a90cf1b13fdf9fe8b6dde1cc9a0d24 Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Mon, 22 Aug 2016 11:32:16 +0200
+Subject: [PATCH 1/3] Allow updating files in the /boot directory
+
+This patch adds support for copying (or hardlinking on
+single partition systems) all files from the deployment's
+/usr/lib/ostree-boot directory to the relevant
+/boot/ostree/$os-$bootcsum/ directory. This feature can
+be enabled by 'touch .ostree-bootcsumdir-source' in
+/usr/lib/ostree-boot.
+---
+ src/libostree/ostree-sysroot-deploy.c | 101 +++++++++++++++++++++++++++++++---
+ 1 file changed, 94 insertions(+), 7 deletions(-)
+
+diff --git a/src/libostree/ostree-sysroot-deploy.c b/src/libostree/ostree-sysroot-deploy.c
+index a05ca30..f34e3f3 100644
+--- a/src/libostree/ostree-sysroot-deploy.c
++++ b/src/libostree/ostree-sysroot-deploy.c
+@@ -165,12 +165,31 @@ dirfd_copy_attributes_and_xattrs (int            src_parent_dfd,
+ }
+ 
+ static gboolean
++hardlink_or_copy_dir_recurse (int  src_parent_dfd,
++                  int              dest_parent_dfd,
++                  const char      *name,
++                  gboolean         hardlink,
++                  GCancellable    *cancellable,
++                  GError         **error);
++
++static gboolean
+ copy_dir_recurse (int              src_parent_dfd,
+                   int              dest_parent_dfd,
+                   const char      *name,
+                   GCancellable    *cancellable,
+                   GError         **error)
+ {
++    return hardlink_or_copy_dir_recurse (src_parent_dfd, dest_parent_dfd, name, FALSE, cancellable, error);
++}
++
++static gboolean
++hardlink_or_copy_dir_recurse (int  src_parent_dfd,
++                  int              dest_parent_dfd,
++                  const char      *name,
++                  gboolean         hardlink,
++                  GCancellable    *cancellable,
++                  GError         **error)
++{
+   g_auto(GLnxDirFdIterator) src_dfd_iter = { 0, };
+   glnx_fd_close int dest_dfd = -1;
+   struct dirent *dent;
+@@ -210,17 +229,27 @@ copy_dir_recurse (int              src_parent_dfd,
+ 
+       if (S_ISDIR (child_stbuf.st_mode))
+         {
+-          if (!copy_dir_recurse (src_dfd_iter.fd, dest_dfd, dent->d_name,
+-                                 cancellable, error))
++          if (!hardlink_or_copy_dir_recurse (src_dfd_iter.fd, dest_dfd, dent->d_name,
++                                             hardlink, cancellable, error))
+             return FALSE;
+         }
+       else
+         {
+-          if (!glnx_file_copy_at (src_dfd_iter.fd, dent->d_name, &child_stbuf,
+-                                  dest_dfd, dent->d_name,
+-                                  GLNX_FILE_COPY_OVERWRITE,
+-                                  cancellable, error))
+-            return FALSE;
++          if (hardlink)
++            {
++              if (!hardlink_or_copy_at (src_dfd_iter.fd, dent->d_name,
++                                        dest_dfd, dent->d_name,
++                                        cancellable, error))
++                return FALSE;
++            }
++          else
++            {
++              if (!glnx_file_copy_at (src_dfd_iter.fd, dent->d_name, &child_stbuf,
++                                      dest_dfd, dent->d_name,
++                                      GLNX_FILE_COPY_OVERWRITE,
++                                      cancellable, error))
++                return FALSE;
++            }
+         }
+     }
+ 
+@@ -1301,6 +1330,7 @@ install_deployment_kernel (OstreeSysroot   *sysroot,
+   g_autofree char *version_key = NULL;
+   g_autofree char *ostree_kernel_arg = NULL;
+   g_autofree char *options_key = NULL;
++  g_auto(GLnxDirFdIterator) dfd_iter = { 0, };
+   GString *title_key;
+   __attribute__((cleanup(_ostree_kernel_args_cleanup))) OstreeKernelArgs *kargs = NULL;
+   const char *val;
+@@ -1367,6 +1397,63 @@ install_deployment_kernel (OstreeSysroot   *sysroot,
+         }
+     }
+ 
++  if (fstatat (tree_boot_dfd, ".ostree-bootcsumdir-source", &stbuf, 0) == 0)
++    {
++      if (!glnx_dirfd_iterator_init_at (tree_boot_dfd, ".", FALSE, &dfd_iter, error))
++        goto out;
++
++      while (TRUE)
++        {
++          struct dirent *dent;
++
++          if (!glnx_dirfd_iterator_next_dent (&dfd_iter, &dent, cancellable, error))
++            goto out;
++          if (dent == NULL)
++            break;
++
++          /* Skip special files - vmlinuz-* and initramfs-* are handled separately */
++          if (g_str_has_prefix (dent->d_name, "vmlinuz-") || g_str_has_prefix (dent->d_name, "initramfs-"))
++            continue;
++
++          if (fstatat (bootcsum_dfd, dent->d_name, &stbuf, AT_SYMLINK_NOFOLLOW) != 0)
++            {
++              if (errno != ENOENT)
++                {
++                  glnx_set_prefix_error_from_errno (error, "fstatat %s", dent->d_name);
++                  goto out;
++                }
++
++              if (fstatat (dfd_iter.fd, dent->d_name, &stbuf, AT_SYMLINK_NOFOLLOW) != 0)
++                {
++                  glnx_set_error_from_errno (error);
++                  goto out;
++                }
++
++              if (S_ISDIR (stbuf.st_mode))
++                {
++                  if (!hardlink_or_copy_dir_recurse (tree_boot_dfd, bootcsum_dfd, dent->d_name,
++                                                     TRUE, cancellable, error))
++                    goto out;
++                }
++              else
++                {
++                  if (!hardlink_or_copy_at (tree_boot_dfd, dent->d_name,
++                                            bootcsum_dfd, dent->d_name,
++                                            cancellable, error))
++                    goto out;
++                }
++            }
++        }
++    }
++  else
++    {
++      if (errno != ENOENT)
++        {
++          glnx_set_prefix_error_from_errno (error, "fstatat %s", ".ostree-bootcsumdir-source");
++          goto out;
++        }
++    }
++
+   if (fstatat (deployment_dfd, "usr/lib/os-release", &stbuf, 0) != 0)
+     {
+       if (errno != ENOENT)
+-- 
+2.7.4
+

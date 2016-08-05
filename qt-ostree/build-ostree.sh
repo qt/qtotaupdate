@@ -29,42 +29,28 @@
 #############################################################################
 set -e
 set -x
+
 # On Ubuntu 14.04 the following build dependecies needs to be installed:
 # sudo apt-get install git autoconf gtk-doc-tools libattr1-dev libcap-dev libghc-gio-dev liblzma-dev \
 # e2fslibs-dev libgpgme11-dev libsoup2.4-dev libarchive-dev
+
 DIR=$(dirname $(readlink -f $0))
-OTA_LIBGSYSTEM_REF="v2015.2"
-OTA_OSTREE_REF="v2016.5"
+OTA_OSTREE_REF="77af6844d8330b31d58080076afb31e08974ce09"
 PARALLEL=4
 
 cd "${DIR}"
-rm -rf libgsystem-git ostree-git
+rm -rf ostree-git
 
-# Build libgsystem.
-# Note: There is an ongoing work in the ostree project to remove this dependency.
-git clone https://github.com/GNOME/libgsystem.git libgsystem-git
-cd libgsystem-git
-git checkout ${OTA_LIBGSYSTEM_REF}
-git submodule update --init
-./autogen.sh \
-    --disable-shared \
-    --enable-static \
-    CFLAGS='-fPIC'
-
-make V=1 -j ${PARALLEL}
-export PKG_CONFIG_PATH=$PWD/src
-export LD_LIBRARY_PATH=$PWD/.libs
-cd -
-
-# Build OSTree.
 git clone https://github.com/ostreedev/ostree.git ostree-git
 cd ostree-git
 git checkout ${OTA_OSTREE_REF}
-git am "${DIR}"/patches/ostree-Fix-enable_rofiles_fuse-no-build.patch
-git am "${DIR}"/patches/ostree-Allow-updating-files-in-the-boot-directory.patch
-git am "${DIR}"/patches/ostree-u-boot-Merge-ostree-s-and-systems-uEnv.txt.patch
-git am "${DIR}"/patches/ostree-Create-firmware-convenience-symlinks.patch
-git am "${DIR}"/patches/ostree-Fix-build-for-HAVE_LIBSOUP_CLIENT_CERTS.patch
+git am "${DIR}"/patches/ostree-prepare-root-enabler-for-simpler-kernel-arg.patch
+git am "${DIR}"/patches/deploy-add-karg-none-argument.patch
+git am "${DIR}"/patches/Support-for-booting-without-initramfs.patch
+git am "${DIR}"/patches/Allow-updating-files-in-the-boot-directory.patch
+git am "${DIR}"/patches/u-boot-add-bootdir-to-the-generated-uEnv.txt.patch
+git am "${DIR}"/patches/u-boot-Merge-ostree-s-and-systems-uEnv.txt.patch
+git am "${DIR}"/patches/Create-firmware-convenience-symlinks.patch
 
 ./autogen.sh \
     --with-soup \
@@ -72,15 +58,11 @@ git am "${DIR}"/patches/ostree-Fix-build-for-HAVE_LIBSOUP_CLIENT_CERTS.patch
     --enable-gtk-doc-html=no \
     --enable-man=no \
     --disable-shared \
-    --enable-static \
-    CFLAGS='-I../libgsystem-git/src -fPIC' \
-    LDFLAGS='-Wl,-rpath,\$$ORIGIN/lib/'
+    --enable-static
 
 make V=1 -j ${PARALLEL}
-unset PKG_CONFIG_PATH
-unset LD_LIBRARY_PATH
 cd -
 
 mv ostree-git/ostree .
 strip ostree
-rm -rf libgsystem-git ostree-git
+rm -rf ostree-git

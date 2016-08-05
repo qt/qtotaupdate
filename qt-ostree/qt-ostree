@@ -571,6 +571,8 @@ organize_boot_files()
     mv ${KERNEL} ${BOOT_FILE_PATH}/vmlinuz-${KERNEL_VERSION}-${bootcsum}
     cp ${INITRAMFS} ${BOOT_FILE_PATH}/initramfs-${KERNEL_VERSION}-${bootcsum}
 
+    touch ${BOOT_FILE_PATH}/.ostree-bootcsumdir-source
+
     # Boot loader companions.
     if [[ "${BOOTLOADER}" = "u-boot" && -n "${UBOOT_ENV_FILE}" ]] ; then
         cp ${UBOOT_ENV_FILE} ${BOOT_FILE_PATH}/

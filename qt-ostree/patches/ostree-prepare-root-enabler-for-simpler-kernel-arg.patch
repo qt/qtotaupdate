@@ -1,0 +1,54 @@
+From d183819e6e7bdc7a9476542cbef384285f592f3f Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Fri, 12 Aug 2016 08:50:29 +0200
+Subject: [PATCH 1/4] ostree-prepare-root: enabler for simpler kernel arg
+
+With the current approach, when ostree-prepare-root is used
+on the kernel command line as init=, it always assumes that
+the next value in the argument list is a path to the sysroot.
+The code for falling back to a default path (if none is provided),
+would only work if init= is the last arg in the argument list.
+We can not rely on that and have to explicitly provide the
+path to the sysroot. Which defeats the purpose of a default
+path selection code.
+
+To keep command line neater assume that sysroot is on / when
+using ostree-prepare-root as init. This probably is what most
+people want anyways. Also _ostree_kernel_args* API assumes
+that args are space separated list. Which is problematic for:
+"init=${ostree}/usr/lib/ostree/ostree-prepare-root /" as it
+gets split in two.
+---
+ src/switchroot/ostree-prepare-root.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/switchroot/ostree-prepare-root.c b/src/switchroot/ostree-prepare-root.c
+index 895b2e5..449fc33 100644
+--- a/src/switchroot/ostree-prepare-root.c
++++ b/src/switchroot/ostree-prepare-root.c
+@@ -199,10 +199,19 @@ main(int argc, char *argv[])
+   char srcpath[PATH_MAX];
+   struct stat stbuf;
+ 
+-  if (argc < 2)
+-    root_mountpoint = "/";
++  if (getpid() == 1)
++    {
++      root_mountpoint = "/";
++    }
+   else
+-    root_mountpoint = argv[1];
++    {
++      if (argc < 2)
++        {
++          fprintf (stderr, "usage: ostree-prepare-root SYSROOT\n");
++          exit (EXIT_FAILURE);
++        }
++      root_mountpoint = argv[1];
++    }
+ 
+   root_mountpoint = realpath (root_mountpoint, NULL);
+   deploy_path = resolve_deploy_path (root_mountpoint);
+-- 
+2.7.4
+

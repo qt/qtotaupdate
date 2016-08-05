@@ -1,44 +1,42 @@
-From 310ddd84dc353d93a2cc118725b459dba643cf0b Mon Sep 17 00:00:00 2001
-From: Gatis Paeglis <gatis.paeglis@theqtcompany.com>
-Date: Thu, 21 Apr 2016 16:54:05 +0200
-Subject: [PATCH 3/3] Create firmware convenience symlinks.
+From c4df63488b9e09a9aa69e32ea5c0671c9dc50c9d Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Wed, 24 Aug 2016 12:29:38 +0200
+Subject: [PATCH] Create firmware convenience symlinks.
 
 Later this could be moved into utils or a similar
 location, if other boot loader backends will need
 this functionality.
 ---
- src/libostree/ostree-bootloader-uboot.c | 97 ++++++++++++++++++++++++++++++++-
- 1 file changed, 96 insertions(+), 1 deletion(-)
+ src/libostree/ostree-bootloader-uboot.c | 93 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 92 insertions(+), 1 deletion(-)
 
 diff --git a/src/libostree/ostree-bootloader-uboot.c b/src/libostree/ostree-bootloader-uboot.c
-index 9bcde9c..be5e8c5 100644
+index 22251da..26a3127 100644
 --- a/src/libostree/ostree-bootloader-uboot.c
 +++ b/src/libostree/ostree-bootloader-uboot.c
-@@ -66,6 +66,100 @@ _ostree_bootloader_uboot_get_name (OstreeBootloader *bootloader)
+@@ -62,6 +62,97 @@ _ostree_bootloader_uboot_get_name (OstreeBootloader *bootloader)
    return "U-Boot";
  }
  
 +/* It is common for firmware to search / on the boot partition for additional
 + * files that are required for booting. It can be difficult to change this search
 + * logic if it is hardcoded somewhere low in the stack or is in a read-only memory.
-+ * This issue can be solved from the OS installer, by creating a symlink in the
-+ * following way:
++ * This issue can be solved by system builders by creating a convenience symlink:
 + *
 + *    cd sysroot/boot
 + *    ln -s loader/second-stage-bootloader second-stage-bootloader
 + *
 + * This function will make sure that loader/second-stage-bootloader points to the
 + * correct target file version. This function does nothing if boot/ does not contain
-+ * symlink files pointing into loader/.
++ * symlink files pointing into the loader/ directory.
 + */
 +static gboolean
-+create_firmware_convenience_symlinks (OstreeBootloaderUboot     *self,
++create_firmware_convenience_symlinks (OstreeBootloaderUboot *self,
 +                                      char                  *bootcsum_dir,
 +                                      int                    bootversion,
 +                                      GCancellable          *cancellable,
 +                                      GError               **error)
 +{
-+  gboolean ret = FALSE;
 +  glnx_fd_close int loader_dfd = -1;
 +  glnx_fd_close int boot_dfd = -1;
 +  g_autofree char *loader_dir = NULL;
@@ -46,18 +44,18 @@ index 9bcde9c..be5e8c5 100644
 +
 +  loader_dir = g_strdup_printf ("boot/loader.%d/", bootversion);
 +  if (!glnx_opendirat (self->sysroot->sysroot_fd, loader_dir, FALSE, &loader_dfd, error))
-+    goto out;
++    return FALSE;
 +  if (!glnx_opendirat (self->sysroot->sysroot_fd, "boot", FALSE, &boot_dfd, error))
-+    goto out;
++    return FALSE;
 +  if (!glnx_dirfd_iterator_init_take_fd (dup (boot_dfd), &dfd_iter, error))
-+    goto out;
++    return FALSE;
 +
 +  while (TRUE) {
 +    struct dirent *dent;
 +    struct stat stbuf;
 +
 +    if (!glnx_dirfd_iterator_next_dent (&dfd_iter, &dent, cancellable, error))
-+      goto out;
++      return FALSE;
 +    if (dent == NULL)
 +      break;
 +
@@ -66,7 +64,7 @@ index 9bcde9c..be5e8c5 100644
 +        if (errno == ENOENT)
 +          continue;
 +        g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "fstatat");
-+        goto out;
++        return FALSE;
 +      }
 +
 +    if (S_ISLNK(stbuf.st_mode))
@@ -87,44 +85,42 @@ index 9bcde9c..be5e8c5 100644
 +                if (errno == ENOENT)
 +                  continue;
 +                g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "faccessat");
-+                goto out;
++                return FALSE;
 +              }
 +
-+            /* In case 'ostree admin cleanup' was not run after an interrupted deployment */
++            /* Cleanup from stray symlinks. This can happend when the previous deployment was
++               interrupted and no cleanup routines were run before restaring the deployment. */
 +            if (unlinkat (loader_dfd, dent->d_name, 0) == -1 && errno != ENOENT)
 +            {
 +              g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "unlinkat");
-+              goto out;
++              return FALSE;
 +            }
-+            /* Complete the link chain to the current boot file version */
++            /* Complete the link chain to the current boot file version. */
 +            snprintf (path_buffer, sizeof(path_buffer), "..%s/%s", bootcsum_dir, dent->d_name);
 +            if (symlinkat (path_buffer, loader_dfd, dent->d_name) == -1)
 +              {
 +                g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED, "symlinkat");
-+                goto out;
++                return FALSE;
 +              }
 +          }
 +      }
 +  }
 +
-+  ret = TRUE;
-+out:
-+  return ret;
++  return TRUE;
 +}
 +
  static gboolean
  create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
                                          int                    bootversion,
-@@ -130,7 +224,8 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+@@ -138,7 +229,7 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
          }
      }
  
--  ret = TRUE;
-+  ret = create_firmware_convenience_symlinks (self, bootdir, bootversion, cancellable, error);
-+
- out:
-   return ret;
+-  return TRUE;
++  return create_firmware_convenience_symlinks (self, bootdir, bootversion, cancellable, error);
  }
+ 
+ static gboolean
 -- 
-2.7.3
+2.7.4
 

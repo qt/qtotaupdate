@@ -1,0 +1,52 @@
+From 8323c038733522f7f31fefc8921b7c1760416638 Mon Sep 17 00:00:00 2001
+From: Gatis Paeglis <gatis.paeglis@qt.io>
+Date: Mon, 22 Aug 2016 15:52:21 +0200
+Subject: [PATCH 3/3] u-boot: add 'bootdir' to the generated uEnv.txt
+
+When doing a full copy of:
+
+$deployment/usr/lib/ostree-boot -> /boot/ostree/$os-$bootcsum/
+
+U-Boot bootscript can use the 'bootdir' to find, for example,
+the Device Tree (dtb) file, as in:
+
+load ${dtype} ${disk}:${bootpart} ${a_fdt} ${bootdir}${dtbname}
+
+Or u-boot external bootscript:
+
+load ${dtype} ${disk}:${bootpart} ${a_scr} ${bootdir}${scriptname}
+
+It could also be possible to point 'bootdir' directly to the
+$deployment/usr/lib/ostree-boot, but this would add unnecessary
+restrictions on what file system can be used for rootfs as u-boot,
+for example, can not read from BTRFS. So having
+bootdir=/boot/ostree/$os-$bootcsum/ is a better approach here, as
+/boot can be on a separate partition with its own file system type.
+---
+ src/libostree/ostree-bootloader-uboot.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/libostree/ostree-bootloader-uboot.c b/src/libostree/ostree-bootloader-uboot.c
+index f95ea84..0786626 100644
+--- a/src/libostree/ostree-bootloader-uboot.c
++++ b/src/libostree/ostree-bootloader-uboot.c
+@@ -72,6 +72,7 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+   g_autoptr(GPtrArray) boot_loader_configs = NULL;
+   OstreeBootconfigParser *config;
+   const char *val;
++  g_autofree char *bootdir = NULL;
+ 
+   if (!_ostree_sysroot_read_boot_loader_configs (self->sysroot, bootversion, &boot_loader_configs,
+                                                  cancellable, error))
+@@ -88,6 +89,8 @@ create_config_from_boot_loader_entries (OstreeBootloaderUboot     *self,
+       return FALSE;
+     }
+   g_ptr_array_add (new_lines, g_strdup_printf ("kernel_image=%s", val));
++  bootdir = strndup (val, strrchr(val, '/') - val);
++  g_ptr_array_add (new_lines, g_strdup_printf ("bootdir=%s/", bootdir));
+ 
+   val = ostree_bootconfig_parser_get (config, "initrd");
+   if (val)
+-- 
+2.7.4
+
