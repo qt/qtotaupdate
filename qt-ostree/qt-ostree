@@ -688,8 +688,9 @@ convert_to_ostree_sysroot()
         systemd=true
         qt_ostree_info "Detected systemd init support on the image"
     fi
+
     if [ ${systemd} = false ] ; then
-        qt_ostree_info "Detected System V init support on the image"
+        qt_ostree_warning "Failed to detect systemd init support. Using System V as a fallback init system."
         # Run ostree-remount on startup. This makes sure that
         # rw/ro mounts are set correctly for ostree to work.
         cp ${ROOT}/ostree-remount.sh etc/init.d/
