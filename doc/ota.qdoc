@@ -91,18 +91,6 @@
       shutdown. Any journaling or log-structured filesystem, when configured properly,
       is capable of such recovery.
 
-      \li The Linux Kernel.
-
-      The kernel must be configured with initramfs enabled.
-
-      \badcode
-      CONFIG_BLK_DEV_INITRD=y
-      \endcode
-
-      There are ways around that, but we currently do not support this out of
-      the box: \br
-      \l https://mail.gnome.org/archives/ostree-list/2015-October/msg00015.html
-
       \li Boot Loader.
 
       Supported boot loaders are: U-Boot, GRUB 2. \br
@@ -122,9 +110,8 @@
 
     \section2 Installation
 
-    Currently, the OTA package is distributed with \l {Qt Automotive Suite} and
-    \l {Qt for Device Creation}. The OTA-related files are installed under
-    \c Tools/ota directory in the main SDK install location, referred to as
+    OTA package is distributed with \l {Qt for Device Creation}. The OTA-related files are
+    installed under \c Tools/ota directory in the main SDK install location, referred to as
     \c SDK_INSTALL_DIR in this guide.
 
     When executing scripts, we will refer to the current working directory as
@@ -153,14 +140,8 @@
 
     \list 1
 
-      \li Generate OSTree boot compatible initramfs image.
-
-          OSTree integration code parses the \c ostree= kernel command line
-          argument in the initramfs to find the correct versioned tree. It setups
-          the necessary mounts, notably the read-only mount on the \c {/usr} path,
-          and makes the versioned tree to appear as a real \c {"/"} root directory
-          in the booted system. The \c ostree= argument is passed via the \l {Boot loader integration.}
-          {boot loader integration} code, explained in more detail later in the guide.
+      \li Generate OSTree boot compatible initramfs image (skip this step if not using
+          initramfs for booting).
 
           To generate the initramfs image, run:
 
@@ -171,26 +152,23 @@
 
           \b {Important:} The device should be powered on, booted into your current
           product (the sysroot to be released), and connected to a machine from
-          which you will run the \c generate-initramfs tool. Dracut generates the
-          initramfs image based on the currently running kernel. You can, of course,
-          provide your own (not necessarily dracut based) initramfs, as long as
-          you include the required ostree logic from the provided dracut module.
-
-          \note The \c generate-initramfs works on \e systemd and \e {System V}
-          init-based systems.
+          which you will run the \c generate-initramfs tool. \l {https://en.wikipedia.org/wiki/Dracut_(software)}
+          {Dracut} generates the initramfs image based on the currently running kernel.
+          You can, of course, provide your own (not necessarily dracut based) initramfs,
+          as long as you include the required OSTree logic from the provided dracut module
+          (installed in \c {/usr/lib/dracut/modules.d/}). The generated image uses
+          systemd as an init system.
 
           This will produce an \c initramfs-${device}-${release} file in the
           working directory. The initramfs file will be needed in the later steps.
-
 
        \target Boot loader integration.
        \li Boot loader integration.
 
           OSTree maintains bootloader-independent drop-in configuration files in a format
           as defined by \l {https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec/}
-          {The Boot Loader Specification}. Including a special \c ostree= kernel argument that allows
-          the initramfs to find and boot the specified tree. Not all boot loaders support The
-          Boot Loader Specification, so OSTree contains code to generate native configurations files
+          {The Boot Loader Specification}. Not all boot loaders support The Boot Loader
+          Specification, so OSTree contains code to generate native configurations files
           from the bootloader-independent configurations.
 
           The boot script used by your device has to be changed to use the configurations that are
@@ -207,12 +185,22 @@
               sudo apt-get install u-boot-tools
               \endcode
 
-              OSTree maintains the \c uEnv.txt environment file, which the U-Boot environment should
+              OSTree maintains the \c uEnv.txt file, which the U-Boot environment should
               import. If custom changes to \c uEnv.txt are required, use the \c --uboot-env-file
               argument from the \c {qt-ostree} tool. The provided file will be appended to OSTree's
-              \c uEnv.txt.
+              managed \c uEnv.txt.
 
-              The content of OSTree's \c uEnv.txt has the following format:
+              OSTree maintains the following fields in \c uEnv.txt:
+
+              \list
+                \li \c ${kernel_image}: Path to the Linux kernel image.
+                \li \c ${ramdisk_image}: Path to the initramfs image (optional).
+                \li \c ${bootargs}: Parameters passed to the kernel command line.
+                \li \c ${bootdir}: Path to other files that belong to the same release
+                       and should be accessible from U-Boot (DTBs, boot scripts).
+              \endlist
+
+              An example \c uEnv.txt when booting with initramfs:
 
               \badcode
               kernel_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/vmlinuz
@@ -220,17 +208,6 @@
               ramdisk_image=/ostree/qt-os-590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/initramfs
               bootargs=ostree=/ostree/boot.1/qt-os/590db09c66551670019a487992f4dae9cb2067e241f7c7fefd6b3d35af55895b/0
               \endcode
-
-              Where:
-
-              \list
-                \li \c ${kernel_image}: Path to the Linux kernel image.
-                \li \c ${ramdisk_image}: Path to the initramfs image.
-                \li \c ${bootargs}: Parameters passed to the kernel command line.
-                \li \c ${bootdir}: Path to other files that belong to the same release
-                       and should be accessible from U-Boot (DTBs, boot scripts).
-              \endlist
-
 
               A sample U-Boot logic that uses the imported OSTree's environment variables:
 
@@ -280,7 +257,22 @@
 
           \endlist
 
-          For more examples refer to \l {Device Integration Examples}
+          For more examples refer to \l {Device Integration Examples}.
+
+          \b {The Booting Process}
+
+          OSTree includes a special \c ostree= kernel argument that points to the corresponding tree
+          (see the \c {/ostree} in \l {Layout of an OTA Enabled Sysroot}). When not using initramfs,
+          the kernel command will also contain the \c init= argument, pointing to the \c ostree-prepare-root
+          binary. The same binary is used from initramfs context. The \c ostree-prepare-root binary
+          parses the \c ostree= kernel command line argument to find the correct versioned tree. It
+          sets up the necessary mounts, notably the read-only mount on the \c {/usr} path, and makes
+          the versioned tree to appear as a real \c {"/"} root directory in the booted system.
+
+          After \c ostree-prepare-root (run as PID 1) completes, it passes control to the real init
+          process. In initramfs context, once \c ostree-prepare-root is done, systemd's
+          \c initrd-switch-root.target will take over. In initramfs, \c ostree-prepare-root is
+          used as a user space utility (as opposed to PID 1, when booting without initramfs).
 
       \li Convert your sysroot into an OTA enabled sysroot.
 
@@ -330,7 +322,12 @@
 
               \li \b {\c --initramfs}
                   \list
-                      \li The initramfs image that we generated in the step 1.
+                      \li The initramfs image that we generated in the step 1. If initramfs is
+                          not used for booting, it may be necessary to provide additional
+                          kernel command line arguments (for example, \c {--kernel-args "rootwait root=/dev/sda2"}).
+                          The kernel arguments set with \b {\c --kernel-args} are passed to
+                          the bootloader integration code. If additional kernel arguments are
+                          resolved directly from boot scripts, then \c {--kernel-args} can be omitted.
                   \endlist
 
               \li \b {\c --uboot-env-file}
@@ -434,6 +431,10 @@
                         it \b must be updated as well (see the \c --uboot-env-file
                         notes below).
                 \endlist
+
+                As before, if not using initramfs, it may be necessary to provide
+                additional kernel command line arguments via \b {\c --kernel-args}.
+
             \li \b {\c --sysroot-image-path}
                 \list
                     \li Provide a path to the \e {new version} of your sysroot.
@@ -485,7 +486,7 @@
     In Ubuntu, the required packages can be installed with the following command:
 
     \badcode
-    sudo apt-get install gnupg gnupg2
+    sudo apt-get install gnupg2
     \endcode
 
     \b {TLS Authentication}
