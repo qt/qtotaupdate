@@ -57,6 +57,14 @@ QOTAClientAsync::~QOTAClientAsync()
     g_object_unref (m_sysroot);
 }
 
+static void parseErrorString(QString *error)
+{
+    error->remove(0, qstrlen("error: "));
+
+    if (error->startsWith(QLatin1String("Remote")) && error->endsWith(QLatin1String("not found")))
+        *error = QLatin1String("Remote configuration not found.");
+}
+
 QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
 {
     qCDebug(otaLog) << command;
@@ -76,6 +84,7 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateSta
             qCDebug(otaLog) << line;
             if (line.startsWith(QStringLiteral("error:"))) {
                 *ok = false;
+                parseErrorString(&line);
                 emit errorOccurred(line);
             } else {
                 if (updateStatus)
