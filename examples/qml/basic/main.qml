@@ -40,6 +40,18 @@ Window {
         logView.positionViewAtEnd()
     }
 
+    function otaReady() {
+        if (!OTAClient.otaEnabled) {
+            log("OTA Update functionality is not enabled on this device")
+            return false;
+        }
+        if (!OTAClient.initialized) {
+            log("Initialization is not ready")
+            return false;
+        }
+        return true;
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: 10
@@ -67,6 +79,8 @@ Window {
                 id: fetchButton
                 text: "Fetch OTA info"
                 onClicked: {
+                    if (!otaReady())
+                        return;
                     log("Fetcing OTA info...")
                     OTAClient.fetchServerInfo()
                 }
@@ -75,6 +89,8 @@ Window {
                 visible: OTAClient.rollbackAvailable
                 text: "Rollback"
                 onClicked: {
+                    if (!otaReady())
+                        return;
                     log("Roolback...")
                     OTAClient.rollback()
                 }
@@ -83,6 +99,8 @@ Window {
                 visible: OTAClient.updateAvailable
                 text: "Update"
                 onClicked: {
+                    if (!otaReady())
+                        return;
                     log("Updating...")
                     OTAClient.update()
                 }
@@ -91,6 +109,8 @@ Window {
                 visible: OTAClient.restartRequired
                 text: "Restart"
                 onClicked: {
+                    if (!otaReady())
+                        return;
                     log("Restarting...")
                 }
             }
@@ -125,5 +145,10 @@ Window {
         }
         onRollbackFinished: log("Rollback " + (success ? "finished" : "failed"))
         onUpdateFinished: log("Update " + (success ? "finished" : "failed"))
+    }
+
+    Component.onCompleted: {
+        if (!OTAClient.otaEnabled)
+            log("OTA Update functionality not enabled on this device")
     }
 }
