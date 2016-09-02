@@ -44,7 +44,8 @@ QOTAClientPrivate::QOTAClientPrivate(QOTAClient *client) :
     m_rollbackAvailable(false),
     m_restartRequired(false)
 {
-    m_otaEnabled = QFile().exists(QStringLiteral("/run/ostree-booted"));
+    // https://github.com/ostreedev/ostree/issues/480
+    m_otaEnabled = QFile().exists(QStringLiteral("/ostree/deploy"));
     if (m_otaEnabled) {
         m_otaAsyncThread = new QThread();
         m_otaAsyncThread->start();
