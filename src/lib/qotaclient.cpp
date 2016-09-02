@@ -33,7 +33,7 @@
 #include <QtCore/QFile>
 #include <QtCore/QJsonObject>
 
-Q_LOGGING_CATEGORY(otaLog, "qt.ota")
+Q_LOGGING_CATEGORY(qota, "b2qt.ota")
 
 QT_BEGIN_NAMESPACE
 
@@ -59,7 +59,7 @@ QOTAClientPrivate::~QOTAClientPrivate()
         if (m_otaAsyncThread->isRunning()) {
             m_otaAsyncThread->quit();
             if (Q_UNLIKELY(m_otaAsyncThread->wait(4000)))
-                qCWarning(otaLog) << "Timed out waiting for worker thread to exit.";
+                qCWarning(qota) << "Timed out waiting for worker thread to exit.";
         }
         delete m_otaAsyncThread;
     }
@@ -85,6 +85,19 @@ void QOTAClientPrivate::updateServerInfo(const QString &serverRev, const QJsonDo
     m_serverRev = serverRev;
     updateInfoMembers(serverInfo, &m_serverInfo, &m_serverVersion, &m_serverDescription);
     emit q->serverInfoChanged();
+}
+
+bool QOTAClientPrivate::isReady() const
+{
+    if (!m_otaEnabled) {
+        qCWarning(qota) << "over-the-air update functionality is not enabled for this device";
+        return false;
+    }
+    if (!m_initialized) {
+        qCWarning(qota) << "initialization is not ready";
+        return false;
+    }
+    return true;
 }
 
 void QOTAClientPrivate::refreshState()
@@ -177,7 +190,7 @@ void QOTAClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonD
 QString QOTAClientPrivate::version(QueryTarget target) const
 {
     if (!m_otaEnabled)
-        return QStringLiteral("The OTA update capability is not enabled.");
+        return QString();
 
     switch (target) {
     case QueryTarget::Client:
@@ -194,7 +207,7 @@ QString QOTAClientPrivate::version(QueryTarget target) const
 QByteArray QOTAClientPrivate::info(QueryTarget target) const
 {
     if (!m_otaEnabled)
-        return QByteArray("unknown");
+        return QByteArray();
 
     switch (target) {
     case QueryTarget::Client:
@@ -211,7 +224,7 @@ QByteArray QOTAClientPrivate::info(QueryTarget target) const
 QString QOTAClientPrivate::description(QueryTarget target) const
 {
     if (!m_otaEnabled)
-        return QStringLiteral("The OTA update capability is not enabled.");
+        return QString();
 
     switch (target) {
     case QueryTarget::Client:
@@ -228,7 +241,7 @@ QString QOTAClientPrivate::description(QueryTarget target) const
 QString QOTAClientPrivate::revision(QueryTarget target) const
 {
     if (!m_otaEnabled)
-        return QStringLiteral("The OTA update capability is not enabled.");
+        return QString();
 
     switch (target) {
     case QueryTarget::Client:
@@ -408,7 +421,7 @@ QOTAClient::~QOTAClient()
 bool QOTAClient::fetchServerInfo() const
 {
     Q_D(const QOTAClient);
-    if (!d->m_otaEnabled)
+    if (!d->isReady())
         return false;
 
     d->m_otaAsync->fetchServerInfo();
@@ -428,7 +441,7 @@ bool QOTAClient::fetchServerInfo() const
 bool QOTAClient::update() const
 {
     Q_D(const QOTAClient);
-    if (!d->m_otaEnabled || !updateAvailable())
+    if (!d->isReady() || !updateAvailable())
         return false;
 
     d->m_otaAsync->update(d->m_serverRev);
@@ -446,7 +459,7 @@ bool QOTAClient::update() const
 bool QOTAClient::rollback() const
 {
     Q_D(const QOTAClient);
-    if (!d->m_otaEnabled || !d->m_initialized)
+    if (!d->isReady())
         return false;
 
     d->m_otaAsync->rollback();
@@ -517,9 +530,8 @@ QString QOTAClient::statusString() const
 bool QOTAClient::updateAvailable() const
 {
     Q_D(const QOTAClient);
-    if (!d->m_otaEnabled || d->m_serverRev.isEmpty())
-        return false;
-
+    if (d->m_updateAvailable)
+        Q_ASSERT(!d->m_serverRev.isEmpty());
     return d->m_updateAvailable;
 }
 
@@ -546,9 +558,6 @@ bool QOTAClient::rollbackAvailable() const
 bool QOTAClient::restartRequired() const
 {
     Q_D(const QOTAClient);
-    if (!d->m_otaEnabled)
-        return false;
-
     return d->m_restartRequired;
 }
 

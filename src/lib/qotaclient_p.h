@@ -38,7 +38,7 @@
 #include <QtCore/QScopedPointer>
 #include <QtCore/QJsonDocument>
 
-Q_DECLARE_LOGGING_CATEGORY(otaLog)
+Q_DECLARE_LOGGING_CATEGORY(qota)
 
 class QOTAClientAsync;
 
@@ -75,6 +75,7 @@ public:
     QByteArray info(QueryTarget target) const;
 
     void updateServerInfo(const QString &serverRev, const QJsonDocument &serverInfo);
+    bool isReady() const;
 
     // members
     QOTAClient *const q_ptr;

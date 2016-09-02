@@ -67,7 +67,7 @@ static void parseErrorString(QString *error)
 
 QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
 {
-    qCDebug(otaLog) << command;
+    qCDebug(qota) << command;
     if (!m_ostree) {
         m_ostree = new QProcess;
         m_ostree->setProcessChannelMode(QProcess::MergedChannels);
@@ -81,7 +81,7 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateSta
         QByteArray bytesRead = m_ostree->readAll().trimmed();
         if (!bytesRead.isEmpty()) {
             QString line = QString::fromUtf8(bytesRead);
-            qCDebug(otaLog) << line;
+            qCDebug(qota) << line;
             if (line.startsWith(QStringLiteral("error:"))) {
                 *ok = false;
                 parseErrorString(&line);
@@ -133,15 +133,15 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
 
 void QOTAClientAsync::multiprocessLock(const QString &method)
 {
-    qCDebug(otaLog) << QTime::currentTime() << method << "- waiting for lock...";
+    qCDebug(qota) << QTime::currentTime() << method << "- waiting for lock...";
     ostree_sysroot_lock (m_sysroot, 0);
-    qCDebug(otaLog) << QTime::currentTime() << " lock acquired";
+    qCDebug(qota) << QTime::currentTime() << " lock acquired";
 }
 
 void QOTAClientAsync::multiprocessUnlock()
 {
     ostree_sysroot_unlock (m_sysroot);
-    qCDebug(otaLog) << QTime::currentTime() << "lock released";
+    qCDebug(qota) << QTime::currentTime() << "lock released";
 }
 
 QString QOTAClientAsync::defaultRevision()
