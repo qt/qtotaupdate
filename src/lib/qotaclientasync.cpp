@@ -73,13 +73,28 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateSta
         m_ostree->setProcessChannelMode(QProcess::MergedChannels);
     }
     m_ostree->start(command);
-    m_ostree->waitForStarted();
+    if (!m_ostree->waitForStarted()) {
+        *ok = false;
+        emit errorOccurred(QLatin1String("Failed to start: ") + command
+                         + QLatin1String(" : ") + m_ostree->errorString());
+        return QString();
+    }
 
-    QString output;
+    QString out;
+    bool finished = false;
     do {
-        m_ostree->waitForReadyRead();
-        QByteArray bytesRead = m_ostree->readAll().trimmed();
-        if (!bytesRead.isEmpty()) {
+        finished = m_ostree->waitForFinished(200);
+        if (!finished && m_ostree->error() != QProcess::Timedout) {
+            *ok = false;
+            emit errorOccurred(QLatin1String("Process failed: ") + command +
+                               QLatin1String(" : ") + m_ostree->errorString());
+            return QString();
+        }
+        while (m_ostree->canReadLine()) {
+            QByteArray bytesRead = m_ostree->readLine().trimmed();
+            if (bytesRead.isEmpty())
+                continue;
+
             QString line = QString::fromUtf8(bytesRead);
             qCDebug(qota) << line;
             if (line.startsWith(QStringLiteral("error:"))) {
@@ -90,11 +105,11 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateSta
                 if (updateStatus)
                     emit statusStringChanged(line);
             }
-            output.append(line);
+            out.append(line);
         }
-    } while (m_ostree->state() != QProcess::NotRunning);
+    } while (!finished);
 
-    return output;
+    return out;
 }
 
 QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev)
