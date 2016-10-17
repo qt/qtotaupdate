@@ -202,19 +202,26 @@ void QOTAClientAsync::_fetchServerInfo()
 void QOTAClientAsync::_update(const QString &updateToRev)
 {
     bool ok = true;
-    ostree(QString(QStringLiteral("ostree admin upgrade --override-commit=%1")).arg(updateToRev), &ok, true);
-    if (!ok) {
-        emit updateFinished(QStringLiteral(""), ok);
-        return;
-    }
+    QString defaultRev;
+    QString kernelArgs;
 
     multiprocessLock(QStringLiteral("_update"));
-    ostree_sysroot_load (m_sysroot, 0, 0);
-
-    refreshRollbackState();
-    QString defaultRev = defaultRevision();
-    emit updateFinished(defaultRev, ok);
+    emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
+    ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
     multiprocessUnlock();
+    if (!ok) goto out;
+
+    emit statusStringChanged(QStringLiteral("Deploying..."));
+    kernelArgs = ostree(QString(QStringLiteral("ostree cat %1 /usr/lib/ostree-boot/kargs")).arg(updateToRev), &ok);
+    if (ok) ostree(QString(QStringLiteral("ostree admin deploy --karg-none %1 linux/qt")).arg(kernelArgs), &ok, true);
+    if (!ok) goto out;
+
+    ostree_sysroot_load (m_sysroot, 0, 0);
+    refreshRollbackState();
+    defaultRev = defaultRevision();
+
+out:
+    emit updateFinished(defaultRev, ok);
 }
 
 int QOTAClientAsync::rollbackIndex()
