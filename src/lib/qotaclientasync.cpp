@@ -148,15 +148,15 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
 
 void QOTAClientAsync::multiprocessLock(const QString &method)
 {
-    qCDebug(qota) << QTime::currentTime() << method << "- waiting for lock...";
+    qCDebug(qota) << QTime::currentTime().toString() << method << "- waiting for lock...";
     ostree_sysroot_lock (m_sysroot, 0);
-    qCDebug(qota) << QTime::currentTime() << " lock acquired";
+    qCDebug(qota) << QTime::currentTime().toString() << " lock acquired";
 }
 
 void QOTAClientAsync::multiprocessUnlock()
 {
     ostree_sysroot_unlock (m_sysroot);
-    qCDebug(qota) << QTime::currentTime() << "lock released";
+    qCDebug(qota) << QTime::currentTime().toString() << "lock released";
 }
 
 QString QOTAClientAsync::defaultRevision()
