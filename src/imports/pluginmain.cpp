@@ -78,27 +78,27 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::serverVersion
+    \qmlproperty string OTAClient::remoteVersion
     \readonly
 
     This is a convenience property that holds a string containing the system's
     version on a server.
 
-    \sa serverInfo
+    \sa remoteInfo
 */
 
 /*!
-    \qmlproperty string OTAClient::serverDescription
+    \qmlproperty string OTAClient::remoteDescription
     \readonly
 
     This is a convenience property that holds a string containing the system's
     description on a server.
 
-    \sa serverInfo
+    \sa remoteInfo
 */
 
 /*!
-    \qmlproperty string OTAClient::serverRevision
+    \qmlproperty string OTAClient::remoteRevision
     \readonly
 
     This property holds a string containing the system's revision on a server
@@ -106,7 +106,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::serverInfo
+    \qmlproperty string OTAClient::remoteInfo
     \readonly
 
     This property holds a JSON-formatted string containing OTA metadata for the
@@ -159,24 +159,24 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OTAClient::fetchServerInfo()
+    \qmlmethod bool OTAClient::fetchRemoteInfo()
 
-    \include qotaclient.cpp fetchserverinfo-description
+    \include qotaclient.cpp fetchremoteinfo-description
 
-    \sa fetchServerInfoFinished(), updateAvailable, serverInfo
+    \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
 */
 
 /*!
-    \qmlsignal OTAClient::fetchServerInfoFinished(bool success)
+    \qmlsignal OTAClient::fetchRemoteInfoFinished(bool success)
 
-    This is a notifier signal for fetchServerInfo(). The \a success argument
+    This is a notifier signal for fetchRemoteInfo(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlsignal OTAClient::serverInfoChanged()
+    \qmlsignal OTAClient::remoteInfoChanged()
 
-    \include qotaclient.cpp serverinfochanged-description
+    \include qotaclient.cpp remoteinfochanged-description
 */
 
 /*!
@@ -184,7 +184,7 @@ QT_BEGIN_NAMESPACE
 
     \include qotaclient.cpp update-description
 
-    \sa updateFinished(), fetchServerInfo, restartRequired
+    \sa updateFinished(), fetchRemoteInfo, restartRequired
 */
 
 /*!
@@ -261,7 +261,7 @@ QT_BEGIN_NAMESPACE
     \readonly
 
     Holds a bool indicating the availability of a system update. This
-    information is cached; to update the local cache, call fetchServerInfo().
+    information is cached; to update the local cache, call fetchRemoteInfo().
 
     \sa update()
 */

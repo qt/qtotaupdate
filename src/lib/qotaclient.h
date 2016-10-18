@@ -51,10 +51,10 @@ class Q_DECL_EXPORT QOTAClient : public QObject
     Q_PROPERTY(QString bootedDescription READ bootedDescription NOTIFY initializationFinished)
     Q_PROPERTY(QString bootedRevision READ bootedRevision NOTIFY initializationFinished)
     Q_PROPERTY(QByteArray bootedInfo READ bootedInfo NOTIFY initializationFinished)
-    Q_PROPERTY(QString serverVersion READ serverVersion NOTIFY serverInfoChanged)
-    Q_PROPERTY(QString serverDescription READ serverDescription NOTIFY serverInfoChanged)
-    Q_PROPERTY(QString serverRevision READ serverRevision NOTIFY serverInfoChanged)
-    Q_PROPERTY(QByteArray serverInfo READ serverInfo NOTIFY serverInfoChanged)
+    Q_PROPERTY(QString remoteVersion READ remoteVersion NOTIFY remoteInfoChanged)
+    Q_PROPERTY(QString remoteDescription READ remoteDescription NOTIFY remoteInfoChanged)
+    Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteInfoChanged)
+    Q_PROPERTY(QByteArray remoteInfo READ remoteInfo NOTIFY remoteInfoChanged)
     Q_PROPERTY(QString rollbackVersion READ rollbackVersion NOTIFY rollbackInfoChanged)
     Q_PROPERTY(QString rollbackDescription READ rollbackDescription NOTIFY rollbackInfoChanged)
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackInfoChanged)
@@ -71,7 +71,7 @@ public:
     QString errorString() const;
     QString statusString() const;
 
-    Q_INVOKABLE bool fetchServerInfo() const;
+    Q_INVOKABLE bool fetchRemoteInfo() const;
     Q_INVOKABLE bool update() const;
     Q_INVOKABLE bool rollback() const;
 
@@ -80,10 +80,10 @@ public:
     QString bootedRevision() const;
     QByteArray bootedInfo() const;
 
-    QString serverVersion() const;
-    QString serverDescription() const;
-    QString serverRevision() const;
-    QByteArray serverInfo() const;
+    QString remoteVersion() const;
+    QString remoteDescription() const;
+    QString remoteRevision() const;
+    QByteArray remoteInfo() const;
 
     QString rollbackVersion() const;
     QString rollbackDescription() const;
@@ -91,7 +91,7 @@ public:
     QByteArray rollbackInfo() const;
 
 Q_SIGNALS:
-    void serverInfoChanged();
+    void remoteInfoChanged();
     void rollbackInfoChanged();
     void updateAvailableChanged(bool available);
     void rollbackAvailableChanged();
@@ -100,7 +100,7 @@ Q_SIGNALS:
     void errorOccurred(const QString &error);
 
     void initializationFinished();
-    void fetchServerInfoFinished(bool success);
+    void fetchRemoteInfoFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);
 

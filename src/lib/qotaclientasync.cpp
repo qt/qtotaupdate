@@ -43,7 +43,7 @@ QOTAClientAsync::QOTAClientAsync() :
 {
     // async mapper
     connect(this, &QOTAClientAsync::initialize, this, &QOTAClientAsync::_initialize);
-    connect(this, &QOTAClientAsync::fetchServerInfo, this, &QOTAClientAsync::_fetchServerInfo);
+    connect(this, &QOTAClientAsync::fetchRemoteInfo, this, &QOTAClientAsync::_fetchRemoteInfo);
     connect(this, &QOTAClientAsync::update, this, &QOTAClientAsync::_update);
     connect(this, &QOTAClientAsync::rollback, this, &QOTAClientAsync::_rollback);
 }
@@ -122,7 +122,7 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
             jsonData = QString::fromLatin1(metadata.readAll());
         break;
     }
-    case QOTAClientPrivate::QueryTarget::Server:
+    case QOTAClientPrivate::QueryTarget::Remote:
         jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
         break;
     case QOTAClientPrivate::QueryTarget::Rollback:
@@ -176,26 +176,26 @@ void QOTAClientAsync::_initialize()
     bool ok = true;
     QJsonDocument bootedInfo = info(QOTAClientPrivate::QueryTarget::Booted, &ok);
     QString defaultRev = defaultRevision();
-    // prepopulate with what we think is on the server (head of the local repo)
-    QString serverRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    QJsonDocument serverInfo = info(QOTAClientPrivate::QueryTarget::Server, &ok, serverRev);
+    // prepopulate with what we think is on the remote server (head of the local repo)
+    QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
+    QJsonDocument remoteInfo = info(QOTAClientPrivate::QueryTarget::Remote, &ok, remoteRev);
 
     refreshRollbackState();
-    emit initializeFinished(defaultRev, bootedRev, bootedInfo, serverRev, serverInfo);
+    emit initializeFinished(defaultRev, bootedRev, bootedInfo, remoteRev, remoteInfo);
     multiprocessUnlock();
 }
 
-void QOTAClientAsync::_fetchServerInfo()
+void QOTAClientAsync::_fetchRemoteInfo()
 {
-    multiprocessLock(QStringLiteral("_fetchServerInfo"));
-    QString serverRev;
-    QJsonDocument serverInfo;
+    multiprocessLock(QStringLiteral("_fetchRemoteInfo"));
+    QString remoteRev;
+    QJsonDocument remoteInfo;
     bool ok = true;
     ostree(QStringLiteral("ostree pull --commit-metadata-only qt-os linux/qt"), &ok);
     if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
-    if (ok) serverRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    if (ok) serverInfo = info(QOTAClientPrivate::QueryTarget::Server, &ok, serverRev);
-    emit fetchServerInfoFinished(serverRev, serverInfo, ok);
+    if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
+    if (ok) remoteInfo = info(QOTAClientPrivate::QueryTarget::Remote, &ok, remoteRev);
+    emit fetchRemoteInfoFinished(remoteRev, remoteInfo, ok);
     multiprocessUnlock();
 }
 

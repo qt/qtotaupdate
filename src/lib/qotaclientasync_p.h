@@ -51,9 +51,9 @@ signals:
     void initialize();
     void initializeFinished(const QString &defaultRev,
                             const QString &bootedRev, const QJsonDocument &bootedInfo,
-                            const QString &serverRev, const QJsonDocument &serverInfo);
-    void fetchServerInfo();
-    void fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success);
+                            const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void fetchRemoteInfo();
+    void fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success);
     void update(const QString &updateToRev);
     void updateFinished(const QString &defaultRev, bool success);
     void rollback();
@@ -73,7 +73,7 @@ protected:
     void refreshRollbackState(int index = -2);
 
     void _initialize();
-    void _fetchServerInfo();
+    void _fetchRemoteInfo();
     void _update(const QString &updateToRev);
     void _rollback();
 

@@ -50,7 +50,7 @@ public:
     enum class QueryTarget
     {
         Booted,
-        Server,
+        Remote,
         Rollback
     };
     Q_ENUM(QueryTarget)
@@ -61,8 +61,8 @@ public:
     void refreshState();
     void initializeFinished(const QString &defaultRev,
                             const QString &bootedRev, const QJsonDocument &bootedInfo,
-                            const QString &serverRev, const QJsonDocument &serverInfo);
-    void fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success);
+                            const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success);
     void updateFinished(const QString &defaultRev, bool success);
     void rollbackFinished(const QString &defaultRev, bool success);
     void statusStringChanged(const QString &status);
@@ -74,7 +74,7 @@ public:
     QString revision(QueryTarget target) const;
     QByteArray info(QueryTarget target) const;
 
-    void updateServerInfo(const QString &serverRev, const QJsonDocument &serverInfo);
+    void updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo);
     bool isReady() const;
 
     // members
@@ -95,10 +95,10 @@ public:
     QString m_bootedRev;
     QByteArray m_bootedInfo;
 
-    QString m_serverVersion;
-    QString m_serverDescription;
-    QString m_serverRev;
-    QByteArray m_serverInfo;
+    QString m_remoteVersion;
+    QString m_remoteDescription;
+    QString m_remoteRev;
+    QByteArray m_remoteInfo;
 
     QString m_rollbackVersion;
     QString m_rollbackDescription;

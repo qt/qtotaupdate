@@ -77,15 +77,15 @@ static void updateInfoMembers(const QJsonDocument &json, QByteArray *info, QStri
     *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
 }
 
-void QOTAClientPrivate::updateServerInfo(const QString &serverRev, const QJsonDocument &serverInfo)
+void QOTAClientPrivate::updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo)
 {
     Q_Q(QOTAClient);
-    if (m_serverRev == serverRev)
+    if (m_remoteRev == remoteRev)
         return;
 
-    m_serverRev = serverRev;
-    updateInfoMembers(serverInfo, &m_serverInfo, &m_serverVersion, &m_serverDescription);
-    emit q->serverInfoChanged();
+    m_remoteRev = remoteRev;
+    updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
+    emit q->remoteInfoChanged();
 }
 
 bool QOTAClientPrivate::isReady() const
@@ -105,7 +105,7 @@ void QOTAClientPrivate::refreshState()
 {
     Q_Q(QOTAClient);
 
-    bool updateAvailable = m_defaultRev != m_serverRev && m_serverRev != m_bootedRev;
+    bool updateAvailable = m_defaultRev != m_remoteRev && m_remoteRev != m_bootedRev;
     if (m_updateAvailable != updateAvailable) {
         m_updateAvailable = updateAvailable;
         emit q->updateAvailableChanged(m_updateAvailable);
@@ -120,26 +120,26 @@ void QOTAClientPrivate::refreshState()
 
 void QOTAClientPrivate::initializeFinished(const QString &defaultRev,
                                            const QString &bootedRev, const QJsonDocument &bootedInfo,
-                                           const QString &serverRev, const QJsonDocument &serverInfo)
+                                           const QString &remoteRev, const QJsonDocument &remoteInfo)
 {
     Q_Q(QOTAClient);
     m_defaultRev = defaultRev;
     m_bootedRev = bootedRev;
     updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
-    updateServerInfo(serverRev, serverInfo);
+    updateRemoteInfo(remoteRev, remoteInfo);
     refreshState();
     m_initialized = true;
     emit q->initializationFinished();
 }
 
-void QOTAClientPrivate::fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success)
+void QOTAClientPrivate::fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success)
 {
     Q_Q(QOTAClient);
     if (success) {
-        updateServerInfo(serverRev, serverInfo);
+        updateRemoteInfo(remoteRev, remoteInfo);
         refreshState();
     }
-    emit q->fetchServerInfoFinished(success);
+    emit q->fetchRemoteInfoFinished(success);
 }
 
 void QOTAClientPrivate::updateFinished(const QString &defaultRev, bool success)
@@ -196,8 +196,8 @@ QString QOTAClientPrivate::version(QueryTarget target) const
     switch (target) {
     case QueryTarget::Booted:
         return m_bootedVersion.isEmpty() ? QStringLiteral("unknown") : m_bootedVersion;
-    case QueryTarget::Server:
-        return m_serverVersion.isEmpty() ? QStringLiteral("unknown") : m_serverVersion;
+    case QueryTarget::Remote:
+        return m_remoteVersion.isEmpty() ? QStringLiteral("unknown") : m_remoteVersion;
     case QueryTarget::Rollback:
         return m_rollbackVersion.isEmpty() ? QStringLiteral("unknown") : m_rollbackVersion;
     default:
@@ -213,8 +213,8 @@ QByteArray QOTAClientPrivate::info(QueryTarget target) const
     switch (target) {
     case QueryTarget::Booted:
         return m_bootedInfo;
-    case QueryTarget::Server:
-        return m_serverInfo;
+    case QueryTarget::Remote:
+        return m_remoteInfo;
     case QueryTarget::Rollback:
         return m_rollbackInfo;
     default:
@@ -230,8 +230,8 @@ QString QOTAClientPrivate::description(QueryTarget target) const
     switch (target) {
     case QueryTarget::Booted:
         return m_bootedDescription.isEmpty() ? QStringLiteral("unknown") : m_bootedDescription;
-    case QueryTarget::Server:
-        return m_serverDescription.isEmpty() ? QStringLiteral("unknown") : m_serverDescription;
+    case QueryTarget::Remote:
+        return m_remoteDescription.isEmpty() ? QStringLiteral("unknown") : m_remoteDescription;
     case QueryTarget::Rollback:
         return m_rollbackDescription.isEmpty() ? QStringLiteral("unknown") : m_rollbackDescription;
     default:
@@ -247,8 +247,8 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     switch (target) {
     case QueryTarget::Booted:
         return m_bootedRev.isEmpty() ? QStringLiteral("unknown") : m_bootedRev;
-    case QueryTarget::Server:
-        return m_serverRev.isEmpty() ? QStringLiteral("unknown") : m_serverRev;
+    case QueryTarget::Remote:
+        return m_remoteRev.isEmpty() ? QStringLiteral("unknown") : m_remoteRev;
     case QueryTarget::Rollback:
         return m_rollbackRev.isEmpty() ? QStringLiteral("unknown") : m_rollbackRev;
     default:
@@ -303,9 +303,9 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::fetchServerInfoFinished(bool success)
+    \fn void QOTAClient::fetchRemoteInfoFinished(bool success)
 
-    A notifier signal for fetchServerInfo(). The \a success argument indicates
+    A notifier signal for fetchRemoteInfo(). The \a success argument indicates
     whether the operation was successful.
 */
 
@@ -324,12 +324,12 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::serverInfoChanged()
-//! [serverinfochanged-description]
-    Server info can change when calling fetchServerInfo(). If OTA metadata on
-    the server is different from the local cache, the local cache is updated
+    \fn void QOTAClient::remoteInfoChanged()
+//! [remoteinfochanged-description]
+    Remote info can change when calling fetchRemoteInfo(). If OTA metadata on
+    the remote server is different from the local cache, the local cache is updated
     and this signal is emitted.
-//! [serverinfochanged-description]
+//! [remoteinfochanged-description]
 */
 
 /*!
@@ -392,7 +392,7 @@ QOTAClient::QOTAClient(QObject *parent) : QObject(parent),
         QOTAClientAsync *async = d->m_otaAsync.data();
         // async finished handlers
         connect(async, &QOTAClientAsync::initializeFinished, d, &QOTAClientPrivate::initializeFinished);
-        connect(async, &QOTAClientAsync::fetchServerInfoFinished, d, &QOTAClientPrivate::fetchServerInfoFinished);
+        connect(async, &QOTAClientAsync::fetchRemoteInfoFinished, d, &QOTAClientPrivate::fetchRemoteInfoFinished);
         connect(async, &QOTAClientAsync::updateFinished, d, &QOTAClientPrivate::updateFinished);
         connect(async, &QOTAClientAsync::rollbackFinished, d, &QOTAClientPrivate::rollbackFinished);
         connect(async, &QOTAClientAsync::errorOccurred, d, &QOTAClientPrivate::errorOccurred);
@@ -408,36 +408,36 @@ QOTAClient::~QOTAClient()
 }
 
 /*!
-//! [fetchserverinfo-description]
-    Fetches OTA metadata from a server and updates the local cache. This
+//! [fetchremoteinfo-description]
+    Fetches OTA metadata from a remote server and updates the local cache. This
     metadata contains information on what system version is available on a
     server. The cache is persistent as it is stored on the disk.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
-//! [fetchserverinfo-description]
+//! [fetchremoteinfo-description]
 
-    \sa fetchServerInfoFinished(), updateAvailable, serverInfo
+    \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
 */
-bool QOTAClient::fetchServerInfo() const
+bool QOTAClient::fetchRemoteInfo() const
 {
     Q_D(const QOTAClient);
     if (!d->isReady())
         return false;
 
-    d->m_otaAsync->fetchServerInfo();
+    d->m_otaAsync->fetchRemoteInfo();
     return true;
 }
 
 /*!
 //! [update-description]
-    Fetches an OTA update from a server and performs the system update.
+    Fetches an OTA update from a remote and performs the system update.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 //! [update-description]
 
-    \sa updateFinished(), fetchServerInfo(), restartRequired
+    \sa updateFinished(), fetchRemoteInfo(), restartRequired
 */
 bool QOTAClient::update() const
 {
@@ -445,7 +445,7 @@ bool QOTAClient::update() const
     if (!d->isReady() || !updateAvailable())
         return false;
 
-    d->m_otaAsync->update(d->m_serverRev);
+    d->m_otaAsync->update(d->m_remoteRev);
     return true;
 }
 
@@ -488,7 +488,7 @@ bool QOTAClient::otaEnabled() const
 
     Initialization is fast unless there is another process locking access to
     the OSTree repository on a device, for example, a daemon process calling
-    fetchServerInfo().
+    fetchRemoteInfo().
 //! [initialized-description]
 
     \sa initializationFinished()
@@ -526,13 +526,13 @@ QString QOTAClient::statusString() const
     \brief whether a system update is available.
 
     This information is cached; to update the local cache, call
-    fetchServerInfo().
+    fetchRemoteInfo().
 */
 bool QOTAClient::updateAvailable() const
 {
     Q_D(const QOTAClient);
     if (d->m_updateAvailable)
-        Q_ASSERT(!d->m_serverRev.isEmpty());
+        Q_ASSERT(!d->m_remoteRev.isEmpty());
     return d->m_updateAvailable;
 }
 
@@ -568,7 +568,7 @@ bool QOTAClient::restartRequired() const
 
     This is a convenience method.
 
-    \sa clientInfo
+    \sa bootedInfo
 */
 QString QOTAClient::bootedVersion() const
 {
@@ -581,7 +581,7 @@ QString QOTAClient::bootedVersion() const
 
     This is a convenience method.
 
-    \sa clientInfo
+    \sa bootedInfo
 */
 QString QOTAClient::bootedDescription() const
 {
@@ -612,54 +612,54 @@ QByteArray QOTAClient::bootedInfo() const
 }
 
 /*!
-    \property QOTAClient::serverVersion
+    \property QOTAClient::remoteVersion
     \brief a QString containing the system's version on a server.
 
     This is a convenience method.
 
-    \sa serverInfo
+    \sa remoteInfo
 */
-QString QOTAClient::serverVersion() const
+QString QOTAClient::remoteVersion() const
 {
-    return d_func()->version(QOTAClientPrivate::QueryTarget::Server);
+    return d_func()->version(QOTAClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::serverDescription
+    \property QOTAClient::remoteDescription
     \brief a QString containing the system's description on a server.
 
     This is a convenience method.
 
-    \sa serverInfo
+    \sa remoteInfo
 */
-QString QOTAClient::serverDescription() const
+QString QOTAClient::remoteDescription() const
 {
-    return d_func()->description(QOTAClientPrivate::QueryTarget::Server);
+    return d_func()->description(QOTAClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::serverRevision
+    \property QOTAClient::remoteRevision
     \brief a QString containing the system's revision on a server.
 
     A checksum in the OSTree repository.
 */
-QString QOTAClient::serverRevision() const
+QString QOTAClient::remoteRevision() const
 {
-    return d_func()->revision(QOTAClientPrivate::QueryTarget::Server);
+    return d_func()->revision(QOTAClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::serverInfo
+    \property QOTAClient::remoteInfo
     \brief a QByteArray containing the system's OTA metadata on a server.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the system
     on a server. Metadata is bundled with each system's version.
 
-    \sa fetchServerInfo()
+    \sa fetchRemoteInfo()
 */
-QByteArray QOTAClient::serverInfo() const
+QByteArray QOTAClient::remoteInfo() const
 {
-    return d_func()->info(QOTAClientPrivate::QueryTarget::Server);
+    return d_func()->info(QOTAClientPrivate::QueryTarget::Remote);
 }
 
 /*!
