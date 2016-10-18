@@ -57,15 +57,15 @@ Window {
         anchors.leftMargin: 10
         anchors.topMargin: 10
 
-        Label { text: "CLIENT:"; Layout.bottomMargin: 14 }
-        Label { text: "Version: " + OTAClient.clientVersion }
-        Label { text: "Description: " + OTAClient.clientDescription }
-        Label { text: "Revision: " + OTAClient.clientRevision }
+        Label { text: "BOOTED:"; Layout.bottomMargin: 14 }
+        Label { text: "Version: " + OTAClient.bootedVersion }
+        Label { text: "Description: " + OTAClient.bootedDescription }
+        Label { text: "Revision: " + OTAClient.bootedRevision }
 
-        Label { text: "SERVER:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
-        Label { text: "Version: " + OTAClient.serverVersion }
-        Label { text: "Description: " + OTAClient.serverDescription }
-        Label { text: "Revision: " + OTAClient.serverRevision }
+        Label { text: "REMOTE:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
+        Label { text: "Version: " + OTAClient.remoteVersion }
+        Label { text: "Description: " + OTAClient.remoteDescription }
+        Label { text: "Revision: " + OTAClient.remoteRevision }
 
         Label { text: "ROLLBACK:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
         Label { text: "Version: " + OTAClient.rollbackVersion }
@@ -82,7 +82,7 @@ Window {
                     if (!otaReady())
                         return;
                     log("Fetcing OTA info...")
-                    OTAClient.fetchServerInfo()
+                    OTAClient.fetchRemoteInfo()
                 }
             }
             Button {
@@ -138,8 +138,8 @@ Window {
         onErrorChanged: log(error)
         onStatusChanged: log(status)
         onInitializationFinished: log("Initialization " + (OTAClient.initialized ? "finished" : "failed"))
-        onFetchServerInfoFinished: {
-            log("FetchServerInfo " + (success ? "finished" : "failed"))
+        onFetchRemoteInfoFinished: {
+            log("Fetching info from a remote server " + (success ? "finished" : "failed"))
             if (success)
                 log("Update available: " + OTAClient.updateAvailable)
         }
