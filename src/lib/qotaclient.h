@@ -47,10 +47,10 @@ class Q_DECL_EXPORT QOTAClient : public QObject
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
     Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
-    Q_PROPERTY(QString clientVersion READ clientVersion NOTIFY initializationFinished)
-    Q_PROPERTY(QString clientDescription READ clientDescription NOTIFY initializationFinished)
-    Q_PROPERTY(QString clientRevision READ clientRevision NOTIFY initializationFinished)
-    Q_PROPERTY(QByteArray clientInfo READ clientInfo NOTIFY initializationFinished)
+    Q_PROPERTY(QString bootedVersion READ bootedVersion NOTIFY initializationFinished)
+    Q_PROPERTY(QString bootedDescription READ bootedDescription NOTIFY initializationFinished)
+    Q_PROPERTY(QString bootedRevision READ bootedRevision NOTIFY initializationFinished)
+    Q_PROPERTY(QByteArray bootedInfo READ bootedInfo NOTIFY initializationFinished)
     Q_PROPERTY(QString serverVersion READ serverVersion NOTIFY serverInfoChanged)
     Q_PROPERTY(QString serverDescription READ serverDescription NOTIFY serverInfoChanged)
     Q_PROPERTY(QString serverRevision READ serverRevision NOTIFY serverInfoChanged)
@@ -75,10 +75,10 @@ public:
     Q_INVOKABLE bool update() const;
     Q_INVOKABLE bool rollback() const;
 
-    QString clientVersion() const;
-    QString clientDescription() const;
-    QString clientRevision() const;
-    QByteArray clientInfo() const;
+    QString bootedVersion() const;
+    QString bootedDescription() const;
+    QString bootedRevision() const;
+    QByteArray bootedInfo() const;
 
     QString serverVersion() const;
     QString serverDescription() const;

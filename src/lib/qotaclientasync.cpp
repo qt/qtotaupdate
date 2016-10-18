@@ -116,7 +116,7 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
 {
     QString jsonData;
     switch (target) {
-    case QOTAClientPrivate::QueryTarget::Client: {
+    case QOTAClientPrivate::QueryTarget::Booted: {
         QFile metadata(QStringLiteral("/usr/etc/qt-ota.json"));
         if (metadata.open(QFile::ReadOnly))
             jsonData = QString::fromLatin1(metadata.readAll());
@@ -172,16 +172,16 @@ void QOTAClientAsync::_initialize()
     ostree_sysroot_load (m_sysroot, 0, 0);
 
     OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
-    QString clientRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
+    QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
     bool ok = true;
-    QJsonDocument clientInfo = info(QOTAClientPrivate::QueryTarget::Client, &ok);
+    QJsonDocument bootedInfo = info(QOTAClientPrivate::QueryTarget::Booted, &ok);
     QString defaultRev = defaultRevision();
     // prepopulate with what we think is on the server (head of the local repo)
     QString serverRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     QJsonDocument serverInfo = info(QOTAClientPrivate::QueryTarget::Server, &ok, serverRev);
 
     refreshRollbackState();
-    emit initializeFinished(defaultRev, clientRev, clientInfo, serverRev, serverInfo);
+    emit initializeFinished(defaultRev, bootedRev, bootedInfo, serverRev, serverInfo);
     multiprocessUnlock();
 }
 

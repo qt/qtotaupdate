@@ -42,27 +42,27 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::clientVersion
+    \qmlproperty string OTAClient::bootedVersion
     \readonly
 
     This is a convenience property that holds a string containing the booted
     system's version.
 
-    \sa clientInfo
+    \sa bootedInfo
 */
 
 /*!
-    \qmlproperty string OTAClient::clientDescription
+    \qmlproperty string OTAClient::bootedDescription
     \readonly
 
     This is a convenience property that holds a string containing the booted
     system's description.
 
-    \sa clientInfo
+    \sa bootedInfo
 */
 
 /*!
-    \qmlproperty string OTAClient::clientRevision
+    \qmlproperty string OTAClient::bootedRevision
     \readonly
 
     This property holds a string containing the booted system's revision
@@ -70,7 +70,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::clientInfo
+    \qmlproperty string OTAClient::bootedInfo
     \readonly
 
     This property holds a JSON-formatted string containing the booted system's

@@ -49,7 +49,7 @@ class QOTAClientPrivate : public QObject
 public:
     enum class QueryTarget
     {
-        Client,
+        Booted,
         Server,
         Rollback
     };
@@ -60,7 +60,7 @@ public:
 
     void refreshState();
     void initializeFinished(const QString &defaultRev,
-                            const QString &clientRev, const QJsonDocument &clientInfo,
+                            const QString &bootedRev, const QJsonDocument &bootedInfo,
                             const QString &serverRev, const QJsonDocument &serverInfo);
     void fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success);
     void updateFinished(const QString &defaultRev, bool success);
@@ -90,10 +90,10 @@ public:
     QScopedPointer<QOTAClientAsync> m_otaAsync;
     QString m_defaultRev;
 
-    QString m_clientVersion;
-    QString m_clientDescription;
-    QString m_clientRev;
-    QByteArray m_clientInfo;
+    QString m_bootedVersion;
+    QString m_bootedDescription;
+    QString m_bootedRev;
+    QByteArray m_bootedInfo;
 
     QString m_serverVersion;
     QString m_serverDescription;

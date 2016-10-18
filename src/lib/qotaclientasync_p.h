@@ -50,7 +50,7 @@ public:
 signals:
     void initialize();
     void initializeFinished(const QString &defaultRev,
-                            const QString &clientRev, const QJsonDocument &clientInfo,
+                            const QString &bootedRev, const QJsonDocument &bootedInfo,
                             const QString &serverRev, const QJsonDocument &serverInfo);
     void fetchServerInfo();
     void fetchServerInfoFinished(const QString &serverRev, const QJsonDocument &serverInfo, bool success);

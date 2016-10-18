@@ -105,13 +105,13 @@ void QOTAClientPrivate::refreshState()
 {
     Q_Q(QOTAClient);
 
-    bool updateAvailable = m_defaultRev != m_serverRev && m_serverRev != m_clientRev;
+    bool updateAvailable = m_defaultRev != m_serverRev && m_serverRev != m_bootedRev;
     if (m_updateAvailable != updateAvailable) {
         m_updateAvailable = updateAvailable;
         emit q->updateAvailableChanged(m_updateAvailable);
     }
 
-    bool restartRequired = m_clientRev != m_defaultRev;
+    bool restartRequired = m_bootedRev != m_defaultRev;
     if (m_restartRequired != restartRequired) {
         m_restartRequired = restartRequired;
         emit q->restartRequiredChanged(m_restartRequired);
@@ -119,13 +119,13 @@ void QOTAClientPrivate::refreshState()
 }
 
 void QOTAClientPrivate::initializeFinished(const QString &defaultRev,
-                                           const QString &clientRev, const QJsonDocument &clientInfo,
+                                           const QString &bootedRev, const QJsonDocument &bootedInfo,
                                            const QString &serverRev, const QJsonDocument &serverInfo)
 {
     Q_Q(QOTAClient);
     m_defaultRev = defaultRev;
-    m_clientRev = clientRev;
-    updateInfoMembers(clientInfo, &m_clientInfo, &m_clientVersion, &m_clientDescription);
+    m_bootedRev = bootedRev;
+    updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
     updateServerInfo(serverRev, serverInfo);
     refreshState();
     m_initialized = true;
@@ -194,8 +194,8 @@ QString QOTAClientPrivate::version(QueryTarget target) const
         return QString();
 
     switch (target) {
-    case QueryTarget::Client:
-        return m_clientVersion.isEmpty() ? QStringLiteral("unknown") : m_clientVersion;
+    case QueryTarget::Booted:
+        return m_bootedVersion.isEmpty() ? QStringLiteral("unknown") : m_bootedVersion;
     case QueryTarget::Server:
         return m_serverVersion.isEmpty() ? QStringLiteral("unknown") : m_serverVersion;
     case QueryTarget::Rollback:
@@ -211,8 +211,8 @@ QByteArray QOTAClientPrivate::info(QueryTarget target) const
         return QByteArray();
 
     switch (target) {
-    case QueryTarget::Client:
-        return m_clientInfo;
+    case QueryTarget::Booted:
+        return m_bootedInfo;
     case QueryTarget::Server:
         return m_serverInfo;
     case QueryTarget::Rollback:
@@ -228,8 +228,8 @@ QString QOTAClientPrivate::description(QueryTarget target) const
         return QString();
 
     switch (target) {
-    case QueryTarget::Client:
-        return m_clientDescription.isEmpty() ? QStringLiteral("unknown") : m_clientDescription;
+    case QueryTarget::Booted:
+        return m_bootedDescription.isEmpty() ? QStringLiteral("unknown") : m_bootedDescription;
     case QueryTarget::Server:
         return m_serverDescription.isEmpty() ? QStringLiteral("unknown") : m_serverDescription;
     case QueryTarget::Rollback:
@@ -245,8 +245,8 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
         return QString();
 
     switch (target) {
-    case QueryTarget::Client:
-        return m_clientRev.isEmpty() ? QStringLiteral("unknown") : m_clientRev;
+    case QueryTarget::Booted:
+        return m_bootedRev.isEmpty() ? QStringLiteral("unknown") : m_bootedRev;
     case QueryTarget::Server:
         return m_serverRev.isEmpty() ? QStringLiteral("unknown") : m_serverRev;
     case QueryTarget::Rollback:
@@ -563,52 +563,52 @@ bool QOTAClient::restartRequired() const
 }
 
 /*!
-    \property QOTAClient::clientVersion
+    \property QOTAClient::bootedVersion
     \brief a QString containing the booted system's version.
 
     This is a convenience method.
 
     \sa clientInfo
 */
-QString QOTAClient::clientVersion() const
+QString QOTAClient::bootedVersion() const
 {
-    return d_func()->version(QOTAClientPrivate::QueryTarget::Client);
+    return d_func()->version(QOTAClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::clientDescription
+    \property QOTAClient::bootedDescription
     \brief a QString containing the booted system's description.
 
     This is a convenience method.
 
     \sa clientInfo
 */
-QString QOTAClient::clientDescription() const
+QString QOTAClient::bootedDescription() const
 {
-    return d_func()->description(QOTAClientPrivate::QueryTarget::Client);
+    return d_func()->description(QOTAClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::clientRevision
+    \property QOTAClient::bootedRevision
     \brief a QString containing the booted system's revision.
 
-    A client revision is a checksum in the OSTree repository.
+    A booted revision is a checksum in the OSTree repository.
 */
-QString QOTAClient::clientRevision() const
+QString QOTAClient::bootedRevision() const
 {
-    return d_func()->revision(QOTAClientPrivate::QueryTarget::Client);
+    return d_func()->revision(QOTAClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::clientInfo
+    \property QOTAClient::bootedInfo
     \brief a QByteArray containing the booted system's OTA metadata.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the booted
     system. Metadata is bundled with each system's version.
 */
-QByteArray QOTAClient::clientInfo() const
+QByteArray QOTAClient::bootedInfo() const
 {
-    return d_func()->info(QOTAClientPrivate::QueryTarget::Client);
+    return d_func()->info(QOTAClientPrivate::QueryTarget::Booted);
 }
 
 /*!
