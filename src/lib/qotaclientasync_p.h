@@ -70,7 +70,7 @@ protected:
     QString defaultRevision();
     void rollbackFailed(const QString &error);
     int rollbackIndex();
-    void refreshRollbackState(int index = -2);
+    void resetRollbackState();
 
     void _initialize();
     void _fetchRemoteInfo();

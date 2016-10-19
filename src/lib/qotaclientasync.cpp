@@ -180,7 +180,7 @@ void QOTAClientAsync::_initialize()
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     QJsonDocument remoteInfo = info(QOTAClientPrivate::QueryTarget::Remote, &ok, remoteRev);
 
-    refreshRollbackState();
+    resetRollbackState();
     emit initializeFinished(defaultRev, bootedRev, bootedInfo, remoteRev, remoteInfo);
     multiprocessUnlock();
 }
@@ -217,7 +217,7 @@ void QOTAClientAsync::_update(const QString &updateToRev)
     if (!ok) goto out;
 
     ostree_sysroot_load (m_sysroot, 0, 0);
-    refreshRollbackState();
+    resetRollbackState();
     defaultRev = defaultRevision();
 
 out:
@@ -226,38 +226,21 @@ out:
 
 int QOTAClientAsync::rollbackIndex()
 {
-    OstreeDeployment *bootedDeployment = ostree_sysroot_get_booted_deployment (m_sysroot);
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
     if (deployments->len < 2)
         return -1;
 
-    uint bootedIndex = 0;
-    for (bootedIndex = 0; bootedIndex < deployments->len; bootedIndex++) {
-        if (deployments->pdata[bootedIndex] == bootedDeployment)
-          break;
-    }
-
-    int rollbackIndex;
-    if (bootedIndex != 0) {
-         // what this does is, if we're not in the default boot index, it plans to prepend
-         // the booted index (1, since we can't have more than two trees) so that it becomes
-         // index 0 (default) and the current default becomes index 1
-        rollbackIndex = bootedIndex;
-    } else {
-        // we're booted into the first, let's roll back to the previous
-        rollbackIndex = 1;
-    }
-
-    return rollbackIndex;
+    // 1) if we're not in the default boot index (0), it plans to prepend the
+    //    booted index (1, since we can't have more than two trees) so that it
+    //    becomes index 0 (default) and the current default becomes index 1.
+    // 2) if we're booted into the default boot index (0), let's roll back to the previous (1)
+    return 1;
 }
 
-void QOTAClientAsync::refreshRollbackState(int index)
+void QOTAClientAsync::resetRollbackState()
 {
-    if (index == -2)
-        // index not provided
-        index = rollbackIndex();
+    int index = rollbackIndex();
     if (index == -1)
-        // no rollback available
         return;
 
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
@@ -296,7 +279,7 @@ void QOTAClientAsync::_rollback()
     if (!ostree_sysroot_write_deployments (m_sysroot, newDeployments, 0, 0))
         return rollbackFailed(QStringLiteral("Failed to update bootloader configuration"));
 
-    refreshRollbackState(index);
+    resetRollbackState();
     QString defaultRev = defaultRevision();
     emit rollbackFinished(defaultRev, true);
     multiprocessUnlock();
