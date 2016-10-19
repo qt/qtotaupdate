@@ -146,11 +146,15 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
     return jsonInfo;
 }
 
-void QOTAClientAsync::multiprocessLock(const QString &method)
+bool QOTAClientAsync::multiprocessLock(const QString &method)
 {
     qCDebug(qota) << QTime::currentTime().toString() << method << "- waiting for lock...";
-    ostree_sysroot_lock (m_sysroot, 0);
+    GError *error = Q_NULLPTR;
+    ostree_sysroot_lock (m_sysroot, &error);
+    if (emitGError(error))
+        return false;
     qCDebug(qota) << QTime::currentTime().toString() << " lock acquired";
+    return true;
 }
 
 void QOTAClientAsync::multiprocessUnlock()
@@ -168,8 +172,12 @@ QString QOTAClientAsync::defaultRevision()
 
 void QOTAClientAsync::_initialize()
 {
-    multiprocessLock(QStringLiteral("_initialize"));
-    ostree_sysroot_load (m_sysroot, 0, 0);
+    if (!multiprocessLock(QStringLiteral("_initialize")))
+        return;
+    GError *error = Q_NULLPTR;
+    ostree_sysroot_load (m_sysroot, 0, &error);
+    if (emitGError(error))
+        return;
 
     OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
     QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
@@ -187,7 +195,8 @@ void QOTAClientAsync::_initialize()
 
 void QOTAClientAsync::_fetchRemoteInfo()
 {
-    multiprocessLock(QStringLiteral("_fetchRemoteInfo"));
+    if (!multiprocessLock(QStringLiteral("_fetchRemoteInfo")))
+        return;
     QString remoteRev;
     QJsonDocument remoteInfo;
     bool ok = true;
@@ -201,11 +210,12 @@ void QOTAClientAsync::_fetchRemoteInfo()
 
 void QOTAClientAsync::_update(const QString &updateToRev)
 {
+    if (!multiprocessLock(QStringLiteral("_update")))
+        return;
     bool ok = true;
     QString defaultRev;
     QString kernelArgs;
-
-    multiprocessLock(QStringLiteral("_update"));
+    GError *error = Q_NULLPTR;
     emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
     ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
     multiprocessUnlock();
@@ -216,7 +226,10 @@ void QOTAClientAsync::_update(const QString &updateToRev)
     if (ok) ostree(QString(QStringLiteral("ostree admin deploy --karg-none %1 linux/qt")).arg(kernelArgs), &ok, true);
     if (!ok) goto out;
 
-    ostree_sysroot_load (m_sysroot, 0, 0);
+    ostree_sysroot_load (m_sysroot, 0, &error);
+    if (emitGError(error))
+        return;
+
     resetRollbackState();
     defaultRev = defaultRevision();
 
@@ -251,20 +264,37 @@ void QOTAClientAsync::resetRollbackState()
     emit rollbackChanged(rollbackRev, rollbackInfo, deployments->len);
 }
 
-void QOTAClientAsync::rollbackFailed(const QString &error)
+void QOTAClientAsync::emitRollbackFailed(const QString &error)
 {
     emit errorOccurred(error);
     emit rollbackFinished(QStringLiteral(""), false);
     multiprocessUnlock();
 }
 
+bool QOTAClientAsync::emitGError(GError *error)
+{
+    if (!error)
+        return false;
+
+    emit errorOccurred(QString::fromLatin1((error->message)));
+    multiprocessUnlock();
+    return true;
+}
+
 void QOTAClientAsync::_rollback()
 {
-    multiprocessLock(QStringLiteral("_rollback"));
-    ostree_sysroot_load (m_sysroot, 0, 0);
+    if (!multiprocessLock(QStringLiteral("_rollback")))
+        return;
+    GError *error = Q_NULLPTR;
+    ostree_sysroot_load (m_sysroot, 0, &error);
+    if (emitGError(error))
+        return;
+
     int index = rollbackIndex();
-    if (index == -1)
-        return rollbackFailed(QStringLiteral("At least 2 system versions required for rollback"));
+    if (index == -1) {
+        emitRollbackFailed(QStringLiteral("At least 2 system versions required for rollback"));
+        return;
+    }
 
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
     g_autoptr(GPtrArray) newDeployments = g_ptr_array_new_with_free_func (g_object_unref);
@@ -276,8 +306,11 @@ void QOTAClientAsync::_rollback()
     }
 
     // atomically update bootloader configuration
-    if (!ostree_sysroot_write_deployments (m_sysroot, newDeployments, 0, 0))
-        return rollbackFailed(QStringLiteral("Failed to update bootloader configuration"));
+    if (!ostree_sysroot_write_deployments (m_sysroot, newDeployments, 0, &error)) {
+        emitGError(error);
+        emitRollbackFailed(QStringLiteral("Failed to update bootloader configuration"));
+        return;
+    }
 
     resetRollbackState();
     QString defaultRev = defaultRevision();

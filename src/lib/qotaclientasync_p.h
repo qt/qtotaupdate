@@ -39,6 +39,8 @@
 QT_BEGIN_NAMESPACE
 
 struct OstreeSysroot;
+// from gerror.h
+typedef struct _GError GError;
 
 class QOTAClientAsync : public QObject
 {
@@ -65,12 +67,13 @@ signals:
 protected:
     QString ostree(const QString &command, bool *ok, bool updateStatus = false);
     QJsonDocument info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
-    void multiprocessLock(const QString &method);
+    bool multiprocessLock(const QString &method);
     void multiprocessUnlock();
     QString defaultRevision();
-    void rollbackFailed(const QString &error);
+    void emitRollbackFailed(const QString &error);
     int rollbackIndex();
     void resetRollbackState();
+    bool emitGError(GError *error);
 
     void _initialize();
     void _fetchRemoteInfo();
