@@ -48,6 +48,7 @@ class QOTAClientAsync : public QObject
 public:
     QOTAClientAsync();
     virtual ~QOTAClientAsync();
+    QString ostree(const QString &command, bool *ok, bool updateStatus = false);
 
 signals:
     void initialize();
@@ -65,7 +66,6 @@ signals:
     void statusStringChanged(const QString &status);
 
 protected:
-    QString ostree(const QString &command, bool *ok, bool updateStatus = false);
     QJsonDocument info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
     bool multiprocessLock(const QString &method);
     void multiprocessUnlock();

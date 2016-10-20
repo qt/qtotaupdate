@@ -29,18 +29,18 @@
 #ifndef QOTACLIENT_P_H
 #define QOTACLIENT_P_H
 
-#include "qotaclient.h"
-
 #include <QtCore/QObject>
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QByteArray>
-#include <QtCore/QThread>
 #include <QtCore/QScopedPointer>
 #include <QtCore/QJsonDocument>
 
 Q_DECLARE_LOGGING_CATEGORY(qota)
 
+class QThread;
 class QOTAClientAsync;
+class QOtaRepositoryConfig;
+class QOTAClient;
 
 class QOTAClientPrivate : public QObject
 {

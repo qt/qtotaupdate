@@ -57,7 +57,7 @@ static void parseErrorString(QString *error)
     error->remove(0, qstrlen("error: "));
 
     if (error->startsWith(QLatin1String("Remote")) && error->endsWith(QLatin1String("not found")))
-        *error = QLatin1String("Remote configuration not found.");
+        *error = QLatin1String("Repository configuration not found");
 }
 
 QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
@@ -142,7 +142,7 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
 bool QOTAClientAsync::multiprocessLock(const QString &method)
 {
     qCDebug(qota) << QTime::currentTime().toString() << method << "- waiting for lock...";
-    GError *error = Q_NULLPTR;
+    GError *error = nullptr;
     ostree_sysroot_lock (m_sysroot, &error);
     if (emitGError(error))
         return false;
@@ -167,7 +167,7 @@ void QOTAClientAsync::_initialize()
 {
     if (!multiprocessLock(QStringLiteral("_initialize")))
         return;
-    GError *error = Q_NULLPTR;
+    GError *error = nullptr;
     ostree_sysroot_load (m_sysroot, 0, &error);
     if (emitGError(error))
         return;
@@ -208,7 +208,7 @@ void QOTAClientAsync::_update(const QString &updateToRev)
     bool ok = true;
     QString defaultRev;
     QString kernelArgs;
-    GError *error = Q_NULLPTR;
+    GError *error = nullptr;
     emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
     ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
     multiprocessUnlock();
@@ -278,7 +278,7 @@ void QOTAClientAsync::_rollback()
 {
     if (!multiprocessLock(QStringLiteral("_rollback")))
         return;
-    GError *error = Q_NULLPTR;
+    GError *error = nullptr;
     ostree_sysroot_load (m_sysroot, 0, &error);
     if (emitGError(error))
         return;

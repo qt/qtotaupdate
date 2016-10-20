@@ -27,6 +27,7 @@
 **
 ****************************************************************************/
 #include <QtOTAUpdate/QOTAClient>
+#include <QtOTAUpdate/QOtaRepositoryConfig>
 #include <QtQml>
 
 QT_BEGIN_NAMESPACE
@@ -312,6 +313,133 @@ QT_BEGIN_NAMESPACE
     object is not ready for use until this signal is received.
 */
 
+/*!
+    \qmlmethod bool OTAClient::setRepositoryConfig(OtaRepositoryConfig config)
+
+    \include qotaclient.cpp set-repository-config
+
+    The \a config argument is documented in OtaRepositoryConfig.
+
+    \sa repositoryConfigChanged
+*/
+
+/*!
+    \qmlmethod OtaRepositoryConfig OTAClient::repositoryConfig()
+
+    Returns a configuration object for the repository or \c null if the
+    configuration file does not exist or could not be read.
+
+    \sa setRepositoryConfig(), removeRepositoryConfig()
+*/
+
+/*!
+    \qmlmethod bool OTAClient::removeRepositoryConfig()
+
+    \include qotaclient.cpp remove-repository-config
+
+    \sa repositoryConfigChanged
+*/
+
+/*!
+    \qmlsignal OTAClient::repositoryConfigChanged(OtaRepositoryConfig config)
+
+    This signal is emitted when the configuration file was successfully updated
+    (\a repository holds the new configuration) or removed (\a repository
+    holds the \c null value).
+*/
+
+/*!
+    \inqmlmodule QtOTAUpdate
+    \qmltype OtaRepositoryConfig
+    \instantiates QOtaRepositoryConfig
+    \brief Used to configure the OSTree repository.
+
+    OtaRepositoryConfig
+    \include qotarepositoryconfig.cpp repository-config-description
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::urlChanged()
+
+    This signal is emitted when the value of url changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::gpgVerifyChanged()
+
+    This signal is emitted when the value of gpgVerify changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsClientCertPathChanged()
+
+    This signal is emitted when the value of tlsClientCertPath changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsClientKeyPathChanged()
+
+    This signal is emitted when the value of tlsClientKeyPath changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsPermissiveChanged()
+
+    This signal is emitted when the value of tlsPermissive changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsCaPathChanged()
+
+    This signal is emitted when the value of tlsCaPath changes.
+*/
+
+/*!
+    \qmlproperty bool OtaRepositoryConfig::gpgVerify
+
+    Holds a bool indicating whether or not OSTree will require commits
+    to be signed by a known GPG key.
+
+    Default is \c false.
+*/
+
+/*!
+    \qmlproperty bool OtaRepositoryConfig::tlsPermissive
+
+    Holds a bool indicating whether to check the server's TLS certificates
+    against the system's certificate store.
+
+    Default is \c false.
+*/
+
+/*!
+    \qmlproperty string OtaRepositoryConfig::url
+
+    This property holds a URL for accessing remote OSTree repository.
+    The supported schemes at the moment are \c http and \c https.
+*/
+
+/*!
+    \qmlproperty string OtaRepositoryConfig::tlsClientCertPath
+
+    This property holds a path to a file for the client-side certificate,
+    to present when making requests to the remote repository.
+*/
+
+/*!
+    \qmlproperty string OtaRepositoryConfig::tlsClientKeyPath
+
+    This property holds a path to a file containing the client-side certificate key,
+    to present when making requests to the remote repository.
+*/
+
+/*!
+    \qmlproperty string OtaRepositoryConfig::tlsCaPath
+
+    This property holds a path to a file containing trusted anchors instead of
+    the system's CA database.
+*/
+
 static QObject *otaClientSingleton(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
     Q_UNUSED(qmlEngine);
@@ -329,6 +457,7 @@ public:
         Q_ASSERT(QLatin1String(uri) == QLatin1String("QtOTAUpdate"));
 
         qmlRegisterSingletonType<QOTAClient>(uri, 1, 0, "OTAClient", otaClientSingleton);
+        qmlRegisterType<QOtaRepositoryConfig>(uri, 1, 0, "OtaRepositoryConfig");
     }
 };
 

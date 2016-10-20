@@ -28,12 +28,18 @@
 ****************************************************************************/
 #include "qotaclientasync_p.h"
 #include "qotaclient_p.h"
+#include "qotarepositoryconfig_p.h"
+#include "qotarepositoryconfig.h"
 #include "qotaclient.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QJsonObject>
+#include <QtCore/QDir>
+#include <QtCore/QThread>
 
 Q_LOGGING_CATEGORY(qota, "b2qt.ota")
+
+const QString repoConfigPath(QStringLiteral("/etc/ostree/remotes.d/qt-os.conf"));
 
 QT_BEGIN_NAMESPACE
 
@@ -264,41 +270,15 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     QOTAClient
 //! [client-description]
     provides an API to execute Over-the-Air update tasks. Offline
-    operations include  querying the booted and rollback system version details,
+    operations include querying the booted and rollback system version details,
     and atomically performing rollbacks. Online operations include fetching a
     new system version from a remote server, and atomically performing system
-    updates.
-
-    Using this API is safe and won't leave the system in an inconsistent state,
-    even if the power fails half-way through.
-
-    \b {Remote Configuration}
+    updates. Using this API is safe and won't leave the system in an inconsistent
+    state, even if the power fails half-way through.
 
     A remote needs to be configured for a device to be able to locate a server
-    that is hosting an OTA update. A Tech Preview release does not provide Qt
-    API to configure remotes. To configure a remote, it is necessary to use the
-    ostree command line tool. Examples for remote configurations:
+    that is hosting an OTA update, see setRepositoryConfig().
 
-    No Security:
-    \badcode
-    ostree remote add --no-gpg-verify qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    Using GPG Signing:
-    \badcode
-    ostree remote add --set=gpg-verify=true qt-os http://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    Using TLS Authentication:
-    \badcode
-    ostree remote add \
-    --tls-client-cert-path /path/client.crt \
-    --tls-client-key-path /path/client.key \
-    --tls-ca-path /trusted/server.crt qt-os https://${SERVER_ADDRESS}:${PORT}/ostree-repo linux/qt
-    \endcode
-
-    Above, \c ${SERVER_ADDRESS} is the server where you have exported the
-    OSTree repository, and \c ${PORT} is the port number.
 //! [client-description]
 */
 
@@ -384,7 +364,16 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
     object is not ready for use until this signal is received.
 */
 
-QOTAClient::QOTAClient(QObject *parent) : QObject(parent),
+/*!
+    \fn void QOTAClient::repositoryConfigChanged(QOtaRepositoryConfig *repository)
+
+    This signal is emitted when the configuration file was updated (\a repository
+    holds a pointer to the new configuration) or removed (\a repository holds the
+    \c nullptr value).
+*/
+
+QOTAClient::QOTAClient(QObject *parent) :
+    QObject(parent),
     d_ptr(new QOTAClientPrivate(this))
 {
     Q_D(QOTAClient);
@@ -465,6 +454,117 @@ bool QOTAClient::rollback() const
 
     d->m_otaAsync->rollback();
     return true;
+}
+
+/*!
+//! [remove-repository-config]
+    Remove a configuration file for the repository.
+
+    The repository configuration is stored on a file system in \c {/etc/ostree/remotes.d/\*.conf}
+
+    If the configuration file does not exist, this function returns \c true.
+    If the configuration file exists, this function returns \c true if the file
+    is removed successfully; otherwise returns \c false.
+//! [remove-repository-config]
+
+    \sa setRepositoryConfig(), repositoryConfigChanged
+*/
+bool QOTAClient::removeRepositoryConfig()
+{
+    Q_D(QOTAClient);
+    if (!otaEnabled() || !QDir().exists(repoConfigPath))
+        return true;
+
+    bool removed = QDir().remove(repoConfigPath);
+    if (removed)
+        emit repositoryConfigChanged(nullptr);
+    else
+        d->errorOccurred(QStringLiteral("Failed to remove repository configuration"));
+
+    return removed;
+}
+
+/*!
+//! [set-repository-config]
+    Change the configuration for the repository. The repository configuration
+    is stored on a file system in \c {/etc/ostree/remotes.d/\*.conf}
+
+    Returns \c true if the configuration file is changed successfully;
+    otherwise returns \c false.
+//! [set-repository-config]
+
+    The \a config argument is documented in QOtaRepositoryConfig.
+
+    \sa removeRepositoryConfig(), repositoryConfigChanged
+*/
+bool QOTAClient::setRepositoryConfig(QOtaRepositoryConfig *config)
+{
+    Q_D(QOTAClient);
+    if (!d->isReady())
+        return false;
+
+    if (QDir().exists(repoConfigPath)) {
+        d->errorOccurred(QStringLiteral("Repository configuration already exists"));
+        return false;
+    }
+    // URL
+    if (config->url().isEmpty()) {
+        d->errorOccurred(QStringLiteral("Repository URL can not be empty"));
+        return false;
+    }
+    // TLS client certs
+    int tlsClientArgs = 0;
+    if (!config->tlsClientCertPath().isEmpty())
+        ++tlsClientArgs;
+    if (!config->tlsClientKeyPath().isEmpty())
+        ++tlsClientArgs;
+    if (tlsClientArgs == 1) {
+        d->errorOccurred(QStringLiteral("Both tlsClientCertPath and tlsClientKeyPath are required"
+                                        " for TLS client authentication functionality"));
+        return false;
+    }
+
+    // FORMAT: ostree remote add [OPTION...] NAME URL [BRANCH...]
+    QString cmd(QStringLiteral("ostree remote add"));
+    // GPG
+    cmd.append(QStringLiteral(" --set=gpg-verify="));
+    config->gpgVerify() ? cmd.append(QStringLiteral("true")) : cmd.append(QStringLiteral("false"));
+    // TLS client authentication
+    if (!config->tlsClientCertPath().isEmpty()) {
+        cmd.append(QStringLiteral(" --set=tls-client-cert-path="));
+        cmd.append(config->tlsClientCertPath());
+        cmd.append(QStringLiteral(" --set=tls-client-key-path="));
+        cmd.append(config->tlsClientKeyPath());
+    }
+    // TLS server authentication
+    cmd.append(QStringLiteral(" --set=tls-permissive="));
+    config->tlsPermissive() ? cmd.append(QStringLiteral("true")) : cmd.append(QStringLiteral("false"));
+    if (!config->tlsCaPath().isEmpty()) {
+        cmd.append(QStringLiteral(" --set=tls-ca-path="));
+        cmd.append(config->tlsCaPath());
+    }
+    // NAME URL [BRANCH...]
+    cmd.append(QString(QStringLiteral(" qt-os %1 linux/qt")).arg(config->url()));
+
+    bool ok = true;
+    d->m_otaAsync->ostree(cmd, &ok);
+    if (ok)
+        emit repositoryConfigChanged(config);
+
+    return ok;
+}
+
+/*!
+    Returns a configuration object for the repository or \c nullptr if the
+    configuration file does not exist or could not be read.
+
+    \sa setRepositoryConfig(), removeRepositoryConfig()
+*/
+QOtaRepositoryConfig *QOTAClient::repositoryConfig() const
+{
+    if (!otaEnabled())
+        return nullptr;
+    return QOtaRepositoryConfig().d_func()->repositoryConfigFromFile(repoConfigPath);
 }
 
 /*!

@@ -16,8 +16,11 @@ LIBS += -lostree-1 -lgio-2.0 -lglib-2.0 -lgobject-2.0
 HEADERS += \
     qotaclient.h \
     qotaclientasync_p.h \
-    qotaclient_p.h
+    qotaclient_p.h \
+    qotarepositoryconfig.h \
+    qotarepositoryconfig_p.h
 
 SOURCES += \
     qotaclient.cpp \
-    qotaclientasync.cpp
+    qotaclientasync.cpp \
+    qotarepositoryconfig.cpp

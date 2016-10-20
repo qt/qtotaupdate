@@ -35,8 +35,18 @@ import QtOTAUpdate 1.0
 Window {
     visible:true
 
-    function log(message) {
-        logRecords.append({ "record" : (logRecords.count + 1) + " " + message })
+    function log(message) { logFormatted(message, "black") }
+    function logError(message) { logFormatted(message, "red") }
+    function logWithCondition(message, condition) {
+       var color = condition ? "black" : "red"
+       var suffix = condition ? " finished" : " failed"
+       logFormatted(message + suffix, color)
+    }
+    function logFormatted(message, color) {
+        logRecords.append({
+            "record" : "<font color=\"black\">" + (logRecords.count + 1) + "</font> " + message,
+            "textcolor" : color
+        })
         logView.positionViewAtEnd()
     }
 
@@ -52,25 +62,52 @@ Window {
         return true;
     }
 
+    function configureRemote(config) {
+        if (!OTAClient.removeRepositoryConfig()) {
+            logError("Failed to remove repository configuration")
+            return;
+        }
+        if (!OTAClient.setRepositoryConfig(config)) {
+            logError("Failed to update repository configuration")
+            return;
+        }
+    }
+
+    function updateConfigView(config) {
+        repoUrl.text = "<b>URL:</b> " + (config ? config.url : "not set")
+        repoGpgVerify.text = "<b>GPG Verify:</b> " + (config ? config.gpgVerify : "not set")
+        repoClientCert.text = "<b>TLS Client Cert:</b> " + (config ? config.tlsClientCertPath : "not set")
+        repoClientKey.text = "<b>TLS Client Key:</b> " + (config ? config.tlsClientKeyPath : "not set")
+        repoPermissive.text = "<b>TLS Permissive:</b> " + (config ? config.tlsPermissive : "not set")
+        repoCa.text = "<b>TLS CA:</b> " + (config ? config.tlsCaPath : "not set")
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: 10
         anchors.topMargin: 10
 
-        Label { text: "BOOTED:"; Layout.bottomMargin: 14 }
-        Label { text: "Version: " + OTAClient.bootedVersion }
-        Label { text: "Description: " + OTAClient.bootedDescription }
-        Label { text: "Revision: " + OTAClient.bootedRevision }
+        Label { text: "BOOTED"; Layout.bottomMargin: 14; font.underline: true; }
+        Label { text: "<b>Version:</b> " + OTAClient.bootedVersion }
+        Label { text: "<b>Description:</b> " + OTAClient.bootedDescription }
+        Label { text: "<b>Revision:</b> " + OTAClient.bootedRevision }
 
-        Label { text: "REMOTE:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
-        Label { text: "Version: " + OTAClient.remoteVersion }
-        Label { text: "Description: " + OTAClient.remoteDescription }
-        Label { text: "Revision: " + OTAClient.remoteRevision }
+        Label { text: "REMOTE"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+        Label { text: "<b>Version:</b> " + OTAClient.remoteVersion }
+        Label { text: "<b>Description:</b> " + OTAClient.remoteDescription }
+        Label { text: "<b>Revision:</b> " + OTAClient.remoteRevision; Layout.bottomMargin: 10; }
 
-        Label { text: "ROLLBACK:"; Layout.bottomMargin: 14; Layout.topMargin: 14 }
-        Label { text: "Version: " + OTAClient.rollbackVersion }
-        Label { text: "Description: " + OTAClient.rollbackDescription }
-        Label { text: "Revision: " + OTAClient.rollbackRevision }
+        Label { id: repoUrl; }
+        Label { id: repoGpgVerify; }
+        Label { id: repoClientCert; }
+        Label { id: repoClientKey; }
+        Label { id: repoPermissive; }
+        Label { id: repoCa; }
+
+        Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+        Label { text: "<b>Version:</b> " + OTAClient.rollbackVersion }
+        Label { text: "<b>Description:</b> " + OTAClient.rollbackDescription }
+        Label { text: "<b>Revision:</b> " + OTAClient.rollbackRevision }
 
         RowLayout {
             Layout.topMargin: 20
@@ -111,7 +148,7 @@ Window {
                 onClicked: {
                     if (!otaReady())
                         return;
-                    log("Restarting...")
+                    log("Restarting (unimplemented) ...")
                 }
             }
         }
@@ -126,29 +163,44 @@ Window {
                 anchors.margins: 4
                 clip: true
                 model: ListModel { id: logRecords }
-                delegate: Label { text: record }
+                delegate: Label { text: record ; color: textcolor }
             }
         }
 
         Item { Layout.fillHeight: true }
     }
 
+    OtaRepositoryConfig {
+        id: repoConfig
+        gpgVerify: true
+        url: "http://www.b2qtupdate.com/ostree-repo"
+        tlsClientCertPath: "/usr/share/ostree/certs/clientcert.pem"
+        tlsClientKeyPath: "/usr/share/ostree/certs/clientkey.pem"
+        tlsPermissive: false
+        tlsCaPath: "/usr/share/ostree/certs/servercert.pem"
+    }
+
     Connections {
         target: OTAClient
-        onErrorChanged: log(error)
+        onErrorChanged: logError(error)
         onStatusChanged: log(status)
-        onInitializationFinished: log("Initialization " + (OTAClient.initialized ? "finished" : "failed"))
+        onInitializationFinished: {
+            logWithCondition("Initialization", OTAClient.initialized)
+            configureRemote(repoConfig)
+        }
         onFetchRemoteInfoFinished: {
-            log("Fetching info from a remote server " + (success ? "finished" : "failed"))
+            logWithCondition("Fetching info from a remote server", success)
             if (success)
                 log("Update available: " + OTAClient.updateAvailable)
         }
-        onRollbackFinished: log("Rollback " + (success ? "finished" : "failed"))
-        onUpdateFinished: log("Update " + (success ? "finished" : "failed"))
+        onRollbackFinished: logWithCondition("Rollback", success)
+        onUpdateFinished: logWithCondition("Update", success)
+        onRepositoryConfigChanged: updateConfigView(config)
     }
 
     Component.onCompleted: {
         if (!OTAClient.otaEnabled)
-            log("OTA Update functionality not enabled on this device")
+            log("OTA Update functionality is not enabled on this device")
+        updateConfigView(0)
     }
 }

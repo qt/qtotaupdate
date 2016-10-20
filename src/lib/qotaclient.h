@@ -36,6 +36,7 @@
 QT_BEGIN_NAMESPACE
 
 class QOTAClientPrivate;
+class QOtaRepositoryConfig;
 
 class Q_DECL_EXPORT QOTAClient : public QObject
 {
@@ -60,8 +61,8 @@ class Q_DECL_EXPORT QOTAClient : public QObject
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackInfoChanged)
     Q_PROPERTY(QByteArray rollbackInfo READ rollbackInfo NOTIFY rollbackInfoChanged)
 public:
-    explicit QOTAClient(QObject *parent = Q_NULLPTR);
-    ~QOTAClient();
+    explicit QOTAClient(QObject *parent = nullptr);
+    virtual ~QOTAClient();
 
     bool updateAvailable() const;
     bool rollbackAvailable() const;
@@ -74,6 +75,10 @@ public:
     Q_INVOKABLE bool fetchRemoteInfo() const;
     Q_INVOKABLE bool update() const;
     Q_INVOKABLE bool rollback() const;
+
+    Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
+    Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
+    Q_INVOKABLE bool removeRepositoryConfig();
 
     QString bootedVersion() const;
     QString bootedDescription() const;
@@ -98,6 +103,7 @@ Q_SIGNALS:
     void restartRequiredChanged(bool required);
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
+    void repositoryConfigChanged(QOtaRepositoryConfig *config);
 
     void initializationFinished();
     void fetchRemoteInfoFinished(bool success);
