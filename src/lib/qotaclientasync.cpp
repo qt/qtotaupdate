@@ -38,8 +38,7 @@
 QT_BEGIN_NAMESPACE
 
 QOTAClientAsync::QOTAClientAsync() :
-    m_sysroot(ostree_sysroot_new(0)),
-    m_ostree(0)
+    m_sysroot(ostree_sysroot_new(0))
 {
     // async mapper
     connect(this, &QOTAClientAsync::initialize, this, &QOTAClientAsync::_initialize);
@@ -50,10 +49,6 @@ QOTAClientAsync::QOTAClientAsync() :
 
 QOTAClientAsync::~QOTAClientAsync()
 {
-    if (m_ostree) {
-        m_ostree->waitForFinished();
-        delete m_ostree;
-    }
     g_object_unref (m_sysroot);
 }
 
@@ -68,30 +63,28 @@ static void parseErrorString(QString *error)
 QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
 {
     qCDebug(qota) << command;
-    if (!m_ostree) {
-        m_ostree = new QProcess;
-        m_ostree->setProcessChannelMode(QProcess::MergedChannels);
-    }
-    m_ostree->start(command);
-    if (!m_ostree->waitForStarted()) {
+    QProcess ostree;
+    ostree.setProcessChannelMode(QProcess::MergedChannels);
+    ostree.start(command);
+    if (!ostree.waitForStarted()) {
         *ok = false;
         emit errorOccurred(QLatin1String("Failed to start: ") + command
-                         + QLatin1String(" : ") + m_ostree->errorString());
+                         + QLatin1String(" : ") + ostree.errorString());
         return QString();
     }
 
     QString out;
     bool finished = false;
     do {
-        finished = m_ostree->waitForFinished(200);
-        if (!finished && m_ostree->error() != QProcess::Timedout) {
+        finished = ostree.waitForFinished(200);
+        if (!finished && ostree.error() != QProcess::Timedout) {
             *ok = false;
             emit errorOccurred(QLatin1String("Process failed: ") + command +
-                               QLatin1String(" : ") + m_ostree->errorString());
+                               QLatin1String(" : ") + ostree.errorString());
             return QString();
         }
-        while (m_ostree->canReadLine()) {
-            QByteArray bytesRead = m_ostree->readLine().trimmed();
+        while (ostree.canReadLine()) {
+            QByteArray bytesRead = ostree.readLine().trimmed();
             if (bytesRead.isEmpty())
                 continue;
 

@@ -82,7 +82,6 @@ protected:
 
 private:
     OstreeSysroot *m_sysroot;
-    QProcess *m_ostree;
 };
 
 QT_END_NAMESPACE
