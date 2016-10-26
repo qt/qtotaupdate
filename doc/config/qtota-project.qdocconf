@@ -1,6 +1,6 @@
 include($QT_INSTALL_DOCS/global/qt-cpp-defines.qdocconf)
 
-project                      = QtOTA
+project                      = QtOta
 description                  = Qt OTA Update Documentation
 version                      = $QT_VERSION
 
@@ -9,7 +9,7 @@ headerdirs                  += ../../src/lib/
 
 indexes                      = $QT_INSTALL_DOCS/qtcore/qtcore.index
 
-qhp.projects                 = QtOTA
+qhp.projects                 = QtOta
 
 qhp.QtAutomotiveOTA.file                = qtota.qhp
 qhp.QtAutomotiveOTA.namespace           = io.qt.qtota.$QT_VERSION_TAG

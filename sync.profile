@@ -1,5 +1,5 @@
 %modules = ( # path to module name map
-    "QtOTAUpdate" => "$basedir/src/lib"
+    "QtOtaUpdate" => "$basedir/src/lib"
 );
 %moduleheaders = ( # restrict the module headers to those found in relative path
 );

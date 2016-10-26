@@ -26,14 +26,14 @@
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
-#include <QtOTAUpdate/QOTAClient>
-#include <QtOTAUpdate/QOtaRepositoryConfig>
+#include <QtOtaUpdate/QOTAClient>
+#include <QtOtaUpdate/QOtaRepositoryConfig>
 #include <QtQml>
 
 QT_BEGIN_NAMESPACE
 
 /*!
-    \inqmlmodule QtOTAUpdate
+    \inqmlmodule QtOtaUpdate
     \qmltype OTAClient
     \instantiates QOTAClient
     \brief Main interface to the OTA functionality.
@@ -349,7 +349,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \inqmlmodule QtOTAUpdate
+    \inqmlmodule QtOtaUpdate
     \qmltype OtaRepositoryConfig
     \instantiates QOtaRepositoryConfig
     \brief Used to configure the OSTree repository.
@@ -454,7 +454,7 @@ class QOTAUpdatePlugin : public QQmlExtensionPlugin
 public:
     virtual void registerTypes(const char *uri)
     {
-        Q_ASSERT(QLatin1String(uri) == QLatin1String("QtOTAUpdate"));
+        Q_ASSERT(QLatin1String(uri) == QLatin1String("QtOtaUpdate"));
 
         qmlRegisterSingletonType<QOTAClient>(uri, 1, 0, "OTAClient", otaClientSingleton);
         qmlRegisterType<QOtaRepositoryConfig>(uri, 1, 0, "OtaRepositoryConfig");

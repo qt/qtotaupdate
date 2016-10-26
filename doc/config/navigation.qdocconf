@@ -1,4 +1,4 @@
-url                          = https://doc.qt.io/QtOTA
+url                          = https://doc.qt.io/qtota
 navigation.homepage          = "Qt Documentation (Technology Preview)"
 navigation.landingpage       = "Over the Air Update"
 navigation.cppclassespage    = "Qt OTA Update C++ Classes"

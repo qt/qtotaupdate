@@ -1,4 +1,4 @@
-TARGET = QtOTAUpdate
+TARGET = QtOtaUpdate
 QT = core
 
 MODULE = qtotaupdate

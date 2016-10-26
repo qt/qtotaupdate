@@ -1,2 +1,2 @@
-module QtOTAUpdate
+module QtOtaUpdate
 plugin qtotaupdateplugin
