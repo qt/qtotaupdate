@@ -43,7 +43,7 @@ const QString repoConfigPath(QStringLiteral("/etc/ostree/remotes.d/qt-os.conf"))
 
 QT_BEGIN_NAMESPACE
 
-QOTAClientPrivate::QOTAClientPrivate(QOTAClient *client) :
+QOtaClientPrivate::QOtaClientPrivate(QOtaClient *client) :
     q_ptr(client),
     m_initialized(false),
     m_updateAvailable(false),
@@ -55,12 +55,12 @@ QOTAClientPrivate::QOTAClientPrivate(QOTAClient *client) :
     if (m_otaEnabled) {
         m_otaAsyncThread = new QThread();
         m_otaAsyncThread->start();
-        m_otaAsync.reset(new QOTAClientAsync());
+        m_otaAsync.reset(new QOtaClientAsync());
         m_otaAsync->moveToThread(m_otaAsyncThread);
     }
 }
 
-QOTAClientPrivate::~QOTAClientPrivate()
+QOtaClientPrivate::~QOtaClientPrivate()
 {
     if (m_otaEnabled) {
         if (m_otaAsyncThread->isRunning()) {
@@ -83,9 +83,9 @@ static void updateInfoMembers(const QJsonDocument &json, QByteArray *info, QStri
     *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
 }
 
-void QOTAClientPrivate::updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo)
+void QOtaClientPrivate::updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     if (m_remoteRev == remoteRev)
         return;
 
@@ -94,7 +94,7 @@ void QOTAClientPrivate::updateRemoteInfo(const QString &remoteRev, const QJsonDo
     emit q->remoteInfoChanged();
 }
 
-bool QOTAClientPrivate::isReady() const
+bool QOtaClientPrivate::isReady() const
 {
     if (!m_otaEnabled) {
         qCWarning(qota) << "over-the-air update functionality is not enabled for this device";
@@ -107,9 +107,9 @@ bool QOTAClientPrivate::isReady() const
     return true;
 }
 
-void QOTAClientPrivate::refreshState()
+void QOtaClientPrivate::refreshState()
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
 
     bool updateAvailable = m_defaultRev != m_remoteRev && m_remoteRev != m_bootedRev;
     if (m_updateAvailable != updateAvailable) {
@@ -124,11 +124,11 @@ void QOTAClientPrivate::refreshState()
     }
 }
 
-void QOTAClientPrivate::initializeFinished(const QString &defaultRev,
+void QOtaClientPrivate::initializeFinished(const QString &defaultRev,
                                            const QString &bootedRev, const QJsonDocument &bootedInfo,
                                            const QString &remoteRev, const QJsonDocument &remoteInfo)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     m_defaultRev = defaultRev;
     m_bootedRev = bootedRev;
     updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
@@ -138,9 +138,9 @@ void QOTAClientPrivate::initializeFinished(const QString &defaultRev,
     emit q->initializationFinished();
 }
 
-void QOTAClientPrivate::fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success)
+void QOtaClientPrivate::fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     if (success) {
         updateRemoteInfo(remoteRev, remoteInfo);
         refreshState();
@@ -148,9 +148,9 @@ void QOTAClientPrivate::fetchRemoteInfoFinished(const QString &remoteRev, const 
     emit q->fetchRemoteInfoFinished(success);
 }
 
-void QOTAClientPrivate::updateFinished(const QString &defaultRev, bool success)
+void QOtaClientPrivate::updateFinished(const QString &defaultRev, bool success)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     if (success) {
         m_defaultRev = defaultRev;
         refreshState();
@@ -158,9 +158,9 @@ void QOTAClientPrivate::updateFinished(const QString &defaultRev, bool success)
     emit q->updateFinished(success);
 }
 
-void QOTAClientPrivate::rollbackFinished(const QString &defaultRev, bool success)
+void QOtaClientPrivate::rollbackFinished(const QString &defaultRev, bool success)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     if (success) {
         m_defaultRev = defaultRev;
         refreshState();
@@ -168,23 +168,23 @@ void QOTAClientPrivate::rollbackFinished(const QString &defaultRev, bool success
     emit q->rollbackFinished(success);
 }
 
-void QOTAClientPrivate::statusStringChanged(const QString &status)
+void QOtaClientPrivate::statusStringChanged(const QString &status)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     m_status = status;
     emit q->statusStringChanged(m_status);
 }
 
-void QOTAClientPrivate::errorOccurred(const QString &error)
+void QOtaClientPrivate::errorOccurred(const QString &error)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     m_error = error;
     emit q->errorOccurred(m_error);
 }
 
-void QOTAClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
+void QOtaClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
 {
-    Q_Q(QOTAClient);
+    Q_Q(QOtaClient);
     if (!m_rollbackAvailable && treeCount > 1) {
         m_rollbackAvailable = true;
         emit q->rollbackAvailableChanged();
@@ -194,7 +194,7 @@ void QOTAClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonD
     q->rollbackInfoChanged();
 }
 
-QString QOTAClientPrivate::version(QueryTarget target) const
+QString QOtaClientPrivate::version(QueryTarget target) const
 {
     if (!m_otaEnabled)
         return QString();
@@ -211,7 +211,7 @@ QString QOTAClientPrivate::version(QueryTarget target) const
     }
 }
 
-QByteArray QOTAClientPrivate::info(QueryTarget target) const
+QByteArray QOtaClientPrivate::info(QueryTarget target) const
 {
     if (!m_otaEnabled)
         return QByteArray();
@@ -228,7 +228,7 @@ QByteArray QOTAClientPrivate::info(QueryTarget target) const
     }
 }
 
-QString QOTAClientPrivate::description(QueryTarget target) const
+QString QOtaClientPrivate::description(QueryTarget target) const
 {
     if (!m_otaEnabled)
         return QString();
@@ -245,7 +245,7 @@ QString QOTAClientPrivate::description(QueryTarget target) const
     }
 }
 
-QString QOTAClientPrivate::revision(QueryTarget target) const
+QString QOtaClientPrivate::revision(QueryTarget target) const
 {
     if (!m_otaEnabled)
         return QString();
@@ -263,11 +263,11 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 }
 
 /*!
-    \class QOTAClient
+    \class QOtaClient
     \inmodule qtotaupdate
     \brief Main interface to the OTA functionality.
 
-    QOTAClient
+    QOtaClient
 //! [client-description]
     provides an API to execute Over-the-Air update tasks. Offline
     operations include querying the booted and rollback system version details,
@@ -283,28 +283,28 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::fetchRemoteInfoFinished(bool success)
+    \fn void QOtaClient::fetchRemoteInfoFinished(bool success)
 
     A notifier signal for fetchRemoteInfo(). The \a success argument indicates
     whether the operation was successful.
 */
 
 /*!
-    \fn void QOTAClient::updateFinished(bool success)
+    \fn void QOtaClient::updateFinished(bool success)
 
     A notifier signal for update(). The \a success argument indicates whether
     the operation was successful.
 */
 
 /*!
-    \fn void QOTAClient::rollbackFinished(bool success)
+    \fn void QOtaClient::rollbackFinished(bool success)
 
     This is a notifier signal for rollback(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \fn void QOTAClient::remoteInfoChanged()
+    \fn void QOtaClient::remoteInfoChanged()
 //! [remoteinfochanged-description]
     Remote info can change when calling fetchRemoteInfo(). If OTA metadata on
     the remote server is different from the local cache, the local cache is updated
@@ -313,14 +313,14 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::rollbackInfoChanged()
+    \fn void QOtaClient::rollbackInfoChanged()
 
     This signal is emitted when rollback info changes. Rollback info changes
     when calling rollback().
 */
 
 /*!
-    \fn void QOTAClient::updateAvailableChanged(bool available)
+    \fn void QOtaClient::updateAvailableChanged(bool available)
 
     This signal is emitted when the value of updateAvailable changes. The
     \a available argument holds whether a system update is available for
@@ -328,21 +328,21 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::rollbackAvailableChanged()
+    \fn void QOtaClient::rollbackAvailableChanged()
 
     This signal is emitted when the value of rollbackAvailable changes. A rollback
     system becomes available when a device has performed at least one system update.
 */
 
 /*!
-    \fn void QOTAClient::restartRequiredChanged(bool required)
+    \fn void QOtaClient::restartRequiredChanged(bool required)
 
     This signal is emitted when the value of restartRequired changes. The
     \a required argument holds whether a reboot is required.
 */
 
 /*!
-    \fn void QOTAClient::statusStringChanged(const QString &status)
+    \fn void QOtaClient::statusStringChanged(const QString &status)
 //! [statusstringchanged-description]
     This signal is emitted when an additional status information is available
     (for example, when a program is busy performing a long operation). The
@@ -351,47 +351,47 @@ QString QOTAClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOTAClient::errorOccurred(const QString &error)
+    \fn void QOtaClient::errorOccurred(const QString &error)
 
     This signal is emitted when an error occurs. The \a error argument holds
     the error message.
 */
 
 /*!
-    \fn void QOTAClient::initializationFinished()
+    \fn void QOtaClient::initializationFinished()
 
     This signal is emitted when the object has finished initialization. The
     object is not ready for use until this signal is received.
 */
 
 /*!
-    \fn void QOTAClient::repositoryConfigChanged(QOtaRepositoryConfig *repository)
+    \fn void QOtaClient::repositoryConfigChanged(QOtaRepositoryConfig *repository)
 
     This signal is emitted when the configuration file was updated (\a repository
     holds a pointer to the new configuration) or removed (\a repository holds the
     \c nullptr value).
 */
 
-QOTAClient::QOTAClient(QObject *parent) :
+QOtaClient::QOtaClient(QObject *parent) :
     QObject(parent),
-    d_ptr(new QOTAClientPrivate(this))
+    d_ptr(new QOtaClientPrivate(this))
 {
-    Q_D(QOTAClient);
+    Q_D(QOtaClient);
     if (d->m_otaEnabled) {
-        QOTAClientAsync *async = d->m_otaAsync.data();
+        QOtaClientAsync *async = d->m_otaAsync.data();
         // async finished handlers
-        connect(async, &QOTAClientAsync::initializeFinished, d, &QOTAClientPrivate::initializeFinished);
-        connect(async, &QOTAClientAsync::fetchRemoteInfoFinished, d, &QOTAClientPrivate::fetchRemoteInfoFinished);
-        connect(async, &QOTAClientAsync::updateFinished, d, &QOTAClientPrivate::updateFinished);
-        connect(async, &QOTAClientAsync::rollbackFinished, d, &QOTAClientPrivate::rollbackFinished);
-        connect(async, &QOTAClientAsync::errorOccurred, d, &QOTAClientPrivate::errorOccurred);
-        connect(async, &QOTAClientAsync::statusStringChanged, d, &QOTAClientPrivate::statusStringChanged);
-        connect(async, &QOTAClientAsync::rollbackChanged, d, &QOTAClientPrivate::rollbackChanged);
+        connect(async, &QOtaClientAsync::initializeFinished, d, &QOtaClientPrivate::initializeFinished);
+        connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, d, &QOtaClientPrivate::fetchRemoteInfoFinished);
+        connect(async, &QOtaClientAsync::updateFinished, d, &QOtaClientPrivate::updateFinished);
+        connect(async, &QOtaClientAsync::rollbackFinished, d, &QOtaClientPrivate::rollbackFinished);
+        connect(async, &QOtaClientAsync::errorOccurred, d, &QOtaClientPrivate::errorOccurred);
+        connect(async, &QOtaClientAsync::statusStringChanged, d, &QOtaClientPrivate::statusStringChanged);
+        connect(async, &QOtaClientAsync::rollbackChanged, d, &QOtaClientPrivate::rollbackChanged);
         d->m_otaAsync->initialize();
     }
 }
 
-QOTAClient::~QOTAClient()
+QOtaClient::~QOtaClient()
 {
     delete d_ptr;
 }
@@ -408,9 +408,9 @@ QOTAClient::~QOTAClient()
 
     \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
 */
-bool QOTAClient::fetchRemoteInfo() const
+bool QOtaClient::fetchRemoteInfo() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     if (!d->isReady())
         return false;
 
@@ -428,9 +428,9 @@ bool QOTAClient::fetchRemoteInfo() const
 
     \sa updateFinished(), fetchRemoteInfo(), restartRequired
 */
-bool QOTAClient::update() const
+bool QOtaClient::update() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     if (!d->isReady() || !updateAvailable())
         return false;
 
@@ -446,9 +446,9 @@ bool QOTAClient::update() const
 
     \sa rollbackFinished(), restartRequired
 */
-bool QOTAClient::rollback() const
+bool QOtaClient::rollback() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     if (!d->isReady())
         return false;
 
@@ -469,9 +469,9 @@ bool QOTAClient::rollback() const
 
     \sa setRepositoryConfig(), repositoryConfigChanged
 */
-bool QOTAClient::removeRepositoryConfig()
+bool QOtaClient::removeRepositoryConfig()
 {
-    Q_D(QOTAClient);
+    Q_D(QOtaClient);
     if (!otaEnabled() || !QDir().exists(repoConfigPath))
         return true;
 
@@ -497,9 +497,9 @@ bool QOTAClient::removeRepositoryConfig()
 
     \sa removeRepositoryConfig(), repositoryConfigChanged
 */
-bool QOTAClient::setRepositoryConfig(QOtaRepositoryConfig *config)
+bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 {
-    Q_D(QOTAClient);
+    Q_D(QOtaClient);
     if (!d->isReady())
         return false;
 
@@ -560,7 +560,7 @@ bool QOTAClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 
     \sa setRepositoryConfig(), removeRepositoryConfig()
 */
-QOtaRepositoryConfig *QOTAClient::repositoryConfig() const
+QOtaRepositoryConfig *QOtaClient::repositoryConfig() const
 {
     if (!otaEnabled())
         return nullptr;
@@ -568,17 +568,17 @@ QOtaRepositoryConfig *QOTAClient::repositoryConfig() const
 }
 
 /*!
-    \property QOTAClient::otaEnabled
+    \property QOtaClient::otaEnabled
     \brief whether a device supports OTA updates.
 */
-bool QOTAClient::otaEnabled() const
+bool QOtaClient::otaEnabled() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_otaEnabled;
 }
 
 /*!
-    \property QOTAClient::initialized
+    \property QOtaClient::initialized
 //! [initialized-description]
     \brief whether the object has completed the initialization.
 
@@ -593,163 +593,163 @@ bool QOTAClient::otaEnabled() const
 
     \sa initializationFinished()
 */
-bool QOTAClient::initialized() const
+bool QOtaClient::initialized() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_initialized;
 }
 
 /*!
-    \property QOTAClient::error
+    \property QOtaClient::error
     \brief a string containing the last error occurred.
 */
-QString QOTAClient::errorString() const
+QString QOtaClient::errorString() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_error;
 }
 
 /*!
-    \property QOTAClient::status
+    \property QOtaClient::status
     \brief a string containing the last status message.
 
     Only selected operations update this property.
 */
-QString QOTAClient::statusString() const
+QString QOtaClient::statusString() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_status;
 }
 
 /*!
-    \property QOTAClient::updateAvailable
+    \property QOtaClient::updateAvailable
     \brief whether a system update is available.
 
     This information is cached; to update the local cache, call
     fetchRemoteInfo().
 */
-bool QOTAClient::updateAvailable() const
+bool QOtaClient::updateAvailable() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     if (d->m_updateAvailable)
         Q_ASSERT(!d->m_remoteRev.isEmpty());
     return d->m_updateAvailable;
 }
 
 /*!
-    \property QOTAClient::rollbackAvailable
+    \property QOtaClient::rollbackAvailable
     \brief whether a rollback system is available.
 
     \sa rollbackAvailableChanged()
 */
-bool QOTAClient::rollbackAvailable() const
+bool QOtaClient::rollbackAvailable() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_rollbackAvailable;
 }
 
 /*!
-    \property QOTAClient::restartRequired
+    \property QOtaClient::restartRequired
     \brief whether a reboot is required.
 
     Reboot is required after update() and rollback(), to boot into the new
     default system.
 
 */
-bool QOTAClient::restartRequired() const
+bool QOtaClient::restartRequired() const
 {
-    Q_D(const QOTAClient);
+    Q_D(const QOtaClient);
     return d->m_restartRequired;
 }
 
 /*!
-    \property QOTAClient::bootedVersion
+    \property QOtaClient::bootedVersion
     \brief a QString containing the booted system's version.
 
     This is a convenience method.
 
     \sa bootedInfo
 */
-QString QOTAClient::bootedVersion() const
+QString QOtaClient::bootedVersion() const
 {
-    return d_func()->version(QOTAClientPrivate::QueryTarget::Booted);
+    return d_func()->version(QOtaClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::bootedDescription
+    \property QOtaClient::bootedDescription
     \brief a QString containing the booted system's description.
 
     This is a convenience method.
 
     \sa bootedInfo
 */
-QString QOTAClient::bootedDescription() const
+QString QOtaClient::bootedDescription() const
 {
-    return d_func()->description(QOTAClientPrivate::QueryTarget::Booted);
+    return d_func()->description(QOtaClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::bootedRevision
+    \property QOtaClient::bootedRevision
     \brief a QString containing the booted system's revision.
 
     A booted revision is a checksum in the OSTree repository.
 */
-QString QOTAClient::bootedRevision() const
+QString QOtaClient::bootedRevision() const
 {
-    return d_func()->revision(QOTAClientPrivate::QueryTarget::Booted);
+    return d_func()->revision(QOtaClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::bootedInfo
+    \property QOtaClient::bootedInfo
     \brief a QByteArray containing the booted system's OTA metadata.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the booted
     system. Metadata is bundled with each system's version.
 */
-QByteArray QOTAClient::bootedInfo() const
+QByteArray QOtaClient::bootedInfo() const
 {
-    return d_func()->info(QOTAClientPrivate::QueryTarget::Booted);
+    return d_func()->info(QOtaClientPrivate::QueryTarget::Booted);
 }
 
 /*!
-    \property QOTAClient::remoteVersion
+    \property QOtaClient::remoteVersion
     \brief a QString containing the system's version on a server.
 
     This is a convenience method.
 
     \sa remoteInfo
 */
-QString QOTAClient::remoteVersion() const
+QString QOtaClient::remoteVersion() const
 {
-    return d_func()->version(QOTAClientPrivate::QueryTarget::Remote);
+    return d_func()->version(QOtaClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::remoteDescription
+    \property QOtaClient::remoteDescription
     \brief a QString containing the system's description on a server.
 
     This is a convenience method.
 
     \sa remoteInfo
 */
-QString QOTAClient::remoteDescription() const
+QString QOtaClient::remoteDescription() const
 {
-    return d_func()->description(QOTAClientPrivate::QueryTarget::Remote);
+    return d_func()->description(QOtaClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::remoteRevision
+    \property QOtaClient::remoteRevision
     \brief a QString containing the system's revision on a server.
 
     A checksum in the OSTree repository.
 */
-QString QOTAClient::remoteRevision() const
+QString QOtaClient::remoteRevision() const
 {
-    return d_func()->revision(QOTAClientPrivate::QueryTarget::Remote);
+    return d_func()->revision(QOtaClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::remoteInfo
+    \property QOtaClient::remoteInfo
     \brief a QByteArray containing the system's OTA metadata on a server.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the system
@@ -757,50 +757,50 @@ QString QOTAClient::remoteRevision() const
 
     \sa fetchRemoteInfo()
 */
-QByteArray QOTAClient::remoteInfo() const
+QByteArray QOtaClient::remoteInfo() const
 {
-    return d_func()->info(QOTAClientPrivate::QueryTarget::Remote);
+    return d_func()->info(QOtaClientPrivate::QueryTarget::Remote);
 }
 
 /*!
-    \property QOTAClient::rollbackVersion
+    \property QOtaClient::rollbackVersion
     \brief a QString containing the rollback system's version.
 
     This is a convenience method.
 
     \sa rollbackInfo
 */
-QString QOTAClient::rollbackVersion() const
+QString QOtaClient::rollbackVersion() const
 {
-    return d_func()->version(QOTAClientPrivate::QueryTarget::Rollback);
+    return d_func()->version(QOtaClientPrivate::QueryTarget::Rollback);
 }
 
 /*!
-    \property QOTAClient::rollbackDescription
+    \property QOtaClient::rollbackDescription
     \brief a QString containing the rollback system's description.
 
     This is a convenience method.
 
     \sa rollbackInfo
 */
-QString QOTAClient::rollbackDescription() const
+QString QOtaClient::rollbackDescription() const
 {
-    return d_func()->description(QOTAClientPrivate::QueryTarget::Rollback);
+    return d_func()->description(QOtaClientPrivate::QueryTarget::Rollback);
 }
 
 /*!
-    \property QOTAClient::rollbackRevision
+    \property QOtaClient::rollbackRevision
     \brief a QString containing the rollback system's revision.
 
     A checksum in the OSTree repository.
 */
-QString QOTAClient::rollbackRevision() const
+QString QOtaClient::rollbackRevision() const
 {
-    return d_func()->revision(QOTAClientPrivate::QueryTarget::Rollback);
+    return d_func()->revision(QOtaClientPrivate::QueryTarget::Rollback);
 }
 
 /*!
-    \property QOTAClient::rollbackInfo
+    \property QOtaClient::rollbackInfo
     \brief a QByteArray containing the rollback system's OTA metadata.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the rollback
@@ -808,9 +808,9 @@ QString QOTAClient::rollbackRevision() const
 
     \sa rollback()
 */
-QByteArray QOTAClient::rollbackInfo() const
+QByteArray QOtaClient::rollbackInfo() const
 {
-    return d_func()->info(QOTAClientPrivate::QueryTarget::Rollback);
+    return d_func()->info(QOtaClientPrivate::QueryTarget::Rollback);
 }
 
 QT_END_NAMESPACE

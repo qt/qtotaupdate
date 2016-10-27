@@ -35,10 +35,10 @@
 
 QT_BEGIN_NAMESPACE
 
-class QOTAClientPrivate;
+class QOtaClientPrivate;
 class QOtaRepositoryConfig;
 
-class Q_DECL_EXPORT QOTAClient : public QObject
+class Q_DECL_EXPORT QOtaClient : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool otaEnabled READ otaEnabled)
@@ -61,8 +61,8 @@ class Q_DECL_EXPORT QOTAClient : public QObject
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackInfoChanged)
     Q_PROPERTY(QByteArray rollbackInfo READ rollbackInfo NOTIFY rollbackInfoChanged)
 public:
-    explicit QOTAClient(QObject *parent = nullptr);
-    virtual ~QOTAClient();
+    explicit QOtaClient(QObject *parent = nullptr);
+    virtual ~QOtaClient();
 
     bool updateAvailable() const;
     bool rollbackAvailable() const;
@@ -111,9 +111,9 @@ Q_SIGNALS:
     void rollbackFinished(bool success);
 
 private:
-    Q_DISABLE_COPY(QOTAClient)
-    Q_DECLARE_PRIVATE(QOTAClient)
-    QOTAClientPrivate *const d_ptr;
+    Q_DISABLE_COPY(QOtaClient)
+    Q_DECLARE_PRIVATE(QOtaClient)
+    QOtaClientPrivate *const d_ptr;
 };
 
 QT_END_NAMESPACE

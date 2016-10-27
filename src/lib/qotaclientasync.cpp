@@ -37,17 +37,17 @@
 
 QT_BEGIN_NAMESPACE
 
-QOTAClientAsync::QOTAClientAsync() :
+QOtaClientAsync::QOtaClientAsync() :
     m_sysroot(ostree_sysroot_new(0))
 {
     // async mapper
-    connect(this, &QOTAClientAsync::initialize, this, &QOTAClientAsync::_initialize);
-    connect(this, &QOTAClientAsync::fetchRemoteInfo, this, &QOTAClientAsync::_fetchRemoteInfo);
-    connect(this, &QOTAClientAsync::update, this, &QOTAClientAsync::_update);
-    connect(this, &QOTAClientAsync::rollback, this, &QOTAClientAsync::_rollback);
+    connect(this, &QOtaClientAsync::initialize, this, &QOtaClientAsync::_initialize);
+    connect(this, &QOtaClientAsync::fetchRemoteInfo, this, &QOtaClientAsync::_fetchRemoteInfo);
+    connect(this, &QOtaClientAsync::update, this, &QOtaClientAsync::_update);
+    connect(this, &QOtaClientAsync::rollback, this, &QOtaClientAsync::_rollback);
 }
 
-QOTAClientAsync::~QOTAClientAsync()
+QOtaClientAsync::~QOtaClientAsync()
 {
     g_object_unref (m_sysroot);
 }
@@ -60,7 +60,7 @@ static void parseErrorString(QString *error)
         *error = QLatin1String("Repository configuration not found");
 }
 
-QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
+QString QOtaClientAsync::ostree(const QString &command, bool *ok, bool updateStatus)
 {
     qCDebug(qota) << command;
     QProcess ostree;
@@ -105,20 +105,20 @@ QString QOTAClientAsync::ostree(const QString &command, bool *ok, bool updateSta
     return out;
 }
 
-QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev)
+QJsonDocument QOtaClientAsync::info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev)
 {
     QString jsonData;
     switch (target) {
-    case QOTAClientPrivate::QueryTarget::Booted: {
+    case QOtaClientPrivate::QueryTarget::Booted: {
         QFile metadata(QStringLiteral("/usr/etc/qt-ota.json"));
         if (metadata.open(QFile::ReadOnly))
             jsonData = QString::fromLatin1(metadata.readAll());
         break;
     }
-    case QOTAClientPrivate::QueryTarget::Remote:
+    case QOtaClientPrivate::QueryTarget::Remote:
         jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
         break;
-    case QOTAClientPrivate::QueryTarget::Rollback:
+    case QOtaClientPrivate::QueryTarget::Rollback:
         jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
         break;
     default:
@@ -139,7 +139,7 @@ QJsonDocument QOTAClientAsync::info(QOTAClientPrivate::QueryTarget target, bool 
     return jsonInfo;
 }
 
-bool QOTAClientAsync::multiprocessLock(const QString &method)
+bool QOtaClientAsync::multiprocessLock(const QString &method)
 {
     qCDebug(qota) << QTime::currentTime().toString() << method << "- waiting for lock...";
     GError *error = nullptr;
@@ -150,20 +150,20 @@ bool QOTAClientAsync::multiprocessLock(const QString &method)
     return true;
 }
 
-void QOTAClientAsync::multiprocessUnlock()
+void QOtaClientAsync::multiprocessUnlock()
 {
     ostree_sysroot_unlock (m_sysroot);
     qCDebug(qota) << QTime::currentTime().toString() << "lock released";
 }
 
-QString QOTAClientAsync::defaultRevision()
+QString QOtaClientAsync::defaultRevision()
 {
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
     OstreeDeployment *firstDeployment = (OstreeDeployment*)deployments->pdata[0];
     return QLatin1String(ostree_deployment_get_csum (firstDeployment));
 }
 
-void QOTAClientAsync::_initialize()
+void QOtaClientAsync::_initialize()
 {
     if (!multiprocessLock(QStringLiteral("_initialize")))
         return;
@@ -175,18 +175,18 @@ void QOTAClientAsync::_initialize()
     OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
     QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
     bool ok = true;
-    QJsonDocument bootedInfo = info(QOTAClientPrivate::QueryTarget::Booted, &ok);
+    QJsonDocument bootedInfo = info(QOtaClientPrivate::QueryTarget::Booted, &ok);
     QString defaultRev = defaultRevision();
     // prepopulate with what we think is on the remote server (head of the local repo)
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    QJsonDocument remoteInfo = info(QOTAClientPrivate::QueryTarget::Remote, &ok, remoteRev);
+    QJsonDocument remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
 
     resetRollbackState();
     emit initializeFinished(defaultRev, bootedRev, bootedInfo, remoteRev, remoteInfo);
     multiprocessUnlock();
 }
 
-void QOTAClientAsync::_fetchRemoteInfo()
+void QOtaClientAsync::_fetchRemoteInfo()
 {
     if (!multiprocessLock(QStringLiteral("_fetchRemoteInfo")))
         return;
@@ -196,12 +196,12 @@ void QOTAClientAsync::_fetchRemoteInfo()
     ostree(QStringLiteral("ostree pull --commit-metadata-only qt-os linux/qt"), &ok);
     if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    if (ok) remoteInfo = info(QOTAClientPrivate::QueryTarget::Remote, &ok, remoteRev);
+    if (ok) remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
     emit fetchRemoteInfoFinished(remoteRev, remoteInfo, ok);
     multiprocessUnlock();
 }
 
-void QOTAClientAsync::_update(const QString &updateToRev)
+void QOtaClientAsync::_update(const QString &updateToRev)
 {
     if (!multiprocessLock(QStringLiteral("_update")))
         return;
@@ -230,7 +230,7 @@ out:
     emit updateFinished(defaultRev, ok);
 }
 
-int QOTAClientAsync::rollbackIndex()
+int QOtaClientAsync::rollbackIndex()
 {
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
     if (deployments->len < 2)
@@ -243,7 +243,7 @@ int QOTAClientAsync::rollbackIndex()
     return 1;
 }
 
-void QOTAClientAsync::resetRollbackState()
+void QOtaClientAsync::resetRollbackState()
 {
     int index = rollbackIndex();
     if (index == -1)
@@ -253,18 +253,18 @@ void QOTAClientAsync::resetRollbackState()
     OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
     QString rollbackRev = QLatin1String(ostree_deployment_get_csum (rollbackDeployment));
     bool ok = true;
-    QJsonDocument rollbackInfo = info(QOTAClientPrivate::QueryTarget::Rollback, &ok, rollbackRev);
+    QJsonDocument rollbackInfo = info(QOtaClientPrivate::QueryTarget::Rollback, &ok, rollbackRev);
     emit rollbackChanged(rollbackRev, rollbackInfo, deployments->len);
 }
 
-void QOTAClientAsync::emitRollbackFailed(const QString &error)
+void QOtaClientAsync::emitRollbackFailed(const QString &error)
 {
     emit errorOccurred(error);
     emit rollbackFinished(QStringLiteral(""), false);
     multiprocessUnlock();
 }
 
-bool QOTAClientAsync::emitGError(GError *error)
+bool QOtaClientAsync::emitGError(GError *error)
 {
     if (!error)
         return false;
@@ -274,7 +274,7 @@ bool QOTAClientAsync::emitGError(GError *error)
     return true;
 }
 
-void QOTAClientAsync::_rollback()
+void QOtaClientAsync::_rollback()
 {
     if (!multiprocessLock(QStringLiteral("_rollback")))
         return;

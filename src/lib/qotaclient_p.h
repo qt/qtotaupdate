@@ -38,14 +38,14 @@
 Q_DECLARE_LOGGING_CATEGORY(qota)
 
 class QThread;
-class QOTAClientAsync;
+class QOtaClientAsync;
 class QOtaRepositoryConfig;
-class QOTAClient;
+class QOtaClient;
 
-class QOTAClientPrivate : public QObject
+class QOtaClientPrivate : public QObject
 {
     Q_OBJECT
-    Q_DECLARE_PUBLIC(QOTAClient)
+    Q_DECLARE_PUBLIC(QOtaClient)
 public:
     enum class QueryTarget
     {
@@ -55,8 +55,8 @@ public:
     };
     Q_ENUM(QueryTarget)
 
-    QOTAClientPrivate(QOTAClient *client);
-    virtual ~QOTAClientPrivate();
+    QOtaClientPrivate(QOtaClient *client);
+    virtual ~QOtaClientPrivate();
 
     void refreshState();
     void initializeFinished(const QString &defaultRev,
@@ -78,7 +78,7 @@ public:
     bool isReady() const;
 
     // members
-    QOTAClient *const q_ptr;
+    QOtaClient *const q_ptr;
     bool m_initialized;
     bool m_updateAvailable;
     bool m_rollbackAvailable;
@@ -87,7 +87,7 @@ public:
     QString m_status;
     QString m_error;
     QThread *m_otaAsyncThread;
-    QScopedPointer<QOTAClientAsync> m_otaAsync;
+    QScopedPointer<QOtaClientAsync> m_otaAsync;
     QString m_defaultRev;
 
     QString m_bootedVersion;

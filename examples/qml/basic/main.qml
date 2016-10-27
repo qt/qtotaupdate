@@ -51,11 +51,11 @@ Window {
     }
 
     function otaReady() {
-        if (!OTAClient.otaEnabled) {
+        if (!OtaClient.otaEnabled) {
             log("OTA Update functionality is not enabled on this device")
             return false;
         }
-        if (!OTAClient.initialized) {
+        if (!OtaClient.initialized) {
             log("Initialization is not ready")
             return false;
         }
@@ -63,11 +63,11 @@ Window {
     }
 
     function configureRemote(config) {
-        if (!OTAClient.removeRepositoryConfig()) {
+        if (!OtaClient.removeRepositoryConfig()) {
             logError("Failed to remove repository configuration")
             return;
         }
-        if (!OTAClient.setRepositoryConfig(config)) {
+        if (!OtaClient.setRepositoryConfig(config)) {
             logError("Failed to update repository configuration")
             return;
         }
@@ -88,14 +88,14 @@ Window {
         anchors.topMargin: 10
 
         Label { text: "BOOTED"; Layout.bottomMargin: 14; font.underline: true; }
-        Label { text: "<b>Version:</b> " + OTAClient.bootedVersion }
-        Label { text: "<b>Description:</b> " + OTAClient.bootedDescription }
-        Label { text: "<b>Revision:</b> " + OTAClient.bootedRevision }
+        Label { text: "<b>Version:</b> " + OtaClient.bootedVersion }
+        Label { text: "<b>Description:</b> " + OtaClient.bootedDescription }
+        Label { text: "<b>Revision:</b> " + OtaClient.bootedRevision }
 
         Label { text: "REMOTE"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-        Label { text: "<b>Version:</b> " + OTAClient.remoteVersion }
-        Label { text: "<b>Description:</b> " + OTAClient.remoteDescription }
-        Label { text: "<b>Revision:</b> " + OTAClient.remoteRevision; Layout.bottomMargin: 10; }
+        Label { text: "<b>Version:</b> " + OtaClient.remoteVersion }
+        Label { text: "<b>Description:</b> " + OtaClient.remoteDescription }
+        Label { text: "<b>Revision:</b> " + OtaClient.remoteRevision; Layout.bottomMargin: 10; }
 
         Label { id: repoUrl; }
         Label { id: repoGpgVerify; }
@@ -105,9 +105,9 @@ Window {
         Label { id: repoCa; }
 
         Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-        Label { text: "<b>Version:</b> " + OTAClient.rollbackVersion }
-        Label { text: "<b>Description:</b> " + OTAClient.rollbackDescription }
-        Label { text: "<b>Revision:</b> " + OTAClient.rollbackRevision }
+        Label { text: "<b>Version:</b> " + OtaClient.rollbackVersion }
+        Label { text: "<b>Description:</b> " + OtaClient.rollbackDescription }
+        Label { text: "<b>Revision:</b> " + OtaClient.rollbackRevision }
 
         RowLayout {
             Layout.topMargin: 20
@@ -119,31 +119,31 @@ Window {
                     if (!otaReady())
                         return;
                     log("Fetcing OTA info...")
-                    OTAClient.fetchRemoteInfo()
+                    OtaClient.fetchRemoteInfo()
                 }
             }
             Button {
-                visible: OTAClient.rollbackAvailable
+                visible: OtaClient.rollbackAvailable
                 text: "Rollback"
                 onClicked: {
                     if (!otaReady())
                         return;
                     log("Roolback...")
-                    OTAClient.rollback()
+                    OtaClient.rollback()
                 }
             }
             Button {
-                visible: OTAClient.updateAvailable
+                visible: OtaClient.updateAvailable
                 text: "Update"
                 onClicked: {
                     if (!otaReady())
                         return;
                     log("Updating...")
-                    OTAClient.update()
+                    OtaClient.update()
                 }
             }
             Button {
-                visible: OTAClient.restartRequired
+                visible: OtaClient.restartRequired
                 text: "Restart"
                 onClicked: {
                     if (!otaReady())
@@ -181,17 +181,17 @@ Window {
     }
 
     Connections {
-        target: OTAClient
+        target: OtaClient
         onErrorChanged: logError(error)
         onStatusChanged: log(status)
         onInitializationFinished: {
-            logWithCondition("Initialization", OTAClient.initialized)
+            logWithCondition("Initialization", OtaClient.initialized)
             configureRemote(repoConfig)
         }
         onFetchRemoteInfoFinished: {
             logWithCondition("Fetching info from a remote server", success)
             if (success)
-                log("Update available: " + OTAClient.updateAvailable)
+                log("Update available: " + OtaClient.updateAvailable)
         }
         onRollbackFinished: logWithCondition("Rollback", success)
         onUpdateFinished: logWithCondition("Update", success)
@@ -199,7 +199,7 @@ Window {
     }
 
     Component.onCompleted: {
-        if (!OTAClient.otaEnabled)
+        if (!OtaClient.otaEnabled)
             log("OTA Update functionality is not enabled on this device")
         updateConfigView(0)
     }

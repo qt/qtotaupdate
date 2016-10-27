@@ -32,7 +32,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QString>
 
-class QOTAClient;
+class QOtaClient;
 class QOtaRepositoryConfigPrivate;
 
 class Q_DECL_EXPORT QOtaRepositoryConfig : public QObject
@@ -78,7 +78,7 @@ private:
     Q_DISABLE_COPY(QOtaRepositoryConfig)
     Q_DECLARE_PRIVATE(QOtaRepositoryConfig)
     QOtaRepositoryConfigPrivate *const d_ptr;
-    friend class QOTAClient;
+    friend class QOtaClient;
 };
 
 #endif // QOTAREPOSITORYCONFIG_H

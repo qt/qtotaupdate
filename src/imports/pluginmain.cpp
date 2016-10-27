@@ -26,7 +26,7 @@
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
-#include <QtOtaUpdate/QOTAClient>
+#include <QtOtaUpdate/QOtaClient>
 #include <QtOtaUpdate/QOtaRepositoryConfig>
 #include <QtQml>
 
@@ -34,16 +34,16 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \inqmlmodule QtOtaUpdate
-    \qmltype OTAClient
-    \instantiates QOTAClient
+    \qmltype OtaClient
+    \instantiates QOtaClient
     \brief Main interface to the OTA functionality.
 
-    OTAClient
+    OtaClient
     \include qotaclient.cpp client-description
 */
 
 /*!
-    \qmlproperty string OTAClient::bootedVersion
+    \qmlproperty string OtaClient::bootedVersion
     \readonly
 
     This is a convenience property that holds a string containing the booted
@@ -53,7 +53,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::bootedDescription
+    \qmlproperty string OtaClient::bootedDescription
     \readonly
 
     This is a convenience property that holds a string containing the booted
@@ -63,7 +63,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::bootedRevision
+    \qmlproperty string OtaClient::bootedRevision
     \readonly
 
     This property holds a string containing the booted system's revision
@@ -71,7 +71,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::bootedInfo
+    \qmlproperty string OtaClient::bootedInfo
     \readonly
 
     This property holds a JSON-formatted string containing the booted system's
@@ -79,7 +79,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::remoteVersion
+    \qmlproperty string OtaClient::remoteVersion
     \readonly
 
     This is a convenience property that holds a string containing the system's
@@ -89,7 +89,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::remoteDescription
+    \qmlproperty string OtaClient::remoteDescription
     \readonly
 
     This is a convenience property that holds a string containing the system's
@@ -99,7 +99,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::remoteRevision
+    \qmlproperty string OtaClient::remoteRevision
     \readonly
 
     This property holds a string containing the system's revision on a server
@@ -107,7 +107,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::remoteInfo
+    \qmlproperty string OtaClient::remoteInfo
     \readonly
 
     This property holds a JSON-formatted string containing OTA metadata for the
@@ -115,7 +115,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::rollbackVersion
+    \qmlproperty string OtaClient::rollbackVersion
     \readonly
 
     This is a convenience property that holds a string containing the rollback
@@ -125,7 +125,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::rollbackDescription
+    \qmlproperty string OtaClient::rollbackDescription
     \readonly
 
     This is a convenience property that holds a string containing the rollback
@@ -135,7 +135,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::rollbackRevision
+    \qmlproperty string OtaClient::rollbackRevision
     \readonly
 
     This property holds a string containing the rollback system's revision (a
@@ -143,7 +143,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::rollbackInfo
+    \qmlproperty string OtaClient::rollbackInfo
     \readonly
 
     This property holds a JSON-formatted string containing the rollback
@@ -153,14 +153,14 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::rollbackInfoChanged()
+    \qmlsignal OtaClient::rollbackInfoChanged()
 
     This signal is emitted when the rollback info changes. Rollback info
     changes when calling rollback().
 */
 
 /*!
-    \qmlmethod bool OTAClient::fetchRemoteInfo()
+    \qmlmethod bool OtaClient::fetchRemoteInfo()
 
     \include qotaclient.cpp fetchremoteinfo-description
 
@@ -168,20 +168,20 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::fetchRemoteInfoFinished(bool success)
+    \qmlsignal OtaClient::fetchRemoteInfoFinished(bool success)
 
     This is a notifier signal for fetchRemoteInfo(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlsignal OTAClient::remoteInfoChanged()
+    \qmlsignal OtaClient::remoteInfoChanged()
 
     \include qotaclient.cpp remoteinfochanged-description
 */
 
 /*!
-    \qmlmethod bool OTAClient::update()
+    \qmlmethod bool OtaClient::update()
 
     \include qotaclient.cpp update-description
 
@@ -189,14 +189,14 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::updateFinished(bool success)
+    \qmlsignal OtaClient::updateFinished(bool success)
 
     This is a notifier signal for update(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlmethod bool OTAClient::rollback()
+    \qmlmethod bool OtaClient::rollback()
 
     Rollback to the previous system version.
 
@@ -207,21 +207,21 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::rollbackFinished(bool success)
+    \qmlsignal OtaClient::rollbackFinished(bool success)
 
     This is a notifier signal for rollback(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlproperty bool OTAClient::otaEnabled
+    \qmlproperty bool OtaClient::otaEnabled
     \readonly
 
     This property holds whether a device supports OTA updates.
 */
 
 /*!
-    \qmlproperty bool  OTAClient::initialized
+    \qmlproperty bool  OtaClient::initialized
     \readonly
 
     \include qotaclient.cpp initialized-description
@@ -230,7 +230,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OTAClient::status
+    \qmlproperty string OtaClient::status
     \readonly
 
     This property holds a string containing the last status message. Only
@@ -238,27 +238,27 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::statusChanged(string status);
+    \qmlsignal OtaClient::statusChanged(string status);
 
     \include qotaclient.cpp statusstringchanged-description
 */
 
 /*!
-    \qmlproperty string OTAClient::error
+    \qmlproperty string OtaClient::error
     \readonly
 
     This property holds a string containing the last error occurred.
 */
 
 /*!
-    \qmlsignal OTAClient::errorOccurred(string error);
+    \qmlsignal OtaClient::errorOccurred(string error);
 
     This signal is emitted when an error occurs. The \a error argument holds
     the error message.
 */
 
 /*!
-    \qmlproperty bool OTAClient::updateAvailable
+    \qmlproperty bool OtaClient::updateAvailable
     \readonly
 
     Holds a bool indicating the availability of a system update. This
@@ -268,7 +268,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::updateAvailableChanged(bool available)
+    \qmlsignal OtaClient::updateAvailableChanged(bool available)
 
     This signal is emitted when the value of updateAvailable changes. The
     \a available argument holds whether a system update is available for
@@ -276,7 +276,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool OTAClient::rollbackAvailable
+    \qmlproperty bool OtaClient::rollbackAvailable
     \readonly
 
     Holds a bool indicating the availability of a rollback system.
@@ -285,14 +285,14 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::rollbackAvailableChanged()
+    \qmlsignal OtaClient::rollbackAvailableChanged()
 
     This signal is emitted when the value of rollbackAvailable changes. A rollback
     system becomes available when a device has performed at least one system update.
 */
 
 /*!
-    \qmlproperty bool OTAClient::restartRequired
+    \qmlproperty bool OtaClient::restartRequired
     \readonly
 
     Holds a bool indicating whether a reboot is required. Reboot is required
@@ -300,21 +300,21 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::restartRequiredChanged(bool required)
+    \qmlsignal OtaClient::restartRequiredChanged(bool required)
 
     This signal is emitted when the value of restartRequired changes. The
     \a required argument holds whether a reboot is required.
 */
 
 /*!
-    \qmlsignal OTAClient::initializationFinished()
+    \qmlsignal OtaClient::initializationFinished()
 
     This signal is emitted when the object has finished initialization. The
     object is not ready for use until this signal is received.
 */
 
 /*!
-    \qmlmethod bool OTAClient::setRepositoryConfig(OtaRepositoryConfig config)
+    \qmlmethod bool OtaClient::setRepositoryConfig(OtaRepositoryConfig config)
 
     \include qotaclient.cpp set-repository-config
 
@@ -324,7 +324,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod OtaRepositoryConfig OTAClient::repositoryConfig()
+    \qmlmethod OtaRepositoryConfig OtaClient::repositoryConfig()
 
     Returns a configuration object for the repository or \c null if the
     configuration file does not exist or could not be read.
@@ -333,7 +333,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OTAClient::removeRepositoryConfig()
+    \qmlmethod bool OtaClient::removeRepositoryConfig()
 
     \include qotaclient.cpp remove-repository-config
 
@@ -341,7 +341,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OTAClient::repositoryConfigChanged(OtaRepositoryConfig config)
+    \qmlsignal OtaClient::repositoryConfigChanged(OtaRepositoryConfig config)
 
     This signal is emitted when the configuration file was successfully updated
     (\a repository holds the new configuration) or removed (\a repository
@@ -444,7 +444,7 @@ static QObject *otaClientSingleton(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
     Q_UNUSED(qmlEngine);
     Q_UNUSED(jsEngine);
-    return new QOTAClient;
+    return new QOtaClient;
 }
 class QOTAUpdatePlugin : public QQmlExtensionPlugin
 {
@@ -456,7 +456,7 @@ public:
     {
         Q_ASSERT(QLatin1String(uri) == QLatin1String("QtOtaUpdate"));
 
-        qmlRegisterSingletonType<QOTAClient>(uri, 1, 0, "OTAClient", otaClientSingleton);
+        qmlRegisterSingletonType<QOtaClient>(uri, 1, 0, "OtaClient", otaClientSingleton);
         qmlRegisterType<QOtaRepositoryConfig>(uri, 1, 0, "OtaRepositoryConfig");
     }
 };

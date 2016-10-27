@@ -42,12 +42,12 @@ struct OstreeSysroot;
 // from gerror.h
 typedef struct _GError GError;
 
-class QOTAClientAsync : public QObject
+class QOtaClientAsync : public QObject
 {
     Q_OBJECT
 public:
-    QOTAClientAsync();
-    virtual ~QOTAClientAsync();
+    QOtaClientAsync();
+    virtual ~QOtaClientAsync();
     QString ostree(const QString &command, bool *ok, bool updateStatus = false);
 
 signals:
@@ -66,7 +66,7 @@ signals:
     void statusStringChanged(const QString &status);
 
 protected:
-    QJsonDocument info(QOTAClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
+    QJsonDocument info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
     bool multiprocessLock(const QString &method);
     void multiprocessUnlock();
     QString defaultRevision();
