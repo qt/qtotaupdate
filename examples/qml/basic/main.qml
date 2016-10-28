@@ -82,92 +82,103 @@ Window {
         repoCa.text = "<b>TLS CA:</b> " + (config ? config.tlsCaPath : "not set")
     }
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
-        anchors.leftMargin: 10
-        anchors.topMargin: 10
+        contentHeight: topLayout.implicitHeight + topLayout.anchors.bottomMargin * 2
+        flickableDirection: Flickable.VerticalFlick
+        ScrollBar.vertical: ScrollBar { }
 
-        Label { text: "BOOTED"; Layout.bottomMargin: 14; font.underline: true; }
-        Label { text: "<b>Version:</b> " + OtaClient.bootedVersion }
-        Label { text: "<b>Description:</b> " + OtaClient.bootedDescription }
-        Label { text: "<b>Revision:</b> " + OtaClient.bootedRevision }
+        ColumnLayout {
+            id: topLayout
+            anchors.fill: parent
+            anchors.margins: 10
 
-        Label { text: "REMOTE"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-        Label { text: "<b>Version:</b> " + OtaClient.remoteVersion }
-        Label { text: "<b>Description:</b> " + OtaClient.remoteDescription }
-        Label { text: "<b>Revision:</b> " + OtaClient.remoteRevision; Layout.bottomMargin: 10; }
+            Label { text: "BOOTED"; Layout.bottomMargin: 14; font.underline: true; }
+            Label { text: "<b>Version:</b> " + OtaClient.bootedVersion }
+            Label { text: "<b>Description:</b> " + OtaClient.bootedDescription }
+            Label { text: "<b>Revision:</b> " + OtaClient.bootedRevision }
 
-        Label { id: repoUrl; }
-        Label { id: repoGpgVerify; }
-        Label { id: repoClientCert; }
-        Label { id: repoClientKey; }
-        Label { id: repoPermissive; }
-        Label { id: repoCa; }
+            Label { text: "REMOTE"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+            Label { text: "<b>Version:</b> " + OtaClient.remoteVersion }
+            Label { text: "<b>Description:</b> " + OtaClient.remoteDescription }
+            Label { text: "<b>Revision:</b> " + OtaClient.remoteRevision; Layout.bottomMargin: 10; }
 
-        Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-        Label { text: "<b>Version:</b> " + OtaClient.rollbackVersion }
-        Label { text: "<b>Description:</b> " + OtaClient.rollbackDescription }
-        Label { text: "<b>Revision:</b> " + OtaClient.rollbackRevision }
+            Label { id: repoUrl; }
+            Label { id: repoGpgVerify; }
+            Label { id: repoClientCert; }
+            Label { id: repoClientKey; }
+            Label { id: repoPermissive; }
+            Label { id: repoCa; }
 
-        RowLayout {
-            Layout.topMargin: 20
-            Layout.bottomMargin: 10
-            Button {
-                id: fetchButton
-                text: "Fetch OTA info"
-                onClicked: {
-                    if (!otaReady())
-                        return;
-                    log("Fetcing OTA info...")
-                    OtaClient.fetchRemoteInfo()
+            Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+            Label { text: "<b>Version:</b> " + OtaClient.rollbackVersion }
+            Label { text: "<b>Description:</b> " + OtaClient.rollbackDescription }
+            Label { text: "<b>Revision:</b> " + OtaClient.rollbackRevision }
+
+            RowLayout {
+                Layout.topMargin: 20
+                Layout.bottomMargin: 10
+                Button {
+                    text: "Fetch OTA info"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        log("Fetcing OTA info...")
+                        OtaClient.fetchRemoteInfo()
+                    }
+                }
+                Button {
+                    visible: OtaClient.rollbackAvailable
+                    text: "Rollback"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        log("Roolback...")
+                        OtaClient.rollback()
+                    }
+                }
+                Button {
+                    visible: OtaClient.updateAvailable
+                    text: "Update"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        log("Updating...")
+                        OtaClient.update()
+                    }
+                }
+                Button {
+                    visible: OtaClient.restartRequired
+                    text: "Restart"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        log("Restarting (unimplemented) ...")
+                    }
                 }
             }
-            Button {
-                visible: OtaClient.rollbackAvailable
-                text: "Rollback"
-                onClicked: {
-                    if (!otaReady())
-                        return;
-                    log("Roolback...")
-                    OtaClient.rollback()
+
+            Frame {
+                Layout.preferredHeight: repoUrl.font.pixelSize * 12
+                Layout.preferredWidth: {
+                    Screen.width < 800 ? Screen.width - topLayout.anchors.leftMargin * 2
+                                       : Screen.width * 0.5 > 800 ? 800 : Screen.width * 0.5
                 }
-            }
-            Button {
-                visible: OtaClient.updateAvailable
-                text: "Update"
-                onClicked: {
-                    if (!otaReady())
-                        return;
-                    log("Updating...")
-                    OtaClient.update()
-                }
-            }
-            Button {
-                visible: OtaClient.restartRequired
-                text: "Restart"
-                onClicked: {
-                    if (!otaReady())
-                        return;
-                    log("Restarting (unimplemented) ...")
+                padding: 6
+                ListView {
+                    id: logView
+                    anchors.fill: parent
+                    clip: true
+                    model: ListModel { id: logRecords }
+                    delegate: Label {
+                        text: record
+                        color: textcolor
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
-
-        Frame {
-            Layout.preferredHeight: 200
-            Layout.preferredWidth: Screen.width * 0.5
-            padding: 2
-            ListView {
-                id: logView
-                anchors.fill: parent
-                anchors.margins: 4
-                clip: true
-                model: ListModel { id: logRecords }
-                delegate: Label { text: record ; color: textcolor }
-            }
-        }
-
-        Item { Layout.fillHeight: true }
     }
 
     OtaRepositoryConfig {
