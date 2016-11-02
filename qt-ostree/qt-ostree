@@ -170,6 +170,13 @@ usage()
     echo
     echo "    A list of an additional kernel parameters (passed to the boot loader integration code)."
     echo
+    echo "--kernel-version \"VERSION\""
+    echo
+    echo "    A Linux kernel file in the generated tree is renamed to vmlinuz-\${KERNEL_VERSION}."
+    echo "    When this argument is not provided, the script attempts to extract the kernel"
+    echo "    version from the original filename of the kernel, if that fails the kernel file"
+    echo "    is renamed to vmlinuz-unknown."
+    echo
     echo "--ota-json FILE"
     echo
     echo "    JSON file containing an OTA update metadata, can be arbitrary formatted. The"
@@ -196,7 +203,7 @@ usage()
     echo
     echo "--create-ota-sysroot"
     echo
-    echo "    Generates Over-The-Air Update enabled sysroot."
+    echo "    Generates bootable Over-The-Air Update enabled sysroot."
     echo
     echo "--create-recovery-partition"
     echo
@@ -350,6 +357,10 @@ parse_args()
               ;;
           --kernel-args)
               KERNEL_ARGS="${2}"
+              shift 1
+              ;;
+          --kernel-version)
+              KERNEL_VERSION="${2}"
               shift 1
               ;;
           --ota-json)
@@ -541,23 +552,19 @@ get_kernel_info()
     if [ -z "${KERNEL}" ] ; then
         qt_ostree_error "Failed to find kernel image in ${BOOT_FILE_PATH}"
     fi
+    qt_ostree_info "Using kernel image ${KERNEL}"
 
-    # Extract kernel version from a file name.
-    KERNEL_VERSION=$(basename "${KERNEL}" | grep -o -E "[1-4]\.[0-9][0-9]*\.[0-9][0-9]*" || true)
+    # Extract kernel version from a filename.
     if [ -z "${KERNEL_VERSION}" ] ; then
-        # Otherwise look for a string in the kernel binary that looks like a kernel version.
-        # Note: This is fragile, it might be a good idea to expose KERNEL_VERSION via command line argument.
-        if file -b "${KERNEL}" | grep -qi "u-boot"; then
-            KERNEL_VERSION=$(strings "${KERNEL}" | grep -o -E "[1-4]\.[0-9][0-9]*\.[0-9][0-9]*" | head -1)
-        else
-            KERNEL_VERSION=$(strings "${KERNEL}" | grep -o -E "^[1-4]\.[0-9][0-9]*\.[0-9][0-9]*" | head -1)
+        KERNEL_VERSION=$(basename "${KERNEL}" | grep -o -E "[1-4]\.[0-9][0-9]*\.[0-9][0-9]*" || true)
+        if [ -z "${KERNEL_VERSION}" ] ; then
+            qt_ostree_warning "${KERNEL} filename does not contain kernel version. The kernel version can be
+                               provided with the --kernel-version command line argument."
+            KERNEL_VERSION="unknown"
         fi
     fi
-    if [ -z "${KERNEL_VERSION}" ] ; then
-        qt_ostree_error "Failed to extract kernel version information from ${KERNEL}".
-    fi
 
-    qt_ostree_info "Using kernel image ${KERNEL} (extracted version: ${KERNEL_VERSION})"
+    qt_ostree_info "Kernel version: ${KERNEL_VERSION}"
 }
 
 organize_boot_files()
