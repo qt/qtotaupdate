@@ -35,7 +35,7 @@ set -x
 # e2fslibs-dev libgpgme11-dev libsoup2.4-dev libarchive-dev
 
 DIR=$(dirname $(readlink -f $0))
-OTA_OSTREE_REF="77af6844d8330b31d58080076afb31e08974ce09"
+OTA_OSTREE_REF="8ece4d6d51bdbe3e41ab318259276bb83e553aa0"
 PARALLEL=4
 
 cd "${DIR}"
@@ -49,7 +49,6 @@ git am "${DIR}"/patches/deploy-add-karg-none-argument.patch
 git am "${DIR}"/patches/Support-for-booting-without-initramfs.patch
 git am "${DIR}"/patches/Allow-updating-files-in-the-boot-directory.patch
 git am "${DIR}"/patches/u-boot-add-bootdir-to-the-generated-uEnv.txt.patch
-git am "${DIR}"/patches/u-boot-Merge-ostree-s-and-systems-uEnv.txt.patch
 git am "${DIR}"/patches/Create-firmware-convenience-symlinks.patch
 
 ./autogen.sh \
@@ -57,6 +56,7 @@ git am "${DIR}"/patches/Create-firmware-convenience-symlinks.patch
     --enable-rofiles-fuse=no \
     --enable-gtk-doc-html=no \
     --enable-man=no \
+    --enable-introspection=no \
     --disable-shared \
     --enable-static
 
