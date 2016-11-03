@@ -74,12 +74,36 @@ Window {
     }
 
     function updateConfigView(config) {
-        repoUrl.text = "<b>URL:</b> " + (config ? config.url : "not set")
-        repoGpgVerify.text = "<b>GPG Verify:</b> " + (config ? config.gpgVerify : "not set")
-        repoClientCert.text = "<b>TLS Client Cert:</b> " + (config ? config.tlsClientCertPath : "not set")
-        repoClientKey.text = "<b>TLS Client Key:</b> " + (config ? config.tlsClientKeyPath : "not set")
-        repoPermissive.text = "<b>TLS Permissive:</b> " + (config ? config.tlsPermissive : "not set")
-        repoCa.text = "<b>TLS CA:</b> " + (config ? config.tlsCaPath : "not set")
+        repoConfigLabel.text = "<b>URL:</b> " + (config ? config.url : "not set")
+        repoConfigLabel.text += "<br><b>GPG Verify:</b> " + (config ? config.gpgVerify : "not set")
+        repoConfigLabel.text += "<br><b>TLS Client Cert:</b> " + (config ? config.tlsClientCertPath : "not set")
+        repoConfigLabel.text += "<br><b>TLS Client Key:</b> " + (config ? config.tlsClientKeyPath : "not set")
+        repoConfigLabel.text += "<br><b>TLS Permissive:</b> " + (config ? config.tlsPermissive : "not set")
+        repoConfigLabel.text += "<br><b>TLS CA:</b> " + (config ? config.tlsCaPath : "not set")
+    }
+
+    function updateMetadataLabel(label, metadata, rev) {
+        // QByteArray to JS string.
+        var metadataString = metadata.toString()
+        if (metadataString.length === 0) {
+            label.text = "<b>No metadata available</b>"
+            return
+        }
+        var metadataObj = JSON.parse(metadataString)
+        label.text = ""
+        for (var property in metadataObj)
+            label.text += "<b>" + property.charAt(0).toUpperCase()
+                        + property.slice(1) + ": </b>" + metadataObj[property] + "<br>"
+        label.text += "<b>Revision: </b>" + rev
+    }
+    function updateBootedMetadataLabel() {
+        updateMetadataLabel(bootedMetadataLabel, OtaClient.bootedInfo, OtaClient.bootedRevision)
+    }
+    function updateRemoteMetadataLabel() {
+        updateMetadataLabel(remoteMetadataLabel, OtaClient.remoteInfo, OtaClient.remoteRevision)
+    }
+    function updateRollbackMetadataLabel() {
+        updateMetadataLabel(rollbackMetadataLabel, OtaClient.rollbackInfo, OtaClient.rollbackRevision)
     }
 
     Flickable {
@@ -94,26 +118,16 @@ Window {
             anchors.margins: 10
 
             Label { text: "BOOTED"; Layout.bottomMargin: 14; font.underline: true; }
-            Label { text: "<b>Version:</b> " + OtaClient.bootedVersion }
-            Label { text: "<b>Description:</b> " + OtaClient.bootedDescription }
-            Label { text: "<b>Revision:</b> " + OtaClient.bootedRevision }
+            Label { id: bootedMetadataLabel; lineHeight : 1.3 }
 
             Label { text: "REMOTE"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-            Label { text: "<b>Version:</b> " + OtaClient.remoteVersion }
-            Label { text: "<b>Description:</b> " + OtaClient.remoteDescription }
-            Label { text: "<b>Revision:</b> " + OtaClient.remoteRevision; Layout.bottomMargin: 10; }
-
-            Label { id: repoUrl; }
-            Label { id: repoGpgVerify; }
-            Label { id: repoClientCert; }
-            Label { id: repoClientKey; }
-            Label { id: repoPermissive; }
-            Label { id: repoCa; }
+            Label { id: remoteMetadataLabel; lineHeight : 1.3 }
 
             Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
-            Label { text: "<b>Version:</b> " + OtaClient.rollbackVersion }
-            Label { text: "<b>Description:</b> " + OtaClient.rollbackDescription }
-            Label { text: "<b>Revision:</b> " + OtaClient.rollbackRevision }
+            Label { id: rollbackMetadataLabel; lineHeight : 1.3 }
+
+            Label { text: "REPOSITORY CONFIGURATION"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+            Label { id: repoConfigLabel; lineHeight : 1.3 }
 
             RowLayout {
                 Layout.topMargin: 20
@@ -159,7 +173,7 @@ Window {
             }
 
             Frame {
-                Layout.preferredHeight: repoUrl.font.pixelSize * 12
+                Layout.preferredHeight: bootedMetadataLabel.font.pixelSize * 12
                 Layout.preferredWidth: {
                     Screen.width < 800 ? Screen.width - topLayout.anchors.leftMargin * 2
                                        : Screen.width * 0.5 > 800 ? 800 : Screen.width * 0.5
@@ -198,6 +212,9 @@ Window {
         onInitializationFinished: {
             logWithCondition("Initialization", OtaClient.initialized)
             configureRemote(repoConfig)
+            updateBootedMetadataLabel()
+            updateRemoteMetadataLabel()
+            updateRollbackMetadataLabel()
         }
         onFetchRemoteInfoFinished: {
             logWithCondition("Fetching info from a remote server", success)
@@ -207,6 +224,8 @@ Window {
         onRollbackFinished: logWithCondition("Rollback", success)
         onUpdateFinished: logWithCondition("Update", success)
         onRepositoryConfigChanged: updateConfigView(config)
+        onRemoteInfoChanged: updateRemoteMetadataLabel()
+        onRollbackInfoChanged: updateRollbackMetadataLabel()
     }
 
     Component.onCompleted: {
