@@ -62,15 +62,20 @@ Window {
         return true;
     }
 
-    function configureRemote(config) {
-        if (!OtaClient.removeRepositoryConfig()) {
-            logError("Failed to remove repository configuration")
+    function configureRepository(config, silent) {
+        var currentConfig = OtaClient.repositoryConfig()
+        if (currentConfig && OtaClient.repositoryConfigsEqual(currentConfig, config)) {
+            if (!silent)
+                log("The configuration is already set")
             return;
+        } else {
+            if (!OtaClient.removeRepositoryConfig()) {
+                logError("Failed to remove repository configuration")
+                return;
+            }
         }
-        if (!OtaClient.setRepositoryConfig(config)) {
+        if (!OtaClient.setRepositoryConfig(config))
             logError("Failed to update repository configuration")
-            return;
-        }
     }
 
     function updateConfigView(config) {
@@ -132,6 +137,24 @@ Window {
             RowLayout {
                 Layout.topMargin: 20
                 Layout.bottomMargin: 10
+
+                Button {
+                    text: "Use basic config"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        configureRepository(basicConfig, false)
+                    }
+                }
+                Button {
+                    text: "Use secure config"
+                    onClicked: {
+                        if (!otaReady())
+                            return;
+                        configureRepository(secureConfig, false)
+
+                    }
+                }
                 Button {
                     text: "Fetch OTA info"
                     onClicked: {
@@ -196,9 +219,14 @@ Window {
     }
 
     OtaRepositoryConfig {
-        id: repoConfig
-        gpgVerify: true
+        id: basicConfig
         url: "http://www.b2qtupdate.com/ostree-repo"
+    }
+
+    OtaRepositoryConfig {
+        id: secureConfig
+        gpgVerify: true
+        url: "https://www.b2qtupdate.com/ostree-repo"
         tlsClientCertPath: "/usr/share/ostree/certs/clientcert.pem"
         tlsClientKeyPath: "/usr/share/ostree/certs/clientkey.pem"
         tlsPermissive: false
@@ -211,7 +239,7 @@ Window {
         onStatusChanged: log(status)
         onInitializationFinished: {
             logWithCondition("Initialization", OtaClient.initialized)
-            configureRemote(repoConfig)
+            configureRepository(basicConfig, true)
             updateBootedMetadataLabel()
             updateRemoteMetadataLabel()
             updateRollbackMetadataLabel()

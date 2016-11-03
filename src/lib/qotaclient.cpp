@@ -485,6 +485,19 @@ bool QOtaClient::removeRepositoryConfig()
 }
 
 /*!
+//! [repository-configs-equal]
+
+    Compares if the configuration \a a is equal to the configuration \a b. Returns \c true
+    if configurations are equal (all properties are equal), otherwise returns \c false.
+
+//! [repository-configs-equal]
+*/
+bool QOtaClient::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryConfig *b)
+{
+    return QOtaRepositoryConfig().d_func()->repositoryConfigsEqual(a, b);
+}
+
+/*!
 //! [set-repository-config]
     Change the configuration for the repository. The repository configuration
     is stored on a file system in \c {/etc/ostree/remotes.d/\*.conf}

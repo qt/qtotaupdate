@@ -86,6 +86,27 @@ QOtaRepositoryConfig *QOtaRepositoryConfigPrivate::repositoryConfigFromFile(cons
     return conf;
 }
 
+bool QOtaRepositoryConfigPrivate::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryConfig *b) const
+{
+    if (!a || !b)
+        return false;
+
+    if (a->url() != b->url())
+        return false;
+    if (a->gpgVerify() != b->gpgVerify())
+        return false;
+    if (a->tlsPermissive() != b->tlsPermissive())
+        return false;
+    if (a->tlsClientCertPath() != b->tlsClientCertPath())
+        return false;
+    if (a->tlsClientKeyPath() != b->tlsClientKeyPath())
+        return false;
+    if (a->tlsCaPath() != b->tlsCaPath())
+        return false;
+
+    return true;
+}
+
 /*!
     \class QOtaRepositoryConfig
     \inmodule qtotaupdate

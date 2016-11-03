@@ -341,6 +341,12 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlmethod bool OtaClient::repositoryConfigsEqual()
+
+    \include qotaclient.cpp repository-configs-equal
+*/
+
+/*!
     \qmlsignal OtaClient::repositoryConfigChanged(OtaRepositoryConfig config)
 
     This signal is emitted when the configuration file was successfully updated
