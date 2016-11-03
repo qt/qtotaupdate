@@ -32,6 +32,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QString>
 
+QT_BEGIN_NAMESPACE
+
 class QOtaClient;
 class QOtaRepositoryConfigPrivate;
 
@@ -80,5 +82,7 @@ private:
     QOtaRepositoryConfigPrivate *const d_ptr;
     friend class QOtaClient;
 };
+
+QT_END_NAMESPACE
 
 #endif // QOTAREPOSITORYCONFIG_H

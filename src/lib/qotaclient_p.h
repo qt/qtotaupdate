@@ -35,6 +35,8 @@
 #include <QtCore/QScopedPointer>
 #include <QtCore/QJsonDocument>
 
+QT_BEGIN_NAMESPACE
+
 Q_DECLARE_LOGGING_CATEGORY(qota)
 
 class QThread;
@@ -105,5 +107,7 @@ public:
     QString m_rollbackRev;
     QByteArray m_rollbackInfo;
 };
+
+QT_END_NAMESPACE
 
 #endif // QOTACLIENT_P_H

@@ -37,11 +37,11 @@
 #include <QtCore/QDir>
 #include <QtCore/QThread>
 
+QT_BEGIN_NAMESPACE
+
 Q_LOGGING_CATEGORY(qota, "b2qt.ota")
 
 const QString repoConfigPath(QStringLiteral("/etc/ostree/remotes.d/qt-os.conf"));
-
-QT_BEGIN_NAMESPACE
 
 QOtaClientPrivate::QOtaClientPrivate(QOtaClient *client) :
     q_ptr(client),

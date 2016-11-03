@@ -33,6 +33,8 @@
 #include <QtCore/QDir>
 #include <QtCore/QTextStream>
 
+QT_BEGIN_NAMESPACE
+
 const QString url(QStringLiteral("url="));
 const QString clientCert(QStringLiteral("tls-client-cert-path="));
 const QString clientKey(QStringLiteral("tls-client-key-path="));
@@ -272,3 +274,5 @@ QString QOtaRepositoryConfig::tlsCaPath() const
 {
     return d_func()->m_tlsCaPath;
 }
+
+QT_END_NAMESPACE

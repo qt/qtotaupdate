@@ -34,6 +34,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QString>
 
+QT_BEGIN_NAMESPACE
+
 class QOtaRepositoryConfig;
 
 class QOtaRepositoryConfigPrivate : public QObject
@@ -55,3 +57,5 @@ public:
     bool m_tlsPermissive;
     QString m_tlsCaPath;
 };
+
+QT_END_NAMESPACE
