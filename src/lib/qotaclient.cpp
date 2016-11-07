@@ -39,7 +39,7 @@
 
 QT_BEGIN_NAMESPACE
 
-Q_LOGGING_CATEGORY(qota, "b2qt.ota")
+Q_LOGGING_CATEGORY(qota, "b2qt.ota", QtWarningMsg)
 
 const QString repoConfigPath(QStringLiteral("/etc/ostree/remotes.d/qt-os.conf"));
 
