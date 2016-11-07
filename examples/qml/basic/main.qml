@@ -74,8 +74,12 @@ Window {
                 return;
             }
         }
-        if (!OtaClient.setRepositoryConfig(config))
+        if (!OtaClient.setRepositoryConfig(config)) {
             logError("Failed to update repository configuration")
+            return;
+        }
+
+        log("Successfully updated repository configuration")
     }
 
     function updateConfigView(config) {
@@ -240,6 +244,7 @@ Window {
         onInitializationFinished: {
             logWithCondition("Initialization", OtaClient.initialized)
             configureRepository(basicConfig, true)
+            updateConfigView(OtaClient.repositoryConfig())
             updateBootedMetadataLabel()
             updateRemoteMetadataLabel()
             updateRollbackMetadataLabel()

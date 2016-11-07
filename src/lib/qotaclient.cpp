@@ -497,6 +497,15 @@ bool QOtaClient::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryC
     return QOtaRepositoryConfig().d_func()->repositoryConfigsEqual(a, b);
 }
 
+static inline bool pathExists(QOtaClientPrivate *d, const QString &path)
+{
+    if (!QDir().exists(path)) {
+        d->errorOccurred(path + QLatin1String(" does not exist"));
+        return false;
+    }
+    return true;
+}
+
 /*!
 //! [set-repository-config]
     Change the configuration for the repository. The repository configuration
@@ -525,12 +534,19 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
         d->errorOccurred(QStringLiteral("Repository URL can not be empty"));
         return false;
     }
+
     // TLS client certs
     int tlsClientArgs = 0;
-    if (!config->tlsClientCertPath().isEmpty())
+    if (!config->tlsClientCertPath().isEmpty()) {
+        if (!pathExists(d, config->tlsClientCertPath()))
+            return false;
         ++tlsClientArgs;
-    if (!config->tlsClientKeyPath().isEmpty())
+    }
+    if (!config->tlsClientKeyPath().isEmpty()) {
+        if (!pathExists(d, config->tlsClientKeyPath()))
+            return false;
         ++tlsClientArgs;
+    }
     if (tlsClientArgs == 1) {
         d->errorOccurred(QStringLiteral("Both tlsClientCertPath and tlsClientKeyPath are required"
                                         " for TLS client authentication functionality"));
@@ -553,6 +569,8 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
     cmd.append(QStringLiteral(" --set=tls-permissive="));
     config->tlsPermissive() ? cmd.append(QStringLiteral("true")) : cmd.append(QStringLiteral("false"));
     if (!config->tlsCaPath().isEmpty()) {
+        if (!pathExists(d, config->tlsCaPath()))
+            return false;
         cmd.append(QStringLiteral(" --set=tls-ca-path="));
         cmd.append(config->tlsCaPath());
     }
