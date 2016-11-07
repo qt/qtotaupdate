@@ -67,19 +67,20 @@ Window {
         if (currentConfig && OtaClient.repositoryConfigsEqual(currentConfig, config)) {
             if (!silent)
                 log("The configuration is already set")
-            return;
+            return false;
         } else {
             if (!OtaClient.removeRepositoryConfig()) {
                 logError("Failed to remove repository configuration")
-                return;
+                return false;
             }
         }
         if (!OtaClient.setRepositoryConfig(config)) {
             logError("Failed to update repository configuration")
-            return;
+            return false;
         }
-
-        log("Successfully updated repository configuration")
+        if (!silent)
+            log("Successfully updated repository configuration")
+        return true;
     }
 
     function updateConfigView(config) {
@@ -243,8 +244,8 @@ Window {
         onStatusChanged: log(status)
         onInitializationFinished: {
             logWithCondition("Initialization", OtaClient.initialized)
-            configureRepository(basicConfig, true)
-            updateConfigView(OtaClient.repositoryConfig())
+            if (!configureRepository(basicConfig, true))
+                updateConfigView(OtaClient.repositoryConfig())
             updateBootedMetadataLabel()
             updateRemoteMetadataLabel()
             updateRollbackMetadataLabel()
