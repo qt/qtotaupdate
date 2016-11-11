@@ -35,7 +35,7 @@
     The target device needs to have a support for the OTA to be able to update
     wirelessly.
 
-    The Qt OTA offering provides tools that assist in enabling OTA update functionality
+    The Qt OTA Update module provides tools that assist in enabling OTA update functionality
     in an embedded linux images build with \l {http://code.qt.io/cgit/yocto/meta-boot2qt.git/}
     {meta-boot2qt}. Generating new updates for OTA enabled devices is completely automated,
     given an ordinary linux sysroot as an input. This includes OTA updates for linux kernel,
@@ -48,12 +48,14 @@
     can read about the anatomy of an OSTree repository and the deployment system, booting, and
     other internals of the project, as well as how OSTree compares to other update solutions.
 
-    The following blog post series contain additional details on the Qt OTA product:
+    The following blog post series contain additional details on the Qt OTA Update module:
 
     \l {https://blog.qt.io/blog/2016/05/31/over-the-air-updates-part-1-introduction/}
        {Over-the-Air Updates, Part 1: Introduction}\br
     \l {https://blog.qt.io/blog/2016/06/28/over-the-air-updates-part-2-device-integration-api-and-creating-updates/}
-       {Over-the-Air Updates, Part 2: Device Integration, API and Creating Updates}
+       {Over-the-Air Updates, Part 2: Device Integration, API and Creating Updates}\br
+    \l {https://blog.qt.io/blog/2016/11/11/air-updates-part-3-repository-configuration-handling/}
+       {Over-the-Air Updates, Part 3: Repository Configuration and Handling}
 
     \section1 Features of the Update System
 
