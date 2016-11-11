@@ -35,13 +35,14 @@
     The target device needs to have a support for the OTA to be able to update
     wirelessly.
 
-    The Qt OTA Update module provides tools that assist in enabling OTA update functionality
-    in an embedded linux images build with \l {http://code.qt.io/cgit/yocto/meta-boot2qt.git/}
-    {meta-boot2qt}. Generating new updates for OTA enabled devices is completely automated,
-    given an ordinary linux sysroot as an input. This includes OTA updates for linux kernel,
-    system libraries, user space applications, translation fixes, anything that is part of the
-    sysroot. The offering includes \l {Qt OTA Update C++ Classes} {C++} and \l {Qt OTA Update QML Types}
-    {QML} APIs to make integration with your Qt-based application a breeze.
+    The \l {http://code.qt.io/cgit/qt/qtotaupdate.git/} {Qt OTA Update} module provides tools
+    that assist in enabling OTA update functionality in an embedded linux images build with
+    \l {http://code.qt.io/cgit/yocto/meta-boot2qt.git/} {meta-boot2qt}. Generating new updates
+    for OTA enabled devices is completely automated, given an ordinary linux sysroot as an input.
+    This includes OTA updates for linux kernel, system libraries, user space applications,
+    translation fixes, anything that is part of the sysroot. The offering includes
+    \l {Qt OTA Update C++ Classes} {C++} and \l {Qt OTA Update QML Types} {QML} APIs to make
+    integration with your Qt-based application a breeze.
 
     The OTA solution is based on \l {https://ostree.readthedocs.org/en/latest/} {OSTree}. If you
     would like to learn more about OSTree workings refer to the OSTree Documentation. There you
