@@ -620,12 +620,13 @@ organize_boot_files()
         fi
     fi
 
+     # NOTE: This file is used by higher level API.
+    touch ${BOOT_FILE_PATH}/kargs
     if [ -n "${KERNEL_ARGS}" ] ; then
         qt_ostree_info "Additional kernel command line arguments: $KERNEL_ARGS"
         for karg in ${KERNEL_ARGS} ; do
             kargs="${kargs} --karg=$karg"
         done
-        # NOTE: This file is used by higher level API.
         echo $kargs > ${BOOT_FILE_PATH}/kargs
     fi
 }
