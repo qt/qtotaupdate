@@ -72,8 +72,9 @@
     \li Snapshot-based - traditional package managers (dpkg/rpm) build filesystem
         trees on the client side. In contrast, the primary focus of OSTree is on
         \e {replicating trees} composed on a server.
-    \li Bandwidth Optimized - only files that have changed are downloaded. When resuming
-        from an interrupted download, only the missing files are fetched.
+    \li Bandwidth Optimized - only the new files and the files that have changed are
+        downloaded. When resuming from an interrupted download, only the missing files
+        are fetched.
     \li Configuration Management - see the \c {/etc} in \l {Layout of an OTA
         Enabled Sysroot}.
     \li Rollback Support - atomically rollback to the previous version (tree) if
@@ -317,11 +318,11 @@
 
               \li \b {\c --ota-json}
                   \list
-                      \li A JSON file containing the system's metadata. The
-                          following top-level fields have convenience methods in
-                          the Qt/QML OTA API: \c version and \c description. This
-                          API provides the means of manually fetching and parsing
-                          the file which therefore can contain arbitrary metadata.
+                      \li A JSON file containing arbitrary metadata about the system.
+                          The following top-level fields have convenience methods in
+                          the Qt/QML OTA API: \c version and \c description. Use
+                          OtaClient::remoteInfo to fetch the entire JSON file for
+                          manual parsing.
                   \endlist
 
               \li \b {\c --initramfs}
@@ -480,7 +481,8 @@
     properly and the servers in question are secure to known vulnerabilies and
     exploits) OTA is considered secure against realistic attacks.
 
-    \b {GPG Signing}
+    \list
+    \li \b {GPG Signing}
 
     GPG signing helps to ensure that the data was transmitted in-full, without
     damage or file corruption and that the data was sent by a trusted party. A
@@ -493,15 +495,17 @@
     sudo apt-get install gnupg2
     \endcode
 
-    \b {TLS Authentication}
+    \li \b {TLS Authentication}
 
     TLS protects data from tampering and eavesdropping. System administrators use
     this to restrict the access to the server (client authentication) and client
     devices use this to verify the identitiy of an update server (server authentication).
     Look for \c {--tls-*} command line arguments in the output of \c {./qt-ostree --help}.
+    \endlist
 
     It is advised to use both GPG and TLS in hostile environments. To learn more about the
-    security topics from the above list, consult dedicated resources.
+    security topics from the above list, consult dedicated resources. For the corresponding
+    client side API see OtaRepositoryConfig.
 
     \section2 Offline Updates and Custom Delivery Mechanisms
 
