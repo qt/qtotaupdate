@@ -118,7 +118,7 @@ generate_initramfs()
 
     if [ "${BOOTLOADER}" = "u-boot" ] ; then
         # Add u-boot header.
-        mkimage -A arm -O linux -T ramdisk -a 0 -e 0 -d initramfs.img ${INITRAMFS}
+        SOURCE_DATE_EPOCH=1 mkimage -A arm -O linux -T ramdisk -a 0 -e 0 -d initramfs.img ${INITRAMFS}
         rm -f initramfs.img
     else
         mv initramfs.img ${INITRAMFS}

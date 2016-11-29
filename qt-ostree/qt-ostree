@@ -634,7 +634,10 @@ organize_boot_files()
             if file -b $name | grep -qi "ASCII text"; then
                 qt_ostree_info "Add u-boot header to a boot script at: ${BOOT_FILE_PATH}/${name} ..."
                 mv ${name} ${name}-tmp
-                mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${name}-tmp ${name}
+                # The added header embedds timestamp of the time when 'mkimage' was executed. This results
+                # in a new checksum even if nothing has really changed in the file. Set a consistent
+                # timestamp as U-Boot utilizes https://reproducible-builds.org/specs/source-date-epoch/
+                SOURCE_DATE_EPOCH=1 mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "boot script" -d ${name}-tmp ${name}
                 rm ${name}-tmp
             fi
         fi
