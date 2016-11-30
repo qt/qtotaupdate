@@ -11,11 +11,11 @@ indexes                      = $QT_INSTALL_DOCS/qtcore/qtcore.index
 
 qhp.projects                 = QtOta
 
-qhp.QtAutomotiveOTA.file                = qtota.qhp
-qhp.QtAutomotiveOTA.namespace           = io.qt.qtota.$QT_VERSION_TAG
-qhp.QtAutomotiveOTA.virtualFolder       = qtota
-qhp.QtAutomotiveOTA.indexTitle          = Over the Air Update
-qhp.QtAutomotiveOTA.indexRoot           =
+qhp.QtOTA.file                = qtota.qhp
+qhp.QtOTA.namespace           = io.qt.qtota.$QT_VERSION_TAG
+qhp.QtOTA.virtualFolder       = qtota
+qhp.QtOTA.indexTitle          = Over-The-Air Update
+qhp.QtOTA.indexRoot           =
 
 macro.B2Q                    = "Boot to Qt"
 include(navigation.qdocconf)
