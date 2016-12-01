@@ -44,15 +44,13 @@ QT_BEGIN_NAMESPACE
 QOtaClientAsync::QOtaClientAsync() :
     m_sysroot(ostree_sysroot_new(0))
 {
-    GError *error = nullptr;
-    ostree_sysroot_get_repo (m_sysroot, &m_repo, 0, &error);
-    emitGError(error);
     // async mapper
     connect(this, &QOtaClientAsync::initialize, this, &QOtaClientAsync::_initialize);
     connect(this, &QOtaClientAsync::fetchRemoteInfo, this, &QOtaClientAsync::_fetchRemoteInfo);
     connect(this, &QOtaClientAsync::update, this, &QOtaClientAsync::_update);
     connect(this, &QOtaClientAsync::rollback, this, &QOtaClientAsync::_rollback);
-    connect(this, &QOtaClientAsync::applyOffline, this, &QOtaClientAsync::_applyOffline);
+    connect(this, &QOtaClientAsync::updateOffline, this, &QOtaClientAsync::_updateOffline);
+    connect(this, &QOtaClientAsync::updateRemoteInfoOffline, this, &QOtaClientAsync::_updateRemoteInfoOffline);
 }
 
 QOtaClientAsync::~QOtaClientAsync()
@@ -63,7 +61,6 @@ QOtaClientAsync::~QOtaClientAsync()
 static void parseErrorString(QString *error)
 {
     error->remove(0, qstrlen("error: "));
-
     if (error->startsWith(QLatin1String("Remote")) && error->endsWith(QLatin1String("not found")))
         *error = QLatin1String("Repository configuration not found");
 }
@@ -175,10 +172,13 @@ void QOtaClientAsync::_initialize()
 {
     if (!multiprocessLock(QStringLiteral("_initialize")))
         return;
+
+    // intentionally let the initialization to complete, even if some errors occur.
     GError *error = nullptr;
     ostree_sysroot_load (m_sysroot, 0, &error);
-    if (emitGError(error))
-        return;
+    emitGError(error);
+    ostree_sysroot_get_repo (m_sysroot, &m_repo, 0, &error);
+    emitGError(error);
 
     OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
     QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
@@ -190,7 +190,8 @@ void QOtaClientAsync::_initialize()
     QJsonDocument remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
 
     resetRollbackState();
-    emit initializeFinished(defaultRev, bootedRev, bootedInfo, remoteRev, remoteInfo);
+    emit remoteInfoChanged(remoteRev, remoteInfo);
+    emit initializeFinished(defaultRev, bootedRev, bootedInfo);
     multiprocessUnlock();
 }
 
@@ -205,7 +206,8 @@ void QOtaClientAsync::_fetchRemoteInfo()
     if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     if (ok) remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
-    emit fetchRemoteInfoFinished(remoteRev, remoteInfo, ok);
+    if (ok) emit remoteInfoChanged(remoteRev, remoteInfo);
+    emit fetchRemoteInfoFinished(ok);
     multiprocessUnlock();
 }
 
@@ -241,10 +243,8 @@ void QOtaClientAsync::_update(const QString &updateToRev)
     emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
     ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
     multiprocessUnlock();
-    if (!ok) goto out;
-
-    ok = deployCommit(updateToRev);
-    if (!ok) goto out;
+    if (!ok || deployCommit(updateToRev))
+        goto out;
 
     ostree_sysroot_load (m_sysroot, 0, &error);
     if (emitGError(error))
@@ -338,67 +338,82 @@ void QOtaClientAsync::_rollback()
     multiprocessUnlock();
 }
 
-void QOtaClientAsync::_applyOffline(const QString &packagePath)
+bool QOtaClientAsync::extractPackage(const QString &packagePath, QString *updateToRev)
 {
-    bool success = false;
     GError *error = nullptr;
-    g_autofree char *toCsum = nullptr;
-    g_autoptr(GBytes) bytes = nullptr;
-    g_autoptr(GVariant) deltaSuperblock = nullptr;
-    g_autoptr(GVariant) toCsumV = nullptr;
-    g_autoptr(GVariant) packageCommitV = nullptr;
-    g_autoptr(GVariant) currentCommitV = nullptr;
-    QString currentCommit;
-    guint64 currentTimestamp;
-    guint64 packageTimestamp;
-    bool ok = true;
-
     // load delta superblock
     GMappedFile *mfile = g_mapped_file_new (packagePath.toLatin1().data(), FALSE, &error);
-    if (!mfile)
-        goto out;
-    bytes = g_mapped_file_get_bytes (mfile);
+    if (!mfile) {
+        emitGError(error);
+        return false;
+    }
+    g_autoptr(GBytes) bytes = g_mapped_file_get_bytes (mfile);
     g_mapped_file_unref (mfile);
+    g_autoptr(GVariant) deltaSuperblock = nullptr;
     deltaSuperblock = g_variant_new_from_bytes (G_VARIANT_TYPE (OSTREE_STATIC_DELTA_SUPERBLOCK_FORMAT),
                                                 bytes, FALSE);
     g_variant_ref_sink (deltaSuperblock);
 
     // get a timestamp of the commit object from the superblock
-    packageCommitV = g_variant_get_child_value (deltaSuperblock, 4);
-    if (!ostree_validate_structureof_commit (packageCommitV, &error))
-        goto out;
-    packageTimestamp = ostree_commit_get_timestamp (packageCommitV);
+    g_autoptr(GVariant) packageCommitV = g_variant_get_child_value (deltaSuperblock, 4);
+    if (!ostree_validate_structureof_commit (packageCommitV, &error)) {
+        emitGError(error);
+        return false;
+    }
+    guint64 packageTimestamp = ostree_commit_get_timestamp (packageCommitV);
     // get timestamp of the head commit from the repository
-    currentCommit = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
+    bool ok = true;
+    g_autoptr(GVariant) currentCommitV = nullptr;
+    QString currentCommit = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     if (!ok || !ostree_repo_load_commit (m_repo, currentCommit.toLatin1().constData(),
                                          &currentCommitV, nullptr, &error)) {
-        goto out;
+        emitGError(error);
+        return false;
     }
-    currentTimestamp = ostree_commit_get_timestamp (currentCommitV);
+    guint64 currentTimestamp = ostree_commit_get_timestamp (currentCommitV);
     qCDebug(qota) << "current timestamp:" << currentTimestamp;
     qCDebug(qota) << "package timestamp:" << packageTimestamp;
     if (packageTimestamp < currentTimestamp) {
         emit errorOccurred(QString(QStringLiteral("Not allowed to downgrade - current timestamp: %1,"
                            " package timestamp: %2")).arg(currentTimestamp).arg(packageTimestamp));
-        goto out;
+        return false;
     }
 
-    emit statusStringChanged(QStringLiteral("Applying the update package..."));
+    emit statusStringChanged(QStringLiteral("Extracting the update package..."));
     ostree(QString(QStringLiteral("ostree static-delta apply-offline %1")).arg(packagePath), &ok);
-    if (!ok) goto out;
+    if (!ok) return false;
 
-    toCsumV = g_variant_get_child_value (deltaSuperblock, 3);
-    if (!ostree_validate_structureof_csum_v (toCsumV, &error))
-        goto out;
-    toCsum = ostree_checksum_from_bytes_v (toCsumV);
-    ostree(QString(QStringLiteral("ostree reset qt-os:linux/qt %1")).arg(QLatin1String(toCsum)), &ok);
-    if (!ok || !deployCommit(QLatin1String(toCsum)))
-        goto out;
+    g_autoptr(GVariant) toCsumV = g_variant_get_child_value (deltaSuperblock, 3);
+    if (!ostree_validate_structureof_csum_v (toCsumV, &error)) {
+        emitGError(error);
+        return false;
+    }
 
-    success = true;
-out:
-    emitGError(error);
-    emit applyOfflineFinished(success);
+    g_autofree char *toCsum = ostree_checksum_from_bytes_v (toCsumV);
+    *updateToRev = QString::fromLatin1(toCsum);
+
+    QJsonDocument remoteInfo;
+    ostree(QString(QStringLiteral("ostree reset qt-os:linux/qt %1")).arg(*updateToRev), &ok);
+    if (ok) remoteInfo = infoFromRev(*updateToRev, &ok);
+    if (ok) emit remoteInfoChanged(*updateToRev, remoteInfo);
+    return ok;
+}
+
+void QOtaClientAsync::_updateRemoteInfoOffline(const QString &packagePath)
+{
+    QString rev;
+    bool success = extractPackage(packagePath, &rev);
+    emit updateRemoteInfoOfflineFinished(success);
+}
+
+void QOtaClientAsync::_updateOffline(const QString &packagePath)
+{
+    bool success = true;
+    QString rev;
+    if (!extractPackage(packagePath, &rev) || !deployCommit(rev))
+        success = false;
+
+    emit updateOfflineFinished(success);
 }
 
 QT_END_NAMESPACE

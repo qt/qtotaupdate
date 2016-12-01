@@ -522,7 +522,7 @@
           deliver software to a device.
     \endlist
     As all APIs in the Qt OTA Update module, applying a self-contained update package is an
-    atomic process, and is done via OtaClient::applyOffline().
+    atomic process, and is done via OtaClient::updateOffline().
 
     \section1 Layout of an OTA Enabled Sysroot
 

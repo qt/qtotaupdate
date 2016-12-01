@@ -214,20 +214,32 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OtaClient::applyOffline(string packagePath)
+    \qmlmethod bool OtaClient::updateOffline(string packagePath)
 
-    \include qotaclient.cpp apply-offline
+    \include qotaclient.cpp update-offline
 
-    This is a notifier signal for applyOffline(). The \a success argument
-    indicates whether the operation was successful.
-
-    \sa applyOfflineFinished()
+    \sa updateOfflineFinished()
 */
 
 /*!
-    \qmlsignal OtaClient::applyOfflineFinished(bool success)
+    \qmlsignal OtaClient::updateOfflineFinished(bool success)
 
-    This is a notifier signal for rollback(). The \a success argument
+    This is a notifier signal for updateOffline(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
+    \qmlmethod bool OtaClient::updateRemoteInfoOffline(string packagePath)
+
+    \include qotaclient.cpp update-remote-offline
+
+    \sa remoteInfoChanged()
+*/
+
+/*!
+    \qmlsignal OtaClient::updateRemoteInfoOfflineFinished(bool success)
+
+    This is a notifier signal for updateRemoteInfoOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 

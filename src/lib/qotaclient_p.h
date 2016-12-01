@@ -62,22 +62,20 @@ public:
 
     void refreshState();
     void initializeFinished(const QString &defaultRev,
-                            const QString &bootedRev, const QJsonDocument &bootedInfo,
-                            const QString &remoteRev, const QJsonDocument &remoteInfo);
-    void fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success);
+                            const QString &bootedRev, const QJsonDocument &bootedInfo);
     void updateFinished(const QString &defaultRev, bool success);
     void rollbackFinished(const QString &defaultRev, bool success);
-    void applyOfflineFinished(bool success);
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
+    bool verifyPathExist(const QString &path);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
+    void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
 
     QString version(QueryTarget target) const;
     QString description(QueryTarget target) const;
     QString revision(QueryTarget target) const;
     QByteArray info(QueryTarget target) const;
 
-    void updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo);
     bool isReady() const;
 
     // members

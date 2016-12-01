@@ -75,7 +75,8 @@ public:
     Q_INVOKABLE bool fetchRemoteInfo() const;
     Q_INVOKABLE bool update() const;
     Q_INVOKABLE bool rollback() const;
-    Q_INVOKABLE bool applyOffline(const QString &packagePath);
+    Q_INVOKABLE bool updateOffline(const QString &packagePath);
+    Q_INVOKABLE bool updateRemoteInfoOffline(const QString &packagePath);
 
     Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
     Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
@@ -111,7 +112,8 @@ Q_SIGNALS:
     void fetchRemoteInfoFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);
-    void applyOfflineFinished(bool success);
+    void updateOfflineFinished(bool success);
+    void updateRemoteInfoOfflineFinished(bool success);
 
 private:
     Q_DISABLE_COPY(QOtaClient)

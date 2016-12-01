@@ -170,11 +170,12 @@ Window {
                     }
                 }
                 Button {
-                    text: "Apply Package"
+                    text: "Update from Package"
                     onClicked: {
                         if (!otaReady())
                             return;
-                        OtaClient.applyOffline("/var/superblock")
+                        log("Starting update from the package ...")
+                        OtaClient.updateOffline("/var/superblock")
                     }
                 }
                 Button {
@@ -263,7 +264,7 @@ Window {
             if (success)
                 log("Update available: " + OtaClient.updateAvailable)
         }
-        onApplyOfflineFinished: logWithCondition("Offline package apply", success)
+        onUpdateOfflineFinished: logWithCondition("Update from package", success)
         onRollbackFinished: logWithCondition("Rollback", success)
         onUpdateFinished: logWithCondition("Update", success)
         onRepositoryConfigChanged: updateConfigView(config)

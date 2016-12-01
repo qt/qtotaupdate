@@ -54,19 +54,21 @@ public:
 signals:
     void initialize();
     void initializeFinished(const QString &defaultRev,
-                            const QString &bootedRev, const QJsonDocument &bootedInfo,
-                            const QString &remoteRev, const QJsonDocument &remoteInfo);
+                            const QString &bootedRev, const QJsonDocument &bootedInfo);
     void fetchRemoteInfo();
-    void fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success);
+    void fetchRemoteInfoFinished(bool success);
     void update(const QString &updateToRev);
     void updateFinished(const QString &defaultRev, bool success);
     void rollback();
     void rollbackFinished(const QString &defaultRev, bool success);
-    void applyOffline(const QString &packagePath);
-    void applyOfflineFinished(bool success);
+    void updateOffline(const QString &packagePath);
+    void updateOfflineFinished(bool success);
+    void updateRemoteInfoOffline(const QString &packagePath);
+    void updateRemoteInfoOfflineFinished(bool success);
     void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
+    void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
 
 protected:
     QJsonDocument info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
@@ -78,12 +80,14 @@ protected:
     void resetRollbackState();
     bool emitGError(GError *error);
     bool deployCommit(const QString &commit);
+    bool extractPackage(const QString &packagePath, QString *updateToRev);
 
     void _initialize();
     void _fetchRemoteInfo();
     void _update(const QString &updateToRev);
     void _rollback();
-    void _applyOffline(const QString &packagePath);
+    void _updateOffline(const QString &packagePath);
+    void _updateRemoteInfoOffline(const QString &packagePath);
 
 private:
     OstreeSysroot *m_sysroot;

@@ -83,17 +83,6 @@ static void updateInfoMembers(const QJsonDocument &json, QByteArray *info, QStri
     *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
 }
 
-void QOtaClientPrivate::updateRemoteInfo(const QString &remoteRev, const QJsonDocument &remoteInfo)
-{
-    Q_Q(QOtaClient);
-    if (m_remoteRev == remoteRev)
-        return;
-
-    m_remoteRev = remoteRev;
-    updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
-    emit q->remoteInfoChanged();
-}
-
 bool QOtaClientPrivate::isReady() const
 {
     if (!m_otaEnabled) {
@@ -125,27 +114,15 @@ void QOtaClientPrivate::refreshState()
 }
 
 void QOtaClientPrivate::initializeFinished(const QString &defaultRev,
-                                           const QString &bootedRev, const QJsonDocument &bootedInfo,
-                                           const QString &remoteRev, const QJsonDocument &remoteInfo)
+                                           const QString &bootedRev, const QJsonDocument &bootedInfo)
 {
     Q_Q(QOtaClient);
     m_defaultRev = defaultRev;
     m_bootedRev = bootedRev;
     updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
-    updateRemoteInfo(remoteRev, remoteInfo);
     refreshState();
     m_initialized = true;
     emit q->initializationFinished();
-}
-
-void QOtaClientPrivate::fetchRemoteInfoFinished(const QString &remoteRev, const QJsonDocument &remoteInfo, bool success)
-{
-    Q_Q(QOtaClient);
-    if (success) {
-        updateRemoteInfo(remoteRev, remoteInfo);
-        refreshState();
-    }
-    emit q->fetchRemoteInfoFinished(success);
 }
 
 void QOtaClientPrivate::updateFinished(const QString &defaultRev, bool success)
@@ -168,12 +145,6 @@ void QOtaClientPrivate::rollbackFinished(const QString &defaultRev, bool success
     emit q->rollbackFinished(success);
 }
 
-void QOtaClientPrivate::applyOfflineFinished(bool success)
-{
-    Q_Q(QOtaClient);
-    emit q->applyOfflineFinished(success);
-}
-
 void QOtaClientPrivate::statusStringChanged(const QString &status)
 {
     Q_Q(QOtaClient);
@@ -188,6 +159,15 @@ void QOtaClientPrivate::errorOccurred(const QString &error)
     emit q->errorOccurred(m_error);
 }
 
+bool QOtaClientPrivate::verifyPathExist(const QString &path)
+{
+    if (!QDir().exists(path)) {
+        errorOccurred(path + QLatin1String(" does not exist"));
+        return false;
+    }
+    return true;
+}
+
 void QOtaClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
 {
     Q_Q(QOtaClient);
@@ -198,6 +178,18 @@ void QOtaClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonD
     m_rollbackRev = rollbackRev;
     updateInfoMembers(rollbackInfo, &m_rollbackInfo, &m_rollbackVersion, &m_rollbackDescription);
     q->rollbackInfoChanged();
+}
+
+void QOtaClientPrivate::remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo)
+{
+    Q_Q(QOtaClient);
+    if (m_remoteRev == remoteRev)
+        return;
+
+    m_remoteRev = remoteRev;
+    updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
+    emit q->remoteInfoChanged();
+    refreshState();
 }
 
 QString QOtaClientPrivate::version(QueryTarget target) const
@@ -310,18 +302,25 @@ QString QOtaClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOtaClient::applyOfflineFinished(bool success)
+    \fn void QOtaClient::updateOfflineFinished(bool success)
 
-    This is a notifier signal for applyOffline(). The \a success argument
+    This is a notifier signal for updateOffline(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
+    \fn void QOtaClient::updateRemoteInfoOfflineFinished(bool success)
+
+    This is a notifier signal for updateRemoteInfoOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
     \fn void QOtaClient::remoteInfoChanged()
 //! [remoteinfochanged-description]
-    Remote info can change when calling fetchRemoteInfo(). If OTA metadata on
-    the remote server is different from the local cache, the local cache is updated
-    and this signal is emitted.
+    Remote info can change when calling fetchRemoteInfo() or updateRemoteInfoOffline().
+    If OTA metadata on the remote server is different from the local cache, the local
+    cache is updated and this signal is emitted.
 //! [remoteinfochanged-description]
 */
 
@@ -392,15 +391,16 @@ QOtaClient::QOtaClient(QObject *parent) :
     Q_D(QOtaClient);
     if (d->m_otaEnabled) {
         QOtaClientAsync *async = d->m_otaAsync.data();
-        // async finished handlers
         connect(async, &QOtaClientAsync::initializeFinished, d, &QOtaClientPrivate::initializeFinished);
-        connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, d, &QOtaClientPrivate::fetchRemoteInfoFinished);
+        connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, this, &QOtaClient::fetchRemoteInfoFinished);
         connect(async, &QOtaClientAsync::updateFinished, d, &QOtaClientPrivate::updateFinished);
         connect(async, &QOtaClientAsync::rollbackFinished, d, &QOtaClientPrivate::rollbackFinished);
-        connect(async, &QOtaClientAsync::applyOfflineFinished, d, &QOtaClientPrivate::applyOfflineFinished);
+        connect(async, &QOtaClientAsync::updateOfflineFinished, this, &QOtaClient::updateOfflineFinished);
+        connect(async, &QOtaClientAsync::updateRemoteInfoOfflineFinished, this, &QOtaClient::updateRemoteInfoOfflineFinished);
         connect(async, &QOtaClientAsync::errorOccurred, d, &QOtaClientPrivate::errorOccurred);
         connect(async, &QOtaClientAsync::statusStringChanged, d, &QOtaClientPrivate::statusStringChanged);
         connect(async, &QOtaClientAsync::rollbackChanged, d, &QOtaClientPrivate::rollbackChanged);
+        connect(async, &QOtaClientAsync::remoteInfoChanged, d, &QOtaClientPrivate::remoteInfoChanged);
         d->m_otaAsync->initialize();
     }
 }
@@ -412,9 +412,9 @@ QOtaClient::~QOtaClient()
 
 /*!
 //! [fetchremoteinfo-description]
-    Fetches OTA metadata from a remote server and updates the local cache. This
-    metadata contains information on what system version is available on a
-    server. The cache is persistent as it is stored on the disk.
+    Fetches OTA metadata from a remote server and updates the local metadata
+    cache. This metadata contains information on what system version is available
+    on a server. The cache is persistent as it is stored on the disk.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
@@ -470,20 +470,49 @@ bool QOtaClient::rollback() const
     return true;
 }
 
-
 /*!
-//! [apply-offline]
-    Applies a self-contained update package.
+//! [update-offline]
+    Uses the provided self-contained update package to update the system.
+    Updates the local metadata cache, if it has not been already updated
+    by calling updateRemoteInfoOffline().
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully. The \a packagePath
-    holds a path to the package file.
+    holds a path to the update package.
 
-//! [apply-offline]
+//! [update-offline]
 
-    \sa applyOfflineFinished()
+    \sa updateOfflineFinished()
 */
-bool QOtaClient::applyOffline(const QString &packagePath)
+bool QOtaClient::updateOffline(const QString &packagePath)
+{
+    Q_D(QOtaClient);
+    if (!d->isReady())
+        return false;
+
+    QString package = QFileInfo(packagePath).absoluteFilePath();
+    if (!d->verifyPathExist(package))
+        return false;
+
+    d->m_otaAsync->updateOffline(package);
+    return true;
+}
+
+/*!
+//! [update-remote-offline]
+    Uses the provided self-contained update package to update local metadata cache.
+    This metadata contains information on what system version is available on a server.
+    The cache is persistent as it is stored on the disk. This method is an offline
+    counterpart for fetchRemoteInfo().
+
+    This method is asynchronous and returns immediately. The return value
+    holds whether the operation was started successfully.
+
+//! [update-remote-offline]
+
+    \sa remoteInfoChanged
+*/
+bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
 {
     Q_D(QOtaClient);
     if (!d->isReady())
@@ -496,7 +525,7 @@ bool QOtaClient::applyOffline(const QString &packagePath)
         return false;
     }
 
-    d->m_otaAsync->applyOffline(package.absoluteFilePath());
+    d->m_otaAsync->updateRemoteInfoOffline(package.absoluteFilePath());
     return true;
 }
 
@@ -541,15 +570,6 @@ bool QOtaClient::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryC
     return QOtaRepositoryConfig().d_func()->repositoryConfigsEqual(a, b);
 }
 
-static inline bool pathExists(QOtaClientPrivate *d, const QString &path)
-{
-    if (!QDir().exists(path)) {
-        d->errorOccurred(path + QLatin1String(" does not exist"));
-        return false;
-    }
-    return true;
-}
-
 /*!
 //! [set-repository-config]
     Change the configuration for the repository. The repository configuration
@@ -582,12 +602,12 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
     // TLS client certs
     int tlsClientArgs = 0;
     if (!config->tlsClientCertPath().isEmpty()) {
-        if (!pathExists(d, config->tlsClientCertPath()))
+        if (!d->verifyPathExist(config->tlsClientCertPath()))
             return false;
         ++tlsClientArgs;
     }
     if (!config->tlsClientKeyPath().isEmpty()) {
-        if (!pathExists(d, config->tlsClientKeyPath()))
+        if (!d->verifyPathExist(config->tlsClientKeyPath()))
             return false;
         ++tlsClientArgs;
     }
@@ -613,7 +633,7 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
     cmd.append(QStringLiteral(" --set=tls-permissive="));
     config->tlsPermissive() ? cmd.append(QStringLiteral("true")) : cmd.append(QStringLiteral("false"));
     if (!config->tlsCaPath().isEmpty()) {
-        if (!pathExists(d, config->tlsCaPath()))
+        if (!d->verifyPathExist(config->tlsCaPath()))
             return false;
         cmd.append(QStringLiteral(" --set=tls-ca-path="));
         cmd.append(config->tlsCaPath());
