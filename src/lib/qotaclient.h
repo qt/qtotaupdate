@@ -108,7 +108,7 @@ Q_SIGNALS:
     void errorOccurred(const QString &error);
     void repositoryConfigChanged(QOtaRepositoryConfig *config);
 
-    void initializationFinished();
+    void initializationFinished(bool success);
     void fetchRemoteInfoFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);

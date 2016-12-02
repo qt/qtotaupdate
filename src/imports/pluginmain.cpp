@@ -326,7 +326,8 @@ QT_BEGIN_NAMESPACE
     \readonly
 
     Holds a bool indicating whether a reboot is required. Reboot is required
-    after update() and rollback(), to boot into the new default system.
+    after update(), updateOffline() and rollback(), to boot into the new default
+    system.
 */
 
 /*!
@@ -337,10 +338,11 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OtaClient::initializationFinished()
+    \qmlsignal OtaClient::initializationFinished(bool success)
 
     This signal is emitted when the object has finished initialization. The
-    object is not ready for use until this signal is received.
+    object is not ready for use until this signal is received. The \a success
+    argument indicates whether the initialization was successful.
 */
 
 /*!

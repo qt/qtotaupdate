@@ -252,7 +252,7 @@ Window {
         onErrorChanged: logError(error)
         onStatusChanged: log(status)
         onInitializationFinished: {
-            logWithCondition("Initialization", OtaClient.initialized)
+            logWithCondition("Initialization", success)
             if (!configureRepository(basicConfig, true))
                 updateConfigView(OtaClient.repositoryConfig())
             updateBootedMetadataLabel()

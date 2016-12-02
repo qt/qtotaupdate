@@ -113,36 +113,15 @@ void QOtaClientPrivate::refreshState()
     }
 }
 
-void QOtaClientPrivate::initializeFinished(const QString &defaultRev,
-                                           const QString &bootedRev, const QJsonDocument &bootedInfo)
+void QOtaClientPrivate::initializeFinished(bool success, const QString &bootedRev,
+                                           const QJsonDocument &bootedInfo)
 {
     Q_Q(QOtaClient);
-    m_defaultRev = defaultRev;
     m_bootedRev = bootedRev;
     updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
     refreshState();
-    m_initialized = true;
-    emit q->initializationFinished();
-}
-
-void QOtaClientPrivate::updateFinished(const QString &defaultRev, bool success)
-{
-    Q_Q(QOtaClient);
-    if (success) {
-        m_defaultRev = defaultRev;
-        refreshState();
-    }
-    emit q->updateFinished(success);
-}
-
-void QOtaClientPrivate::rollbackFinished(const QString &defaultRev, bool success)
-{
-    Q_Q(QOtaClient);
-    if (success) {
-        m_defaultRev = defaultRev;
-        refreshState();
-    }
-    emit q->rollbackFinished(success);
+    m_initialized = success;
+    emit q->initializationFinished(m_initialized);
 }
 
 void QOtaClientPrivate::statusStringChanged(const QString &status)
@@ -168,7 +147,7 @@ bool QOtaClientPrivate::verifyPathExist(const QString &path)
     return true;
 }
 
-void QOtaClientPrivate::rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
+void QOtaClientPrivate::rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
 {
     Q_Q(QOtaClient);
     if (!m_rollbackAvailable && treeCount > 1) {
@@ -188,7 +167,16 @@ void QOtaClientPrivate::remoteInfoChanged(const QString &remoteRev, const QJsonD
 
     m_remoteRev = remoteRev;
     updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
+    refreshState();
     emit q->remoteInfoChanged();
+}
+
+void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
+{
+    if (m_defaultRev == defaultRevision)
+        return;
+
+    m_defaultRev = defaultRevision;
     refreshState();
 }
 
@@ -370,10 +358,11 @@ QString QOtaClientPrivate::revision(QueryTarget target) const
 */
 
 /*!
-    \fn void QOtaClient::initializationFinished()
+    \fn void QOtaClient::initializationFinished(bool success)
 
     This signal is emitted when the object has finished initialization. The
-    object is not ready for use until this signal is received.
+    object is not ready for use until this signal is received. The \a success
+    argument indicates whether the initialization was successful.
 */
 
 /*!
@@ -393,14 +382,15 @@ QOtaClient::QOtaClient(QObject *parent) :
         QOtaClientAsync *async = d->m_otaAsync.data();
         connect(async, &QOtaClientAsync::initializeFinished, d, &QOtaClientPrivate::initializeFinished);
         connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, this, &QOtaClient::fetchRemoteInfoFinished);
-        connect(async, &QOtaClientAsync::updateFinished, d, &QOtaClientPrivate::updateFinished);
-        connect(async, &QOtaClientAsync::rollbackFinished, d, &QOtaClientPrivate::rollbackFinished);
+        connect(async, &QOtaClientAsync::updateFinished, this, &QOtaClient::updateFinished);
+        connect(async, &QOtaClientAsync::rollbackFinished, this, &QOtaClient::rollbackFinished);
         connect(async, &QOtaClientAsync::updateOfflineFinished, this, &QOtaClient::updateOfflineFinished);
         connect(async, &QOtaClientAsync::updateRemoteInfoOfflineFinished, this, &QOtaClient::updateRemoteInfoOfflineFinished);
         connect(async, &QOtaClientAsync::errorOccurred, d, &QOtaClientPrivate::errorOccurred);
         connect(async, &QOtaClientAsync::statusStringChanged, d, &QOtaClientPrivate::statusStringChanged);
-        connect(async, &QOtaClientAsync::rollbackChanged, d, &QOtaClientPrivate::rollbackChanged);
+        connect(async, &QOtaClientAsync::rollbackInfoChanged, d, &QOtaClientPrivate::rollbackInfoChanged);
         connect(async, &QOtaClientAsync::remoteInfoChanged, d, &QOtaClientPrivate::remoteInfoChanged);
+        connect(async, &QOtaClientAsync::defaultRevisionChanged, d, &QOtaClientPrivate::defaultRevisionChanged);
         d->m_otaAsync->initialize();
     }
 }
@@ -747,8 +737,8 @@ bool QOtaClient::rollbackAvailable() const
     \property QOtaClient::restartRequired
     \brief whether a reboot is required.
 
-    Reboot is required after update() and rollback(), to boot into the new
-    default system.
+    Reboot is required after update(), updateOffline() and rollback(),
+    to boot into the new default system.
 
 */
 bool QOtaClient::restartRequired() const

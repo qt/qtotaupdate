@@ -61,15 +61,13 @@ public:
     virtual ~QOtaClientPrivate();
 
     void refreshState();
-    void initializeFinished(const QString &defaultRev,
-                            const QString &bootedRev, const QJsonDocument &bootedInfo);
-    void updateFinished(const QString &defaultRev, bool success);
-    void rollbackFinished(const QString &defaultRev, bool success);
+    void initializeFinished(bool success, const QString &bootedRev, const QJsonDocument &bootedInfo);
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     bool verifyPathExist(const QString &path);
-    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
+    void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void defaultRevisionChanged(const QString &defaultRevision);
 
     QString version(QueryTarget target) const;
     QString description(QueryTarget target) const;

@@ -53,31 +53,28 @@ public:
 
 signals:
     void initialize();
-    void initializeFinished(const QString &defaultRev,
-                            const QString &bootedRev, const QJsonDocument &bootedInfo);
+    void initializeFinished(bool success, const QString &bootedRev = QString(),
+                            const QJsonDocument &bootedInfo = QJsonDocument());
     void fetchRemoteInfo();
     void fetchRemoteInfoFinished(bool success);
     void update(const QString &updateToRev);
-    void updateFinished(const QString &defaultRev, bool success);
+    void updateFinished(bool success);
     void rollback();
-    void rollbackFinished(const QString &defaultRev, bool success);
+    void rollbackFinished(bool success);
     void updateOffline(const QString &packagePath);
     void updateOfflineFinished(bool success);
     void updateRemoteInfoOffline(const QString &packagePath);
     void updateRemoteInfoOfflineFinished(bool success);
-    void rollbackChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
+    void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
     void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
     QJsonDocument info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
-    bool multiprocessLock(const QString &method);
-    void multiprocessUnlock();
-    QString defaultRevision();
-    void emitRollbackFailed(const QString &error);
     int rollbackIndex();
-    void resetRollbackState();
+    void handleRevisionChanges();
     bool emitGError(GError *error);
     bool deployCommit(const QString &commit);
     bool extractPackage(const QString &packagePath, QString *updateToRev);
