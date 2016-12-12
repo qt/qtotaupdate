@@ -1,6 +1,6 @@
 include($QT_INSTALL_DOCS/global/qt-cpp-defines.qdocconf)
 
-project                      = QtOta
+project                      = QtOTA
 description                  = Qt OTA Update Documentation
 version                      = $QT_VERSION
 
@@ -9,13 +9,25 @@ headerdirs                  += ../../src/lib/
 
 indexes                      = $QT_INSTALL_DOCS/qtcore/qtcore.index
 
-qhp.projects                 = QtOta
+qhp.projects                 = QtOTA
 
 qhp.QtOTA.file                = qtota.qhp
 qhp.QtOTA.namespace           = io.qt.qtota.$QT_VERSION_TAG
 qhp.QtOTA.virtualFolder       = qtota
 qhp.QtOTA.indexTitle          = Over-The-Air Update
-qhp.QtOTA.indexRoot           =
+qhp.QtOTA.indexRoot           = Over-The-Air Update
+
+qhp.QtOTA.subprojects         = cpp qml
+
+qhp.QtOTA.subprojects.cpp.title         = C++ Classes
+qhp.QtOTA.subprojects.cpp.indexTitle    = Qt OTA Update C++ Classes
+qhp.QtOTA.subprojects.cpp.selectors     = module
+qhp.QtOTA.subprojects.cpp.sortPages     = true
+
+qhp.QtOTA.subprojects.qml.title         = QML Types
+qhp.QtOTA.subprojects.qml.indexTitle    = Qt OTA Update QML Types
+qhp.QtOTA.subprojects.qml.selectors     = qmlmodule
+qhp.QtOTA.subprojects.qml.sortPages     = true
 
 macro.B2Q                    = "Boot to Qt"
 include(navigation.qdocconf)
