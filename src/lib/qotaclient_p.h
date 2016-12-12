@@ -52,20 +52,17 @@ public:
     QOtaClientPrivate(QOtaClient *client);
     virtual ~QOtaClientPrivate();
 
-    void refreshState();
-    void initializeFinished(bool success, const QString &bootedRev, const QJsonDocument &bootedInfo);
+    void handleStateChanges();
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     bool verifyPathExist(const QString &path);
+    void setBootedInfo(QString &bootedRev, const QJsonDocument &bootedInfo);
     void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
     void defaultRevisionChanged(const QString &defaultRevision);
 
-    bool isReady() const;
-
     // members
     QOtaClient *const q_ptr;
-    bool m_initialized;
     bool m_updateAvailable;
     bool m_rollbackAvailable;
     bool m_restartRequired;

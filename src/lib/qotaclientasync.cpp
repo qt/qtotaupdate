@@ -32,20 +32,25 @@
 #include "qotaclientasync_p.h"
 #include "qotaclient_p.h"
 
-#include <QtCore/QFile>
-#include <QtCore/QTime>
-
 QT_BEGIN_NAMESPACE
 
 #define OSTREE_STATIC_DELTA_META_ENTRY_FORMAT "(uayttay)"
 #define OSTREE_STATIC_DELTA_FALLBACK_FORMAT "(yaytt)"
 #define OSTREE_STATIC_DELTA_SUPERBLOCK_FORMAT "(a{sv}tayay" OSTREE_COMMIT_GVARIANT_STRING "aya" OSTREE_STATIC_DELTA_META_ENTRY_FORMAT "a" OSTREE_STATIC_DELTA_FALLBACK_FORMAT ")"
 
-QOtaClientAsync::QOtaClientAsync() :
-    m_sysroot(ostree_sysroot_new_default())
+// from libglnx
+#define GLNX_DEFINE_CLEANUP_FUNCTION0(Type, name, func) \
+  static inline void name (void *v) \
+  { \
+    if (*(Type*)v) \
+      func (*(Type*)v); \
+  }
+#define glnx_unref_object __attribute__ ((cleanup(glnx_local_obj_unref)))
+GLNX_DEFINE_CLEANUP_FUNCTION0(GObject*, glnx_local_obj_unref, g_object_unref)
+
+QOtaClientAsync::QOtaClientAsync()
 {
     // async mapper
-    connect(this, &QOtaClientAsync::initialize, this, &QOtaClientAsync::_initialize);
     connect(this, &QOtaClientAsync::fetchRemoteInfo, this, &QOtaClientAsync::_fetchRemoteInfo);
     connect(this, &QOtaClientAsync::update, this, &QOtaClientAsync::_update);
     connect(this, &QOtaClientAsync::rollback, this, &QOtaClientAsync::_rollback);
@@ -55,7 +60,6 @@ QOtaClientAsync::QOtaClientAsync() :
 
 QOtaClientAsync::~QOtaClientAsync()
 {
-    ostree_sysroot_unload (m_sysroot);
 }
 
 static void parseErrorString(QString *error)
@@ -110,6 +114,15 @@ QString QOtaClientAsync::ostree(const QString &command, bool *ok, bool updateSta
     return out;
 }
 
+OstreeSysroot* QOtaClientAsync::defaultSysroot()
+{
+    GError *error = nullptr;
+    OstreeSysroot *sysroot = ostree_sysroot_new_default();
+    if (!ostree_sysroot_load (sysroot, 0, &error))
+        emitGError(error);
+    return sysroot;
+}
+
 QJsonDocument QOtaClientAsync::infoFromRev(const QString &rev, bool *ok)
 {
     QString jsonData;
@@ -129,33 +142,34 @@ QJsonDocument QOtaClientAsync::infoFromRev(const QString &rev, bool *ok)
     return jsonInfo;
 }
 
-void QOtaClientAsync::_initialize()
+bool QOtaClientAsync::refreshInfo(QOtaClientPrivate *d)
 {
-    GError *error = nullptr;
-    if (!ostree_sysroot_load (m_sysroot, 0, &error) ||
-        !ostree_sysroot_get_repo (m_sysroot, &m_repo, 0, &error)) {
-        emitGError(error);
-        emit initializeFinished(false);
-        return;
-    }
-
-    handleRevisionChanges();
+    glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
+    if (!sysroot)
+        return false;
 
     bool ok = true;
+    if (d) {
+        // This is non-nullptr only when called from QOtaClient's constructor.
+        // Booted revision can change only when a device is rebooted.
+        OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (sysroot);
+        QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
+        QJsonDocument bootedInfo = infoFromRev(bootedRev, &ok);
+        if (!ok)
+            return false;
+        d->setBootedInfo(bootedRev, bootedInfo);
+    }
+
     // prepopulate with what we think is on the remote server (head of the local repo)
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     QJsonDocument remoteInfo;
     if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
-    if (!ok) {
-        emit initializeFinished(false);
-        return;
-    }
+    if (!ok)
+        return false;
     emit remoteInfoChanged(remoteRev, remoteInfo);
 
-    OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
-    QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
-    QJsonDocument bootedInfo = infoFromRev(bootedRev, &ok);
-    emit initializeFinished(ok, bootedRev, bootedInfo);
+    ok = handleRevisionChanges(sysroot);
+    return ok;
 }
 
 void QOtaClientAsync::_fetchRemoteInfo()
@@ -164,21 +178,24 @@ void QOtaClientAsync::_fetchRemoteInfo()
     QJsonDocument remoteInfo;
     bool ok = true;
     ostree(QStringLiteral("ostree pull --commit-metadata-only --disable-static-deltas qt-os linux/qt"), &ok);
-    if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
+    if (ok) ostree(QString(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os %1")).arg(remoteRev), &ok);
     if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
     if (ok) emit remoteInfoChanged(remoteRev, remoteInfo);
     emit fetchRemoteInfoFinished(ok);
 }
 
-bool QOtaClientAsync::deployCommit(const QString &commit)
+bool QOtaClientAsync::deployCommit(const QString &commit, OstreeSysroot *sysroot)
 {
     bool ok = true;
     QString kernelArgs;
     GError *error = nullptr;
     g_autoptr(GFile) root = nullptr;
-    if (!ostree_repo_read_commit (m_repo, commit.toLatin1().constData(),
-                                  &root, nullptr, nullptr, &error)) {
+    OstreeRepo *repo = nullptr;
+
+    // read kernel args for rev
+    if (!ostree_sysroot_get_repo (sysroot, &repo, 0, &error) ||
+        !ostree_repo_read_commit (repo, commit.toLatin1().constData(), &root, nullptr, nullptr, &error)) {
         emitGError(error);
         return false;
     }
@@ -195,28 +212,27 @@ bool QOtaClientAsync::deployCommit(const QString &commit)
 
 void QOtaClientAsync::_update(const QString &updateToRev)
 {
+    glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
+    if (!sysroot) {
+        emit updateFinished(false);
+        return;
+    }
+
     bool ok = true;
-    GError *error = nullptr;
     emit statusStringChanged(QStringLiteral("Checking for missing objects..."));
     ostree(QString(QStringLiteral("ostree pull qt-os:%1")).arg(updateToRev), &ok, true);
-    if (!ok || !deployCommit(updateToRev)) {
+    if (!ok || !deployCommit(updateToRev, sysroot)) {
         emit updateFinished(false);
         return;
     }
 
-    if (!ostree_sysroot_load (m_sysroot, 0, &error)) {
-        emitGError(error);
-        emit updateFinished(false);
-        return;
-    }
-
-    handleRevisionChanges();
+    ok = handleRevisionChanges(sysroot, true);
     emit updateFinished(ok);
 }
 
-int QOtaClientAsync::rollbackIndex()
+int QOtaClientAsync::rollbackIndex(OstreeSysroot *sysroot)
 {
-    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
+    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (sysroot);
     if (deployments->len < 2)
         return -1;
 
@@ -227,50 +243,60 @@ int QOtaClientAsync::rollbackIndex()
     return 1;
 }
 
-void QOtaClientAsync::handleRevisionChanges()
+bool QOtaClientAsync::handleRevisionChanges(OstreeSysroot *sysroot, bool reloadSysroot)
 {
-    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
+    if (reloadSysroot) {
+        GError *error = nullptr;
+        if (!ostree_sysroot_load (sysroot, 0, &error)) {
+            emitGError(error);
+            return false;
+        }
+    }
+
+    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (sysroot);
     OstreeDeployment *firstDeployment = (OstreeDeployment*)deployments->pdata[0];
     QString defaultRev(QLatin1String(ostree_deployment_get_csum (firstDeployment)));
     emit defaultRevisionChanged(defaultRev);
 
-    int index = rollbackIndex();
+    int index = rollbackIndex(sysroot);
     if (index != -1) {
         OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
         QString rollbackRev(QLatin1String(ostree_deployment_get_csum (rollbackDeployment)));
         bool ok = true;
         QJsonDocument rollbackInfo = infoFromRev(rollbackRev, &ok);
+        if (!ok)
+            return false;
         emit rollbackInfoChanged(rollbackRev, rollbackInfo, deployments->len);
     }
+
+    return true;
 }
 
-bool QOtaClientAsync::emitGError(GError *error)
+void QOtaClientAsync::emitGError(GError *error)
 {
     if (!error)
-        return false;
+        return;
 
     emit errorOccurred(QString::fromLatin1((error->message)));
     g_error_free (error);
-    return true;
 }
 
 void QOtaClientAsync::_rollback()
 {
-    GError *error = nullptr;
-    if (!ostree_sysroot_load (m_sysroot, 0, &error)) {
-        emitGError(error);
+    glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
+    if (!sysroot) {
         emit rollbackFinished(false);
         return;
     }
 
-    int index = rollbackIndex();
+    int index = rollbackIndex(sysroot);
     if (index == -1) {
         emit errorOccurred(QStringLiteral("At least 2 system versions required for rollback"));
         emit rollbackFinished(false);
         return;
     }
 
-    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (m_sysroot);
+    g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (sysroot);
     g_autoptr(GPtrArray) newDeployments = g_ptr_array_new_with_free_func (g_object_unref);
     g_ptr_array_add (newDeployments, g_object_ref (deployments->pdata[index]));
     for (uint i = 0; i < deployments->len; i++) {
@@ -280,17 +306,18 @@ void QOtaClientAsync::_rollback()
     }
 
     // atomically update bootloader configuration
-    if (!ostree_sysroot_write_deployments (m_sysroot, newDeployments, 0, &error)) {
+    GError *error = nullptr;
+    if (!ostree_sysroot_write_deployments (sysroot, newDeployments, 0, &error)) {
         emitGError(error);
         emit rollbackFinished(false);
         return;
     }
 
-    handleRevisionChanges();
-    emit rollbackFinished(true);
+    bool ok = handleRevisionChanges(sysroot, true);
+    emit rollbackFinished(ok);
 }
 
-bool QOtaClientAsync::extractPackage(const QString &packagePath, QString *updateToRev)
+bool QOtaClientAsync::extractPackage(const QString &packagePath, OstreeSysroot *sysroot, QString *updateToRev)
 {
     GError *error = nullptr;
     // load delta superblock
@@ -316,8 +343,13 @@ bool QOtaClientAsync::extractPackage(const QString &packagePath, QString *update
     // get timestamp of the head commit from the repository
     bool ok = true;
     g_autoptr(GVariant) currentCommitV = nullptr;
+    OstreeRepo *repo = nullptr;
+    if (!ostree_sysroot_get_repo (sysroot, &repo, 0, &error)) {
+        emitGError(error);
+        return false;
+    }
     QString currentCommit = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    if (!ok || !ostree_repo_load_commit (m_repo, currentCommit.toLatin1().constData(),
+    if (!ok || !ostree_repo_load_commit (repo, currentCommit.toLatin1().constData(),
                                          &currentCommitV, nullptr, &error)) {
         emitGError(error);
         return false;
@@ -354,21 +386,19 @@ bool QOtaClientAsync::extractPackage(const QString &packagePath, QString *update
 void QOtaClientAsync::_updateRemoteInfoOffline(const QString &packagePath)
 {
     QString rev;
-    bool success = extractPackage(packagePath, &rev);
-    emit updateRemoteInfoOfflineFinished(success);
+    glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
+    bool ok = sysroot && extractPackage(packagePath, sysroot, &rev);
+    emit updateRemoteInfoOfflineFinished(ok);
 }
 
 void QOtaClientAsync::_updateOffline(const QString &packagePath)
 {
-    bool success = true;
     QString rev;
-    if (!extractPackage(packagePath, &rev) || !deployCommit(rev))
-        success = false;
+    glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
+    bool ok = sysroot && extractPackage(packagePath, sysroot, &rev) &&
+            deployCommit(rev, sysroot) && handleRevisionChanges(sysroot, true);
 
-    if (success)
-        handleRevisionChanges();
-
-    emit updateOfflineFinished(success);
+    emit updateOfflineFinished(ok);
 }
 
 QT_END_NAMESPACE

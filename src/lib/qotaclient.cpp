@@ -45,7 +45,6 @@ const QString repoConfigPath(QStringLiteral("/etc/ostree/remotes.d/qt-os.conf"))
 
 QOtaClientPrivate::QOtaClientPrivate(QOtaClient *client) :
     q_ptr(client),
-    m_initialized(false),
     m_updateAvailable(false),
     m_rollbackAvailable(false),
     m_restartRequired(false)
@@ -65,7 +64,7 @@ QOtaClientPrivate::~QOtaClientPrivate()
     if (m_otaEnabled) {
         if (m_otaAsyncThread->isRunning()) {
             m_otaAsyncThread->quit();
-            if (Q_UNLIKELY(m_otaAsyncThread->wait(4000)))
+            if (!Q_UNLIKELY(m_otaAsyncThread->wait(4000)))
                 qCWarning(qota) << "Timed out waiting for worker thread to exit.";
         }
         delete m_otaAsyncThread;
@@ -83,20 +82,7 @@ static void updateInfoMembers(const QJsonDocument &json, QByteArray *info, QStri
     *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
 }
 
-bool QOtaClientPrivate::isReady() const
-{
-    if (!m_otaEnabled) {
-        qCWarning(qota) << "over-the-air update functionality is not enabled for this device";
-        return false;
-    }
-    if (!m_initialized) {
-        qCWarning(qota) << "initialization is not ready";
-        return false;
-    }
-    return true;
-}
-
-void QOtaClientPrivate::refreshState()
+void QOtaClientPrivate::handleStateChanges()
 {
     Q_Q(QOtaClient);
 
@@ -113,15 +99,11 @@ void QOtaClientPrivate::refreshState()
     }
 }
 
-void QOtaClientPrivate::initializeFinished(bool success, const QString &bootedRev,
-                                           const QJsonDocument &bootedInfo)
+void QOtaClientPrivate::setBootedInfo(QString &bootedRev, const QJsonDocument &bootedInfo)
 {
     Q_Q(QOtaClient);
     m_bootedRev = bootedRev;
     updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
-    refreshState();
-    m_initialized = success;
-    emit q->initializationFinished(m_initialized);
 }
 
 void QOtaClientPrivate::statusStringChanged(const QString &status)
@@ -167,7 +149,8 @@ void QOtaClientPrivate::remoteInfoChanged(const QString &remoteRev, const QJsonD
 
     m_remoteRev = remoteRev;
     updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
-    refreshState();
+    handleStateChanges();
+
     emit q->remoteInfoChanged();
 }
 
@@ -177,7 +160,7 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
         return;
 
     m_defaultRev = defaultRevision;
-    refreshState();
+    handleStateChanges();
 }
 
 /*!
@@ -196,6 +179,17 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
 
     A remote needs to be configured for a device to be able to locate a server
     that is hosting an OTA update, see setRepositoryConfig().
+
+    When utilizing this API from several processes, precautions need to be taken
+    to ensure that the processes' view of the system state and metadata is up to date.
+    This can be achieved by using any IPC mechanism of choice to ensure that this
+    information is being modified by only a single process at a time.
+
+    Methods that modify the system's state and/or metadata are marked as such. In a
+    multi-process scenario, refreshInfo() updates the processes' view of the system state
+    and metadata. A typical example would be a daemon that periodically checks a remote
+    server (with fetchRemoteInfo()) for system updates, and then uses IPC (such as a push
+    notification) to let the system's main GUI know when a new version is available.
 
 //! [client-description]
 */
@@ -290,14 +284,6 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
 */
 
 /*!
-    \fn void QOtaClient::initializationFinished(bool success)
-
-    This signal is emitted when the object has finished initialization. The
-    object is not ready for use until this signal is received. The \a success
-    argument indicates whether the initialization was successful.
-*/
-
-/*!
     \fn void QOtaClient::repositoryConfigChanged(QOtaRepositoryConfig *repository)
 
     This signal is emitted when the configuration file was updated (\a repository
@@ -312,7 +298,6 @@ QOtaClient::QOtaClient(QObject *parent) :
     Q_D(QOtaClient);
     if (d->m_otaEnabled) {
         QOtaClientAsync *async = d->m_otaAsync.data();
-        connect(async, &QOtaClientAsync::initializeFinished, d, &QOtaClientPrivate::initializeFinished);
         connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, this, &QOtaClient::fetchRemoteInfoFinished);
         connect(async, &QOtaClientAsync::updateFinished, this, &QOtaClient::updateFinished);
         connect(async, &QOtaClientAsync::rollbackFinished, this, &QOtaClient::rollbackFinished);
@@ -323,7 +308,7 @@ QOtaClient::QOtaClient(QObject *parent) :
         connect(async, &QOtaClientAsync::rollbackInfoChanged, d, &QOtaClientPrivate::rollbackInfoChanged);
         connect(async, &QOtaClientAsync::remoteInfoChanged, d, &QOtaClientPrivate::remoteInfoChanged);
         connect(async, &QOtaClientAsync::defaultRevisionChanged, d, &QOtaClientPrivate::defaultRevisionChanged);
-        d->m_otaAsync->initialize();
+        d->m_otaAsync->refreshInfo(d);
     }
 }
 
@@ -340,6 +325,8 @@ QOtaClient::~QOtaClient()
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
+
+    \note This method mutates system's state/metadata.
 //! [fetchremoteinfo-description]
 
     \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
@@ -347,7 +334,7 @@ QOtaClient::~QOtaClient()
 bool QOtaClient::fetchRemoteInfo() const
 {
     Q_D(const QOtaClient);
-    if (!d->isReady())
+    if (!d->m_otaEnabled)
         return false;
 
     d->m_otaAsync->fetchRemoteInfo();
@@ -360,6 +347,8 @@ bool QOtaClient::fetchRemoteInfo() const
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
+
+    \note This method mutates system's state/metadata.
 //! [update-description]
 
     \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
@@ -367,7 +356,7 @@ bool QOtaClient::fetchRemoteInfo() const
 bool QOtaClient::update() const
 {
     Q_D(const QOtaClient);
-    if (!d->isReady() || !updateAvailable())
+    if (!d->m_otaEnabled || !updateAvailable())
         return false;
 
     d->m_otaAsync->update(d->m_remoteRev);
@@ -380,12 +369,13 @@ bool QOtaClient::update() const
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
+    \note This method mutates system's state/metadata.
     \sa rollbackFinished(), restartRequired
 */
 bool QOtaClient::rollback() const
 {
     Q_D(const QOtaClient);
-    if (!d->isReady())
+    if (!d->m_otaEnabled)
         return false;
 
     d->m_otaAsync->rollback();
@@ -402,6 +392,7 @@ bool QOtaClient::rollback() const
     holds whether the operation was started successfully. The \a packagePath
     holds a path to the update package.
 
+    \note This method mutates system's state/metadata.
 //! [update-offline]
 
     \sa updateOfflineFinished()
@@ -409,7 +400,7 @@ bool QOtaClient::rollback() const
 bool QOtaClient::updateOffline(const QString &packagePath)
 {
     Q_D(QOtaClient);
-    if (!d->isReady())
+    if (!d->m_otaEnabled)
         return false;
 
     QString package = QFileInfo(packagePath).absoluteFilePath();
@@ -430,6 +421,7 @@ bool QOtaClient::updateOffline(const QString &packagePath)
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
+    \note This method mutates system's state/metadata.
 //! [update-remote-offline]
 
     \sa remoteInfoChanged
@@ -437,7 +429,7 @@ bool QOtaClient::updateOffline(const QString &packagePath)
 bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
 {
     Q_D(QOtaClient);
-    if (!d->isReady())
+    if (!d->m_otaEnabled)
         return false;
 
     QFileInfo package(packagePath);
@@ -449,6 +441,24 @@ bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
 
     d->m_otaAsync->updateRemoteInfoOffline(package.absoluteFilePath());
     return true;
+}
+
+/*!
+//! [refresh-info]
+    Refreshes the instances view of the system's state from the local metadata cache.
+    Returns \c true if info is refreshed successfully; otherwise returns \c false.
+
+    Using this method is not required when only one process is responsible for all OTA tasks.
+
+//! [refresh-info]
+*/
+bool QOtaClient::refreshInfo() const
+{
+    Q_D(const QOtaClient);
+    if (!d->m_otaEnabled)
+        return false;
+
+    return d->m_otaAsync->refreshInfo();
 }
 
 /*!
@@ -516,7 +526,7 @@ bool QOtaClient::isRepositoryConfigSet(QOtaRepositoryConfig *config) const
 bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 {
     Q_D(QOtaClient);
-    if (!d->isReady() || !config)
+    if (!d->m_otaEnabled || !config)
         return false;
 
     if (QDir().exists(repoConfigPath)) {
@@ -581,7 +591,8 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 
 /*!
     Returns a configuration object for the repository or \c nullptr if the
-    configuration file does not exist or could not be read.
+    configuration file does not exist or could not be read. The caller is
+    responsible for deleting the returned object.
 
     \sa setRepositoryConfig(), removeRepositoryConfig()
 */
@@ -600,28 +611,6 @@ bool QOtaClient::otaEnabled() const
 {
     Q_D(const QOtaClient);
     return d->m_otaEnabled;
-}
-
-/*!
-    \property QOtaClient::initialized
-//! [initialized-description]
-    \brief whether the object has completed the initialization.
-
-    When an object of this class is created, it asynchronously (from a non-GUI
-    thread) pre-populates the internal state, sets this property accordingly,
-    and signals initializationFinished().
-
-    Initialization is fast unless there is another process locking access to
-    the OSTree repository on a device, for example, a daemon process calling
-    fetchRemoteInfo().
-//! [initialized-description]
-
-    \sa initializationFinished()
-*/
-bool QOtaClient::initialized() const
-{
-    Q_D(const QOtaClient);
-    return d->m_initialized;
 }
 
 /*!

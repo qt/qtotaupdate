@@ -42,16 +42,15 @@ class Q_DECL_EXPORT QOtaClient : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool otaEnabled READ otaEnabled)
-    Q_PROPERTY(bool initialized READ initialized NOTIFY initializationFinished)
     Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY updateAvailableChanged)
     Q_PROPERTY(bool rollbackAvailable READ rollbackAvailable NOTIFY rollbackAvailableChanged)
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
     Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
-    Q_PROPERTY(QString bootedVersion READ bootedVersion NOTIFY initializationFinished)
-    Q_PROPERTY(QString bootedDescription READ bootedDescription NOTIFY initializationFinished)
-    Q_PROPERTY(QString bootedRevision READ bootedRevision NOTIFY initializationFinished)
-    Q_PROPERTY(QByteArray bootedInfo READ bootedInfo NOTIFY initializationFinished)
+    Q_PROPERTY(QString bootedVersion READ bootedVersion)
+    Q_PROPERTY(QString bootedDescription READ bootedDescription)
+    Q_PROPERTY(QString bootedRevision READ bootedRevision)
+    Q_PROPERTY(QByteArray bootedInfo READ bootedInfo)
     Q_PROPERTY(QString remoteVersion READ remoteVersion NOTIFY remoteInfoChanged)
     Q_PROPERTY(QString remoteDescription READ remoteDescription NOTIFY remoteInfoChanged)
     Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteInfoChanged)
@@ -68,7 +67,6 @@ public:
     bool rollbackAvailable() const;
     bool restartRequired() const;
     bool otaEnabled() const;
-    bool initialized() const;
     QString errorString() const;
     QString statusString() const;
 
@@ -77,6 +75,7 @@ public:
     Q_INVOKABLE bool rollback() const;
     Q_INVOKABLE bool updateOffline(const QString &packagePath);
     Q_INVOKABLE bool updateRemoteInfoOffline(const QString &packagePath);
+    Q_INVOKABLE bool refreshInfo() const;
 
     Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
     Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
@@ -108,7 +107,6 @@ Q_SIGNALS:
     void errorOccurred(const QString &error);
     void repositoryConfigChanged(QOtaRepositoryConfig *config);
 
-    void initializationFinished(bool success);
     void fetchRemoteInfoFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);

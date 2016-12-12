@@ -50,13 +50,9 @@ Window {
         logView.positionViewAtEnd()
     }
 
-    function otaReady() {
+    function otaEnabled() {
         if (!OtaClient.otaEnabled) {
             log("OTA Update functionality is not enabled on this device")
-            return false;
-        }
-        if (!OtaClient.initialized) {
-            log("Initialization is not ready")
             return false;
         }
         return true;
@@ -145,7 +141,7 @@ Window {
                 Button {
                     text: "Use basic config"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         configureRepository(basicConfig, false)
                     }
@@ -153,7 +149,7 @@ Window {
                 Button {
                     text: "Use secure config"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         configureRepository(secureConfig, false)
 
@@ -162,7 +158,7 @@ Window {
                 Button {
                     text: "Fetch OTA info"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         log("Fetcing OTA info...")
                         OtaClient.fetchRemoteInfo()
@@ -171,7 +167,7 @@ Window {
                 Button {
                     text: "Update from Package"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         log("Starting update from the package ...")
                         OtaClient.updateOffline("/var/superblock")
@@ -181,7 +177,7 @@ Window {
                     visible: OtaClient.rollbackAvailable
                     text: "Rollback"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         log("Roolback...")
                         OtaClient.rollback()
@@ -191,7 +187,7 @@ Window {
                     visible: OtaClient.updateAvailable
                     text: "Update"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         log("Updating...")
                         OtaClient.update()
@@ -201,7 +197,7 @@ Window {
                     visible: OtaClient.restartRequired
                     text: "Restart"
                     onClicked: {
-                        if (!otaReady())
+                        if (!otaEnabled())
                             return;
                         log("Restarting (unimplemented) ...")
                     }
@@ -250,14 +246,6 @@ Window {
         target: OtaClient
         onErrorChanged: logError(error)
         onStatusChanged: log(status)
-        onInitializationFinished: {
-            logWithCondition("Initialization", success)
-            if (!configureRepository(basicConfig, true))
-                updateConfigView(OtaClient.repositoryConfig())
-            updateBootedMetadataLabel()
-            updateRemoteMetadataLabel()
-            updateRollbackMetadataLabel()
-        }
         onFetchRemoteInfoFinished: {
             logWithCondition("Fetching info from a remote server", success)
             if (success)
@@ -272,8 +260,19 @@ Window {
     }
 
     Component.onCompleted: {
-        if (!OtaClient.otaEnabled)
+        if (!OtaClient.otaEnabled) {
             log("OTA Update functionality is not enabled on this device")
-        updateConfigView(0)
+            return;
+        }
+
+        var configuredOk = configureRepository(basicConfig, true);
+        if (!configuredOk)
+            // Already configured, so won't be handled by onRepositoryConfigChanged.
+            // But config view still needs to be updated.
+            updateConfigView(OtaClient.repositoryConfig())
+
+        updateBootedMetadataLabel()
+        updateRemoteMetadataLabel()
+        updateRollbackMetadataLabel()
     }
 }

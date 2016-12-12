@@ -203,6 +203,7 @@ QT_BEGIN_NAMESPACE
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
+    \note This method mutates system's state/metadata.
     \sa rollbackFinished(), restartRequired
 */
 
@@ -244,19 +245,16 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlmethod bool OtaClient::refreshInfo()
+
+    \include qotaclient.cpp refresh-info
+*/
+
+/*!
     \qmlproperty bool OtaClient::otaEnabled
     \readonly
 
     This property holds whether a device supports OTA updates.
-*/
-
-/*!
-    \qmlproperty bool  OtaClient::initialized
-    \readonly
-
-    \include qotaclient.cpp initialized-description
-
-    \sa initializationFinished()
 */
 
 /*!
@@ -335,14 +333,6 @@ QT_BEGIN_NAMESPACE
 
     This signal is emitted when the value of restartRequired changes. The
     \a required argument holds whether a reboot is required.
-*/
-
-/*!
-    \qmlsignal OtaClient::initializationFinished(bool success)
-
-    This signal is emitted when the object has finished initialization. The
-    object is not ready for use until this signal is received. The \a success
-    argument indicates whether the initialization was successful.
 */
 
 /*!

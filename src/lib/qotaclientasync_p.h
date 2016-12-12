@@ -39,9 +39,10 @@
 QT_BEGIN_NAMESPACE
 
 struct OstreeSysroot;
-struct OstreeRepo;
 // from gerror.h
 typedef struct _GError GError;
+
+class QOtaClientPrivate;
 
 class QOtaClientAsync : public QObject
 {
@@ -49,12 +50,11 @@ class QOtaClientAsync : public QObject
 public:
     QOtaClientAsync();
     virtual ~QOtaClientAsync();
+
     QString ostree(const QString &command, bool *ok, bool updateStatus = false);
+    bool refreshInfo(QOtaClientPrivate *d = nullptr);
 
 signals:
-    void initialize();
-    void initializeFinished(bool success, const QString &bootedRev = QString(),
-                            const QJsonDocument &bootedInfo = QJsonDocument());
     void fetchRemoteInfo();
     void fetchRemoteInfoFinished(bool success);
     void update(const QString &updateToRev);
@@ -72,23 +72,19 @@ signals:
     void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
+    OstreeSysroot* defaultSysroot();
     QJsonDocument infoFromRev(const QString &rev, bool *ok);
-    int rollbackIndex();
-    void handleRevisionChanges();
-    bool emitGError(GError *error);
-    bool deployCommit(const QString &commit);
-    bool extractPackage(const QString &packagePath, QString *updateToRev);
+    int rollbackIndex(OstreeSysroot *sysroot);
+    bool handleRevisionChanges(OstreeSysroot *sysroot, bool reloadSysroot = false);
+    void emitGError(GError *error);
+    bool deployCommit(const QString &commit, OstreeSysroot *sysroot);
+    bool extractPackage(const QString &packagePath, OstreeSysroot *sysroot, QString *updateToRev);
 
-    void _initialize();
     void _fetchRemoteInfo();
     void _update(const QString &updateToRev);
     void _rollback();
     void _updateOffline(const QString &packagePath);
     void _updateRemoteInfoOffline(const QString &packagePath);
-
-private:
-    OstreeSysroot *m_sysroot;
-    OstreeRepo *m_repo;
 };
 
 QT_END_NAMESPACE
