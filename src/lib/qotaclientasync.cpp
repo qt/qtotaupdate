@@ -110,25 +110,10 @@ QString QOtaClientAsync::ostree(const QString &command, bool *ok, bool updateSta
     return out;
 }
 
-QJsonDocument QOtaClientAsync::info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev)
+QJsonDocument QOtaClientAsync::infoFromRev(const QString &rev, bool *ok)
 {
     QString jsonData;
-    switch (target) {
-    case QOtaClientPrivate::QueryTarget::Booted: {
-        QFile metadata(QStringLiteral("/usr/etc/qt-ota.json"));
-        if (metadata.open(QFile::ReadOnly))
-            jsonData = QString::fromLatin1(metadata.readAll());
-        break;
-    }
-    case QOtaClientPrivate::QueryTarget::Remote:
-        jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
-        break;
-    case QOtaClientPrivate::QueryTarget::Rollback:
-        jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
-        break;
-    default:
-        Q_UNREACHABLE();
-    }
+    jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
     if (jsonData.isEmpty())
         return QJsonDocument();
 
@@ -160,7 +145,7 @@ void QOtaClientAsync::_initialize()
     // prepopulate with what we think is on the remote server (head of the local repo)
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     QJsonDocument remoteInfo;
-    if (ok) remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
+    if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
     if (!ok) {
         emit initializeFinished(false);
         return;
@@ -169,7 +154,7 @@ void QOtaClientAsync::_initialize()
 
     OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (m_sysroot);
     QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
-    QJsonDocument bootedInfo = info(QOtaClientPrivate::QueryTarget::Booted, &ok);
+    QJsonDocument bootedInfo = infoFromRev(bootedRev, &ok);
     emit initializeFinished(ok, bootedRev, bootedInfo);
 }
 
@@ -181,7 +166,7 @@ void QOtaClientAsync::_fetchRemoteInfo()
     ostree(QStringLiteral("ostree pull --commit-metadata-only --disable-static-deltas qt-os linux/qt"), &ok);
     if (ok) ostree(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    if (ok) remoteInfo = info(QOtaClientPrivate::QueryTarget::Remote, &ok, remoteRev);
+    if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
     if (ok) emit remoteInfoChanged(remoteRev, remoteInfo);
     emit fetchRemoteInfoFinished(ok);
 }
@@ -254,7 +239,7 @@ void QOtaClientAsync::handleRevisionChanges()
         OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
         QString rollbackRev(QLatin1String(ostree_deployment_get_csum (rollbackDeployment)));
         bool ok = true;
-        QJsonDocument rollbackInfo = info(QOtaClientPrivate::QueryTarget::Rollback, &ok, rollbackRev);
+        QJsonDocument rollbackInfo = infoFromRev(rollbackRev, &ok);
         emit rollbackInfoChanged(rollbackRev, rollbackInfo, deployments->len);
     }
 }

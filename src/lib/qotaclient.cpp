@@ -180,74 +180,6 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
     refreshState();
 }
 
-QString QOtaClientPrivate::version(QueryTarget target) const
-{
-    if (!m_otaEnabled)
-        return QString();
-
-    switch (target) {
-    case QueryTarget::Booted:
-        return m_bootedVersion.isEmpty() ? QStringLiteral("unknown") : m_bootedVersion;
-    case QueryTarget::Remote:
-        return m_remoteVersion.isEmpty() ? QStringLiteral("unknown") : m_remoteVersion;
-    case QueryTarget::Rollback:
-        return m_rollbackVersion.isEmpty() ? QStringLiteral("unknown") : m_rollbackVersion;
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
-QByteArray QOtaClientPrivate::info(QueryTarget target) const
-{
-    if (!m_otaEnabled)
-        return QByteArray();
-
-    switch (target) {
-    case QueryTarget::Booted:
-        return m_bootedInfo;
-    case QueryTarget::Remote:
-        return m_remoteInfo;
-    case QueryTarget::Rollback:
-        return m_rollbackInfo;
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
-QString QOtaClientPrivate::description(QueryTarget target) const
-{
-    if (!m_otaEnabled)
-        return QString();
-
-    switch (target) {
-    case QueryTarget::Booted:
-        return m_bootedDescription.isEmpty() ? QStringLiteral("unknown") : m_bootedDescription;
-    case QueryTarget::Remote:
-        return m_remoteDescription.isEmpty() ? QStringLiteral("unknown") : m_remoteDescription;
-    case QueryTarget::Rollback:
-        return m_rollbackDescription.isEmpty() ? QStringLiteral("unknown") : m_rollbackDescription;
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
-QString QOtaClientPrivate::revision(QueryTarget target) const
-{
-    if (!m_otaEnabled)
-        return QString();
-
-    switch (target) {
-    case QueryTarget::Booted:
-        return m_bootedRev.isEmpty() ? QStringLiteral("unknown") : m_bootedRev;
-    case QueryTarget::Remote:
-        return m_remoteRev.isEmpty() ? QStringLiteral("unknown") : m_remoteRev;
-    case QueryTarget::Rollback:
-        return m_rollbackRev.isEmpty() ? QStringLiteral("unknown") : m_rollbackRev;
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
 /*!
     \class QOtaClient
     \inmodule qtotaupdate
@@ -757,7 +689,7 @@ bool QOtaClient::restartRequired() const
 */
 QString QOtaClient::bootedVersion() const
 {
-    return d_func()->version(QOtaClientPrivate::QueryTarget::Booted);
+    return d_func()->m_bootedVersion;
 }
 
 /*!
@@ -770,7 +702,7 @@ QString QOtaClient::bootedVersion() const
 */
 QString QOtaClient::bootedDescription() const
 {
-    return d_func()->description(QOtaClientPrivate::QueryTarget::Booted);
+    return d_func()->m_bootedDescription;
 }
 
 /*!
@@ -781,7 +713,7 @@ QString QOtaClient::bootedDescription() const
 */
 QString QOtaClient::bootedRevision() const
 {
-    return d_func()->revision(QOtaClientPrivate::QueryTarget::Booted);
+    return d_func()->m_bootedRev;
 }
 
 /*!
@@ -793,7 +725,7 @@ QString QOtaClient::bootedRevision() const
 */
 QByteArray QOtaClient::bootedInfo() const
 {
-    return d_func()->info(QOtaClientPrivate::QueryTarget::Booted);
+    return d_func()->m_bootedInfo;
 }
 
 /*!
@@ -806,7 +738,7 @@ QByteArray QOtaClient::bootedInfo() const
 */
 QString QOtaClient::remoteVersion() const
 {
-    return d_func()->version(QOtaClientPrivate::QueryTarget::Remote);
+    return d_func()->m_remoteVersion;
 }
 
 /*!
@@ -819,7 +751,7 @@ QString QOtaClient::remoteVersion() const
 */
 QString QOtaClient::remoteDescription() const
 {
-    return d_func()->description(QOtaClientPrivate::QueryTarget::Remote);
+    return d_func()->m_remoteDescription;
 }
 
 /*!
@@ -830,7 +762,7 @@ QString QOtaClient::remoteDescription() const
 */
 QString QOtaClient::remoteRevision() const
 {
-    return d_func()->revision(QOtaClientPrivate::QueryTarget::Remote);
+    return d_func()->m_remoteRev;
 }
 
 /*!
@@ -844,7 +776,7 @@ QString QOtaClient::remoteRevision() const
 */
 QByteArray QOtaClient::remoteInfo() const
 {
-    return d_func()->info(QOtaClientPrivate::QueryTarget::Remote);
+    return d_func()->m_remoteInfo;
 }
 
 /*!
@@ -857,7 +789,7 @@ QByteArray QOtaClient::remoteInfo() const
 */
 QString QOtaClient::rollbackVersion() const
 {
-    return d_func()->version(QOtaClientPrivate::QueryTarget::Rollback);
+    return d_func()->m_rollbackVersion;
 }
 
 /*!
@@ -870,7 +802,7 @@ QString QOtaClient::rollbackVersion() const
 */
 QString QOtaClient::rollbackDescription() const
 {
-    return d_func()->description(QOtaClientPrivate::QueryTarget::Rollback);
+    return d_func()->m_rollbackDescription;
 }
 
 /*!
@@ -881,7 +813,7 @@ QString QOtaClient::rollbackDescription() const
 */
 QString QOtaClient::rollbackRevision() const
 {
-    return d_func()->revision(QOtaClientPrivate::QueryTarget::Rollback);
+    return d_func()->m_rollbackRev;
 }
 
 /*!
@@ -895,7 +827,7 @@ QString QOtaClient::rollbackRevision() const
 */
 QByteArray QOtaClient::rollbackInfo() const
 {
-    return d_func()->info(QOtaClientPrivate::QueryTarget::Rollback);
+    return d_func()->m_rollbackInfo;
 }
 
 QT_END_NAMESPACE

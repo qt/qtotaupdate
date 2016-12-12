@@ -49,14 +49,6 @@ class QOtaClientPrivate : public QObject
     Q_OBJECT
     Q_DECLARE_PUBLIC(QOtaClient)
 public:
-    enum class QueryTarget
-    {
-        Booted,
-        Remote,
-        Rollback
-    };
-    Q_ENUM(QueryTarget)
-
     QOtaClientPrivate(QOtaClient *client);
     virtual ~QOtaClientPrivate();
 
@@ -68,11 +60,6 @@ public:
     void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
     void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
     void defaultRevisionChanged(const QString &defaultRevision);
-
-    QString version(QueryTarget target) const;
-    QString description(QueryTarget target) const;
-    QString revision(QueryTarget target) const;
-    QByteArray info(QueryTarget target) const;
 
     bool isReady() const;
 

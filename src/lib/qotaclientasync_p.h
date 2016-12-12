@@ -72,7 +72,7 @@ signals:
     void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
-    QJsonDocument info(QOtaClientPrivate::QueryTarget target, bool *ok, const QString &rev = QString());
+    QJsonDocument infoFromRev(const QString &rev, bool *ok);
     int rollbackIndex();
     void handleRevisionChanges();
     bool emitGError(GError *error);
