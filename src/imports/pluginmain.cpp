@@ -373,9 +373,9 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OtaClient::repositoryConfigsEqual(OtaRepositoryConfig a, OtaRepositoryConfig b)
+    \qmlmethod bool OtaClient::isRepositoryConfigSet(OtaRepositoryConfig config)
 
-    \include qotaclient.cpp repository-configs-equal
+    \include qotaclient.cpp is-repository-config-set
 */
 
 /*!

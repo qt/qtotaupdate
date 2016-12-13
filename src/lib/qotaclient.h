@@ -81,7 +81,7 @@ public:
     Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
     Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
     Q_INVOKABLE bool removeRepositoryConfig();
-    Q_INVOKABLE bool repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryConfig *b);
+    Q_INVOKABLE bool isRepositoryConfigSet(QOtaRepositoryConfig *config) const;
 
     QString bootedVersion() const;
     QString bootedDescription() const;

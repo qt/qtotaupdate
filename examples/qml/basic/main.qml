@@ -63,8 +63,7 @@ Window {
     }
 
     function configureRepository(config, silent) {
-        var currentConfig = OtaClient.repositoryConfig()
-        if (currentConfig && OtaClient.repositoryConfigsEqual(currentConfig, config)) {
+        if (OtaClient.isRepositoryConfigSet(config)) {
             if (!silent)
                 log("The configuration is already set")
             return false;

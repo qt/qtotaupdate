@@ -480,16 +480,24 @@ bool QOtaClient::removeRepositoryConfig()
 }
 
 /*!
-//! [repository-configs-equal]
+//! [is-repository-config-set]
 
-    Compares if the configuration \a a is equal to the configuration \a b. Returns \c true
-    if configurations are equal (all properties are equal), otherwise returns \c false.
+    Returns \c true if the configuration \a config is already set; otherwise returns \c false.
 
-//! [repository-configs-equal]
+//! [is-repository-config-set]
 */
-bool QOtaClient::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryConfig *b)
+bool QOtaClient::isRepositoryConfigSet(QOtaRepositoryConfig *config) const
 {
-    return QOtaRepositoryConfig().d_func()->repositoryConfigsEqual(a, b);
+    QOtaRepositoryConfig *currentConfig = repositoryConfig();
+
+    bool isSet = currentConfig && config && currentConfig->url() == config->url() &&
+                 currentConfig->gpgVerify() == config->gpgVerify() &&
+                 currentConfig->tlsPermissive() == config->tlsPermissive() &&
+                 currentConfig->tlsClientCertPath() == config->tlsClientCertPath() &&
+                 currentConfig->tlsClientKeyPath() == config->tlsClientKeyPath() &&
+                 currentConfig->tlsCaPath() == config->tlsCaPath();
+
+    return isSet;
 }
 
 /*!
@@ -508,7 +516,7 @@ bool QOtaClient::repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryC
 bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 {
     Q_D(QOtaClient);
-    if (!d->isReady())
+    if (!d->isReady() || !config)
         return false;
 
     if (QDir().exists(repoConfigPath)) {

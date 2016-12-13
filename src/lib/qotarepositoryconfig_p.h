@@ -47,7 +47,6 @@ public:
     virtual ~QOtaRepositoryConfigPrivate();
 
     QOtaRepositoryConfig *repositoryConfigFromFile(const QString &configPath) const;
-    bool repositoryConfigsEqual(QOtaRepositoryConfig *a, QOtaRepositoryConfig *b) const;
 
     // members
     QOtaRepositoryConfig *const q_ptr;
