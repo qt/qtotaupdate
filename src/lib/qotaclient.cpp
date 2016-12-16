@@ -331,9 +331,9 @@ QOtaClient::~QOtaClient()
 
     \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
 */
-bool QOtaClient::fetchRemoteInfo() const
+bool QOtaClient::fetchRemoteInfo()
 {
-    Q_D(const QOtaClient);
+    Q_D(QOtaClient);
     if (!d->m_otaEnabled)
         return false;
 
@@ -353,8 +353,9 @@ bool QOtaClient::fetchRemoteInfo() const
 
     \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
 */
-bool QOtaClient::update() const
+bool QOtaClient::update()
 {
+
     Q_D(const QOtaClient);
     if (!d->m_otaEnabled || !updateAvailable())
         return false;
@@ -372,9 +373,9 @@ bool QOtaClient::update() const
     \note This method mutates system's state/metadata.
     \sa rollbackFinished(), restartRequired
 */
-bool QOtaClient::rollback() const
+bool QOtaClient::rollback()
 {
-    Q_D(const QOtaClient);
+    Q_D(QOtaClient);
     if (!d->m_otaEnabled)
         return false;
 
@@ -452,9 +453,9 @@ bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
 
 //! [refresh-info]
 */
-bool QOtaClient::refreshInfo() const
+bool QOtaClient::refreshInfo()
 {
-    Q_D(const QOtaClient);
+    Q_D(QOtaClient);
     if (!d->m_otaEnabled)
         return false;
 

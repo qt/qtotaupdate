@@ -70,17 +70,16 @@ public:
     QString errorString() const;
     QString statusString() const;
 
-    Q_INVOKABLE bool fetchRemoteInfo() const;
-    Q_INVOKABLE bool update() const;
-    Q_INVOKABLE bool rollback() const;
+    Q_INVOKABLE bool fetchRemoteInfo();
+    Q_INVOKABLE bool update();
+    Q_INVOKABLE bool rollback();
     Q_INVOKABLE bool updateOffline(const QString &packagePath);
     Q_INVOKABLE bool updateRemoteInfoOffline(const QString &packagePath);
-    Q_INVOKABLE bool refreshInfo() const;
-
+    Q_INVOKABLE bool refreshInfo();
     Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
-    Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
     Q_INVOKABLE bool removeRepositoryConfig();
     Q_INVOKABLE bool isRepositoryConfigSet(QOtaRepositoryConfig *config) const;
+    Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
 
     QString bootedVersion() const;
     QString bootedDescription() const;
