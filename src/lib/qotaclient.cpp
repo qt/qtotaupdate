@@ -399,7 +399,7 @@ bool QOtaClient::rollback()
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully. The \a packagePath
-    holds a path to the update package.
+    argument holds a path to the update package.
 
     \note This method mutates system's state/metadata.
 //! [update-offline]
@@ -428,7 +428,8 @@ bool QOtaClient::updateOffline(const QString &packagePath)
     counterpart for fetchRemoteInfo().
 
     This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
+    holds whether the operation was started successfully. The \a packagePath
+    argument holds a path to the update package.
 
     \note This method mutates system's state/metadata.
 //! [update-remote-offline]
