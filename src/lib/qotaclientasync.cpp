@@ -51,11 +51,11 @@ GLNX_DEFINE_CLEANUP_FUNCTION0(GObject*, glnx_local_obj_unref, g_object_unref)
 QOtaClientAsync::QOtaClientAsync()
 {
     // async mapper
-    connect(this, &QOtaClientAsync::fetchRemoteInfo, this, &QOtaClientAsync::_fetchRemoteInfo);
+    connect(this, &QOtaClientAsync::fetchRemoteMetadata, this, &QOtaClientAsync::_fetchRemoteMetadata);
     connect(this, &QOtaClientAsync::update, this, &QOtaClientAsync::_update);
     connect(this, &QOtaClientAsync::rollback, this, &QOtaClientAsync::_rollback);
     connect(this, &QOtaClientAsync::updateOffline, this, &QOtaClientAsync::_updateOffline);
-    connect(this, &QOtaClientAsync::updateRemoteInfoOffline, this, &QOtaClientAsync::_updateRemoteInfoOffline);
+    connect(this, &QOtaClientAsync::updateRemoteMetadataOffline, this, &QOtaClientAsync::_updateRemoteMetadataOffline);
 }
 
 QOtaClientAsync::~QOtaClientAsync()
@@ -123,7 +123,7 @@ OstreeSysroot* QOtaClientAsync::defaultSysroot()
     return sysroot;
 }
 
-QJsonDocument QOtaClientAsync::infoFromRev(const QString &rev, bool *ok)
+QJsonDocument QOtaClientAsync::metadataFromRev(const QString &rev, bool *ok)
 {
     QString jsonData;
     jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
@@ -131,18 +131,18 @@ QJsonDocument QOtaClientAsync::infoFromRev(const QString &rev, bool *ok)
         return QJsonDocument();
 
     QJsonParseError parseError;
-    QJsonDocument jsonInfo = QJsonDocument::fromJson(jsonData.toLatin1(), &parseError);
-    if (jsonInfo.isNull()) {
+    QJsonDocument jsonMetadata = QJsonDocument::fromJson(jsonData.toLatin1(), &parseError);
+    if (jsonMetadata.isNull()) {
         *ok = false;
         QString error = QString(QStringLiteral("failed to parse JSON file, error: %1, data: %2"))
                                 .arg(parseError.errorString()).arg(jsonData);
         emit errorOccurred(error);
     }
 
-    return jsonInfo;
+    return jsonMetadata;
 }
 
-bool QOtaClientAsync::refreshInfo(QOtaClientPrivate *d)
+bool QOtaClientAsync::refreshMetadata(QOtaClientPrivate *d)
 {
     glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
     if (!sysroot)
@@ -154,35 +154,35 @@ bool QOtaClientAsync::refreshInfo(QOtaClientPrivate *d)
         // Booted revision can change only when a device is rebooted.
         OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (sysroot);
         QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
-        QJsonDocument bootedInfo = infoFromRev(bootedRev, &ok);
+        QJsonDocument bootedMetadata = metadataFromRev(bootedRev, &ok);
         if (!ok)
             return false;
-        d->setBootedInfo(bootedRev, bootedInfo);
+        d->setBootedMetadata(bootedRev, bootedMetadata);
     }
 
     // prepopulate with what we think is on the remote server (head of the local repo)
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    QJsonDocument remoteInfo;
-    if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
+    QJsonDocument remoteMetadata;
+    if (ok) remoteMetadata = metadataFromRev(remoteRev, &ok);
     if (!ok)
         return false;
-    emit remoteInfoChanged(remoteRev, remoteInfo);
+    emit remoteMetadataChanged(remoteRev, remoteMetadata);
 
     ok = handleRevisionChanges(sysroot);
     return ok;
 }
 
-void QOtaClientAsync::_fetchRemoteInfo()
+void QOtaClientAsync::_fetchRemoteMetadata()
 {
     QString remoteRev;
-    QJsonDocument remoteInfo;
+    QJsonDocument remoteMetadata;
     bool ok = true;
     ostree(QStringLiteral("ostree pull --commit-metadata-only --disable-static-deltas qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
     if (ok) ostree(QString(QStringLiteral("ostree pull --subpath=/usr/etc/qt-ota.json qt-os %1")).arg(remoteRev), &ok);
-    if (ok) remoteInfo = infoFromRev(remoteRev, &ok);
-    if (ok) emit remoteInfoChanged(remoteRev, remoteInfo);
-    emit fetchRemoteInfoFinished(ok);
+    if (ok) remoteMetadata = metadataFromRev(remoteRev, &ok);
+    if (ok) emit remoteMetadataChanged(remoteRev, remoteMetadata);
+    emit fetchRemoteMetadataFinished(ok);
 }
 
 bool QOtaClientAsync::deployCommit(const QString &commit, OstreeSysroot *sysroot)
@@ -263,10 +263,10 @@ bool QOtaClientAsync::handleRevisionChanges(OstreeSysroot *sysroot, bool reloadS
         OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
         QString rollbackRev(QLatin1String(ostree_deployment_get_csum (rollbackDeployment)));
         bool ok = true;
-        QJsonDocument rollbackInfo = infoFromRev(rollbackRev, &ok);
+        QJsonDocument rollbackMetadata = metadataFromRev(rollbackRev, &ok);
         if (!ok)
             return false;
-        emit rollbackInfoChanged(rollbackRev, rollbackInfo, deployments->len);
+        emit rollbackMetadataChanged(rollbackRev, rollbackMetadata, deployments->len);
     }
 
     return true;
@@ -376,19 +376,19 @@ bool QOtaClientAsync::extractPackage(const QString &packagePath, OstreeSysroot *
     g_autofree char *toCsum = ostree_checksum_from_bytes_v (toCsumV);
     *updateToRev = QString::fromLatin1(toCsum);
 
-    QJsonDocument remoteInfo;
+    QJsonDocument remoteMetadata;
     ostree(QString(QStringLiteral("ostree reset qt-os:linux/qt %1")).arg(*updateToRev), &ok);
-    if (ok) remoteInfo = infoFromRev(*updateToRev, &ok);
-    if (ok) emit remoteInfoChanged(*updateToRev, remoteInfo);
+    if (ok) remoteMetadata = metadataFromRev(*updateToRev, &ok);
+    if (ok) emit remoteMetadataChanged(*updateToRev, remoteMetadata);
     return ok;
 }
 
-void QOtaClientAsync::_updateRemoteInfoOffline(const QString &packagePath)
+void QOtaClientAsync::_updateRemoteMetadataOffline(const QString &packagePath)
 {
     QString rev;
     glnx_unref_object OstreeSysroot *sysroot = defaultSysroot();
     bool ok = sysroot && extractPackage(packagePath, sysroot, &rev);
-    emit updateRemoteInfoOfflineFinished(ok);
+    emit updateRemoteMetadataOfflineFinished(ok);
 }
 
 void QOtaClientAsync::_updateOffline(const QString &packagePath)

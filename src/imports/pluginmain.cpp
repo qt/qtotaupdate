@@ -49,7 +49,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the booted
     system's version.
 
-    \sa bootedInfo
+    \sa bootedMetadata
 */
 
 /*!
@@ -59,7 +59,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the booted
     system's description.
 
-    \sa bootedInfo
+    \sa bootedMetadata
 */
 
 /*!
@@ -71,7 +71,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OtaClient::bootedInfo
+    \qmlproperty string OtaClient::bootedMetadata
     \readonly
 
     This property holds a JSON-formatted string containing the booted system's
@@ -85,7 +85,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the system's
     version on a server.
 
-    \sa remoteInfo
+    \sa remoteMetadata
 */
 
 /*!
@@ -95,7 +95,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the system's
     description on a server.
 
-    \sa remoteInfo
+    \sa remoteMetadata
 */
 
 /*!
@@ -107,7 +107,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OtaClient::remoteInfo
+    \qmlproperty string OtaClient::remoteMetadata
     \readonly
 
     This property holds a JSON-formatted string containing OTA metadata for the
@@ -121,7 +121,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the rollback
     system's version.
 
-    \sa rollbackInfo
+    \sa rollbackMetadata
 */
 
 /*!
@@ -131,7 +131,7 @@ QT_BEGIN_NAMESPACE
     This is a convenience property that holds a string containing the rollback
     system's description.
 
-    \sa rollbackInfo
+    \sa rollbackMetadata
 */
 
 /*!
@@ -143,7 +143,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OtaClient::rollbackInfo
+    \qmlproperty string OtaClient::rollbackMetadata
     \readonly
 
     This property holds a JSON-formatted string containing the rollback
@@ -153,31 +153,31 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal OtaClient::rollbackInfoChanged()
+    \qmlsignal OtaClient::rollbackMetadataChanged()
 
-    This signal is emitted when the rollback info changes. Rollback info
+    This signal is emitted when the rollback metadata changes. Rollback metadata
     changes when calling rollback().
 */
 
 /*!
-    \qmlmethod bool OtaClient::fetchRemoteInfo()
+    \qmlmethod bool OtaClient::fetchRemoteMetadata()
 
-    \include qotaclient.cpp fetchremoteinfo-description
+    \include qotaclient.cpp fetchremotemetadata-description
 
-    \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
+    \sa fetchRemoteMetadataFinished(), updateAvailable, remoteMetadata
 */
 
 /*!
-    \qmlsignal OtaClient::fetchRemoteInfoFinished(bool success)
+    \qmlsignal OtaClient::fetchRemoteMetadataFinished(bool success)
 
-    This is a notifier signal for fetchRemoteInfo(). The \a success argument
+    This is a notifier signal for fetchRemoteMetadata(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlsignal OtaClient::remoteInfoChanged()
+    \qmlsignal OtaClient::remoteMetadataChanged()
 
-    \include qotaclient.cpp remoteinfochanged-description
+    \include qotaclient.cpp remotemetadatachanged-description
 */
 
 /*!
@@ -185,7 +185,7 @@ QT_BEGIN_NAMESPACE
 
     \include qotaclient.cpp update-description
 
-    \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
+    \sa updateFinished(), fetchRemoteMetadata, restartRequired, setRepositoryConfig
 */
 
 /*!
@@ -230,24 +230,24 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod bool OtaClient::updateRemoteInfoOffline(string packagePath)
+    \qmlmethod bool OtaClient::updateRemoteMetadataOffline(string packagePath)
 
     \include qotaclient.cpp update-remote-offline
 
-    \sa remoteInfoChanged()
+    \sa remoteMetadataChanged()
 */
 
 /*!
-    \qmlsignal OtaClient::updateRemoteInfoOfflineFinished(bool success)
+    \qmlsignal OtaClient::updateRemoteMetadataOfflineFinished(bool success)
 
-    This is a notifier signal for updateRemoteInfoOffline(). The \a success argument
+    This is a notifier signal for updateRemoteMetadataOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \qmlmethod bool OtaClient::refreshInfo()
+    \qmlmethod bool OtaClient::refreshMetadata()
 
-    \include qotaclient.cpp refresh-info
+    \include qotaclient.cpp refresh-metadata
 */
 
 /*!
@@ -290,7 +290,7 @@ QT_BEGIN_NAMESPACE
     \readonly
 
     Holds a bool indicating the availability of a system update. This
-    information is cached; to update the local cache, call fetchRemoteInfo().
+    information is cached; to update the local cache, call fetchRemoteMetadata().
 
     \sa update()
 */

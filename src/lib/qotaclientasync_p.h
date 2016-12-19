@@ -52,39 +52,39 @@ public:
     virtual ~QOtaClientAsync();
 
     QString ostree(const QString &command, bool *ok, bool updateStatus = false);
-    bool refreshInfo(QOtaClientPrivate *d = nullptr);
+    bool refreshMetadata(QOtaClientPrivate *d = nullptr);
 
 signals:
-    void fetchRemoteInfo();
-    void fetchRemoteInfoFinished(bool success);
+    void fetchRemoteMetadata();
+    void fetchRemoteMetadataFinished(bool success);
     void update(const QString &updateToRev);
     void updateFinished(bool success);
     void rollback();
     void rollbackFinished(bool success);
     void updateOffline(const QString &packagePath);
     void updateOfflineFinished(bool success);
-    void updateRemoteInfoOffline(const QString &packagePath);
-    void updateRemoteInfoOfflineFinished(bool success);
-    void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
+    void updateRemoteMetadataOffline(const QString &packagePath);
+    void updateRemoteMetadataOfflineFinished(bool success);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
-    void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
     OstreeSysroot* defaultSysroot();
-    QJsonDocument infoFromRev(const QString &rev, bool *ok);
+    QJsonDocument metadataFromRev(const QString &rev, bool *ok);
     int rollbackIndex(OstreeSysroot *sysroot);
     bool handleRevisionChanges(OstreeSysroot *sysroot, bool reloadSysroot = false);
     void emitGError(GError *error);
     bool deployCommit(const QString &commit, OstreeSysroot *sysroot);
     bool extractPackage(const QString &packagePath, OstreeSysroot *sysroot, QString *updateToRev);
 
-    void _fetchRemoteInfo();
+    void _fetchRemoteMetadata();
     void _update(const QString &updateToRev);
     void _rollback();
     void _updateOffline(const QString &packagePath);
-    void _updateRemoteInfoOffline(const QString &packagePath);
+    void _updateRemoteMetadataOffline(const QString &packagePath);
 };
 
 QT_END_NAMESPACE

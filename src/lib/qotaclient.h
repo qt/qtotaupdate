@@ -50,15 +50,15 @@ class Q_DECL_EXPORT QOtaClient : public QObject
     Q_PROPERTY(QString bootedVersion READ bootedVersion)
     Q_PROPERTY(QString bootedDescription READ bootedDescription)
     Q_PROPERTY(QString bootedRevision READ bootedRevision)
-    Q_PROPERTY(QByteArray bootedInfo READ bootedInfo)
-    Q_PROPERTY(QString remoteVersion READ remoteVersion NOTIFY remoteInfoChanged)
-    Q_PROPERTY(QString remoteDescription READ remoteDescription NOTIFY remoteInfoChanged)
-    Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteInfoChanged)
-    Q_PROPERTY(QByteArray remoteInfo READ remoteInfo NOTIFY remoteInfoChanged)
-    Q_PROPERTY(QString rollbackVersion READ rollbackVersion NOTIFY rollbackInfoChanged)
-    Q_PROPERTY(QString rollbackDescription READ rollbackDescription NOTIFY rollbackInfoChanged)
-    Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackInfoChanged)
-    Q_PROPERTY(QByteArray rollbackInfo READ rollbackInfo NOTIFY rollbackInfoChanged)
+    Q_PROPERTY(QByteArray bootedMetadata READ bootedMetadata)
+    Q_PROPERTY(QString remoteVersion READ remoteVersion NOTIFY remoteMetadataChanged)
+    Q_PROPERTY(QString remoteDescription READ remoteDescription NOTIFY remoteMetadataChanged)
+    Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteMetadataChanged)
+    Q_PROPERTY(QByteArray remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
+    Q_PROPERTY(QString rollbackVersion READ rollbackVersion NOTIFY rollbackMetadataChanged)
+    Q_PROPERTY(QString rollbackDescription READ rollbackDescription NOTIFY rollbackMetadataChanged)
+    Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackMetadataChanged)
+    Q_PROPERTY(QByteArray rollbackMetadata READ rollbackMetadata NOTIFY rollbackMetadataChanged)
 public:
     static QOtaClient& instance();
     virtual ~QOtaClient();
@@ -70,12 +70,12 @@ public:
     QString errorString() const;
     QString statusString() const;
 
-    Q_INVOKABLE bool fetchRemoteInfo();
+    Q_INVOKABLE bool fetchRemoteMetadata();
     Q_INVOKABLE bool update();
     Q_INVOKABLE bool rollback();
     Q_INVOKABLE bool updateOffline(const QString &packagePath);
-    Q_INVOKABLE bool updateRemoteInfoOffline(const QString &packagePath);
-    Q_INVOKABLE bool refreshInfo();
+    Q_INVOKABLE bool updateRemoteMetadataOffline(const QString &packagePath);
+    Q_INVOKABLE bool refreshMetadata();
     Q_INVOKABLE bool setRepositoryConfig(QOtaRepositoryConfig *config);
     Q_INVOKABLE bool removeRepositoryConfig();
     Q_INVOKABLE bool isRepositoryConfigSet(QOtaRepositoryConfig *config) const;
@@ -84,21 +84,21 @@ public:
     QString bootedVersion() const;
     QString bootedDescription() const;
     QString bootedRevision() const;
-    QByteArray bootedInfo() const;
+    QByteArray bootedMetadata() const;
 
     QString remoteVersion() const;
     QString remoteDescription() const;
     QString remoteRevision() const;
-    QByteArray remoteInfo() const;
+    QByteArray remoteMetadata() const;
 
     QString rollbackVersion() const;
     QString rollbackDescription() const;
     QString rollbackRevision() const;
-    QByteArray rollbackInfo() const;
+    QByteArray rollbackMetadata() const;
 
 Q_SIGNALS:
-    void remoteInfoChanged();
-    void rollbackInfoChanged();
+    void remoteMetadataChanged();
+    void rollbackMetadataChanged();
     void updateAvailableChanged(bool available);
     void rollbackAvailableChanged();
     void restartRequiredChanged(bool required);
@@ -106,11 +106,11 @@ Q_SIGNALS:
     void errorOccurred(const QString &error);
     void repositoryConfigChanged(QOtaRepositoryConfig *config);
 
-    void fetchRemoteInfoFinished(bool success);
+    void fetchRemoteMetadataFinished(bool success);
     void updateFinished(bool success);
     void rollbackFinished(bool success);
     void updateOfflineFinished(bool success);
-    void updateRemoteInfoOfflineFinished(bool success);
+    void updateRemoteMetadataOfflineFinished(bool success);
 
 private:
     QOtaClient();

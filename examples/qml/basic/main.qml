@@ -102,13 +102,13 @@ Window {
         label.text += "<b>Revision: </b>" + rev
     }
     function updateBootedMetadataLabel() {
-        updateMetadataLabel(bootedMetadataLabel, OtaClient.bootedInfo, OtaClient.bootedRevision)
+        updateMetadataLabel(bootedMetadataLabel, OtaClient.bootedMetadata, OtaClient.bootedRevision)
     }
     function updateRemoteMetadataLabel() {
-        updateMetadataLabel(remoteMetadataLabel, OtaClient.remoteInfo, OtaClient.remoteRevision)
+        updateMetadataLabel(remoteMetadataLabel, OtaClient.remoteMetadata, OtaClient.remoteRevision)
     }
     function updateRollbackMetadataLabel() {
-        updateMetadataLabel(rollbackMetadataLabel, OtaClient.rollbackInfo, OtaClient.rollbackRevision)
+        updateMetadataLabel(rollbackMetadataLabel, OtaClient.rollbackMetadata, OtaClient.rollbackRevision)
     }
 
     Flickable {
@@ -156,12 +156,12 @@ Window {
                     }
                 }
                 Button {
-                    text: "Fetch OTA info"
+                    text: "Fetch OTA Metadata"
                     onClicked: {
                         if (!otaEnabled())
                             return;
-                        log("Fetcing OTA info...")
-                        OtaClient.fetchRemoteInfo()
+                        log("Fetcing OTA Metadata...")
+                        OtaClient.fetchRemoteMetadata()
                     }
                 }
                 Button {
@@ -246,8 +246,8 @@ Window {
         target: OtaClient
         onErrorChanged: logError(error)
         onStatusChanged: log(status)
-        onFetchRemoteInfoFinished: {
-            logWithCondition("Fetching info from a remote server", success)
+        onFetchRemoteMetadataFinished: {
+            logWithCondition("Fetching metadata from a remote server", success)
             if (success)
                 log("Update available: " + OtaClient.updateAvailable)
         }
@@ -255,8 +255,8 @@ Window {
         onRollbackFinished: logWithCondition("Rollback", success)
         onUpdateFinished: logWithCondition("Update", success)
         onRepositoryConfigChanged: updateConfigView(config)
-        onRemoteInfoChanged: updateRemoteMetadataLabel()
-        onRollbackInfoChanged: updateRollbackMetadataLabel()
+        onRemoteMetadataChanged: updateRemoteMetadataLabel()
+        onRollbackMetadataChanged: updateRollbackMetadataLabel()
     }
 
     Component.onCompleted: {

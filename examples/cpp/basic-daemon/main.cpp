@@ -44,7 +44,7 @@ public:
         m_device(&QOtaClient::instance()),
         m_guiUpdaterPath(guiUpdater)
     {
-        connect(m_device, &QOtaClient::fetchRemoteInfoFinished, this, &UpdateChecker::fetchFinished);
+        connect(m_device, &QOtaClient::fetchRemoteMetadataFinished, this, &UpdateChecker::fetchFinished);
         connect(m_device, &QOtaClient::statusStringChanged, this, &UpdateChecker::log);
         connect(m_device, &QOtaClient::errorOccurred, this, &UpdateChecker::logError);
         connect(&m_fetchTimer, &QTimer::timeout, this, &UpdateChecker::startFetch);
@@ -65,7 +65,7 @@ public:
     void startFetch()
     {
         log(QStringLiteral("verifying remote server for system updates..."));
-        m_device->fetchRemoteInfo();
+        m_device->fetchRemoteMetadata();
     }
 
     void fetchFinished(bool success)
@@ -76,7 +76,7 @@ public:
             // simply launch a GUI that can be used to execute the update commands (such as examples/qml/basic/).
             // A more sophisticated approach would be to use IPC (such as a push notification) to let the
             // already running UI know that there is an system update available. Then this UI can open
-            // OTA control view or call OtaClient::refreshInfo() if it is already at the OTA control view.
+            // OTA control view or call OtaClient::refreshMetadata() if it is already at the OTA control view.
             QString cmd = QString(m_guiUpdaterPath).prepend(QStringLiteral("/usr/bin/appcontroller "));
             log(QString(cmd).prepend(QStringLiteral("starting GUI: ")));
             bool ok = QProcess::startDetached(cmd);

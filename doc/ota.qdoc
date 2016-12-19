@@ -321,7 +321,7 @@
                       \li A JSON file containing arbitrary metadata about the system.
                           The following top-level fields have convenience methods in
                           the Qt/QML OTA API: \c version and \c description. Use
-                          OtaClient::remoteInfo to fetch the entire JSON file for
+                          OtaClient::remoteMetadata to access the entire JSON file for
                           manual parsing.
                   \endlist
 

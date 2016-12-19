@@ -56,9 +56,9 @@ public:
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     bool verifyPathExist(const QString &path);
-    void setBootedInfo(QString &bootedRev, const QJsonDocument &bootedInfo);
-    void rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount);
-    void remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo);
+    void setBootedMetadata(QString &bootedRev, const QJsonDocument &bootedMetadata);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount);
+    void remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
     // members
@@ -76,17 +76,17 @@ public:
     QString m_bootedVersion;
     QString m_bootedDescription;
     QString m_bootedRev;
-    QByteArray m_bootedInfo;
+    QByteArray m_bootedMetadata;
 
     QString m_remoteVersion;
     QString m_remoteDescription;
     QString m_remoteRev;
-    QByteArray m_remoteInfo;
+    QByteArray m_remoteMetadata;
 
     QString m_rollbackVersion;
     QString m_rollbackDescription;
     QString m_rollbackRev;
-    QByteArray m_rollbackInfo;
+    QByteArray m_rollbackMetadata;
 };
 
 QT_END_NAMESPACE

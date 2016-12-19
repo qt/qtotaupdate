@@ -71,12 +71,12 @@ QOtaClientPrivate::~QOtaClientPrivate()
     }
 }
 
-static void updateInfoMembers(const QJsonDocument &json, QByteArray *info, QString *version, QString *description)
+static void setMetadataMembers(const QJsonDocument &json, QByteArray *metadata, QString *version, QString *description)
 {
     if (json.isNull())
         return;
 
-    *info = json.toJson();
+    *metadata = json.toJson();
     QJsonObject root = json.object();
     *version = root.value(QStringLiteral("version")).toString(QStringLiteral("unknown"));
     *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
@@ -99,11 +99,11 @@ void QOtaClientPrivate::handleStateChanges()
     }
 }
 
-void QOtaClientPrivate::setBootedInfo(QString &bootedRev, const QJsonDocument &bootedInfo)
+void QOtaClientPrivate::setBootedMetadata(QString &bootedRev, const QJsonDocument &bootedMetadata)
 {
     Q_Q(QOtaClient);
     m_bootedRev = bootedRev;
-    updateInfoMembers(bootedInfo, &m_bootedInfo, &m_bootedVersion, &m_bootedDescription);
+    setMetadataMembers(bootedMetadata, &m_bootedMetadata, &m_bootedVersion, &m_bootedDescription);
 }
 
 void QOtaClientPrivate::statusStringChanged(const QString &status)
@@ -129,7 +129,7 @@ bool QOtaClientPrivate::verifyPathExist(const QString &path)
     return true;
 }
 
-void QOtaClientPrivate::rollbackInfoChanged(const QString &rollbackRev, const QJsonDocument &rollbackInfo, int treeCount)
+void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount)
 {
     Q_Q(QOtaClient);
     if (!m_rollbackAvailable && treeCount > 1) {
@@ -137,21 +137,21 @@ void QOtaClientPrivate::rollbackInfoChanged(const QString &rollbackRev, const QJ
         emit q->rollbackAvailableChanged();
     }
     m_rollbackRev = rollbackRev;
-    updateInfoMembers(rollbackInfo, &m_rollbackInfo, &m_rollbackVersion, &m_rollbackDescription);
-    q->rollbackInfoChanged();
+    setMetadataMembers(rollbackMetadata, &m_rollbackMetadata, &m_rollbackVersion, &m_rollbackDescription);
+    q->rollbackMetadataChanged();
 }
 
-void QOtaClientPrivate::remoteInfoChanged(const QString &remoteRev, const QJsonDocument &remoteInfo)
+void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata)
 {
     Q_Q(QOtaClient);
     if (m_remoteRev == remoteRev)
         return;
 
     m_remoteRev = remoteRev;
-    updateInfoMembers(remoteInfo, &m_remoteInfo, &m_remoteVersion, &m_remoteDescription);
+    setMetadataMembers(remoteMetadata, &m_remoteMetadata, &m_remoteVersion, &m_remoteDescription);
     handleStateChanges();
 
-    emit q->remoteInfoChanged();
+    emit q->remoteMetadataChanged();
 }
 
 void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
@@ -186,18 +186,18 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
     information is being modified by only a single process at a time.
 
     Methods that modify the system's state and/or metadata are marked as such. In a
-    multi-process scenario, refreshInfo() updates the processes' view of the system state
+    multi-process scenario, refreshMetadata() updates the processes' view of the system state
     and metadata. A typical example would be a daemon that periodically checks a remote
-    server (with fetchRemoteInfo()) for system updates, and then uses IPC (such as a push
+    server (with fetchRemoteMetadata()) for system updates, and then uses IPC (such as a push
     notification) to let the system's main GUI know when a new version is available.
 
 //! [client-description]
 */
 
 /*!
-    \fn void QOtaClient::fetchRemoteInfoFinished(bool success)
+    \fn void QOtaClient::fetchRemoteMetadataFinished(bool success)
 
-    A notifier signal for fetchRemoteInfo(). The \a success argument indicates
+    A notifier signal for fetchRemoteMetadata(). The \a success argument indicates
     whether the operation was successful.
 */
 
@@ -223,25 +223,25 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
 */
 
 /*!
-    \fn void QOtaClient::updateRemoteInfoOfflineFinished(bool success)
+    \fn void QOtaClient::updateRemoteMetadataOfflineFinished(bool success)
 
-    This is a notifier signal for updateRemoteInfoOffline(). The \a success argument
+    This is a notifier signal for updateRemoteMetadataOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
-    \fn void QOtaClient::remoteInfoChanged()
-//! [remoteinfochanged-description]
-    Remote info can change when calling fetchRemoteInfo() or updateRemoteInfoOffline().
+    \fn void QOtaClient::remoteMetadataChanged()
+//! [remotemetadatachanged-description]
+    Remote metadata can change when calling fetchRemoteMetadata() or updateRemoteMetadataOffline().
     If OTA metadata on the remote server is different from the local cache, the local
     cache is updated and this signal is emitted.
-//! [remoteinfochanged-description]
+//! [remotemetadatachanged-description]
 */
 
 /*!
-    \fn void QOtaClient::rollbackInfoChanged()
+    \fn void QOtaClient::rollbackMetadataChanged()
 
-    This signal is emitted when rollback info changes. Rollback info changes
+    This signal is emitted when rollback metadata changes. Rollback metadata changes
     when calling rollback().
 */
 
@@ -297,17 +297,17 @@ QOtaClient::QOtaClient() :
     Q_D(QOtaClient);
     if (d->m_otaEnabled) {
         QOtaClientAsync *async = d->m_otaAsync.data();
-        connect(async, &QOtaClientAsync::fetchRemoteInfoFinished, this, &QOtaClient::fetchRemoteInfoFinished);
+        connect(async, &QOtaClientAsync::fetchRemoteMetadataFinished, this, &QOtaClient::fetchRemoteMetadataFinished);
         connect(async, &QOtaClientAsync::updateFinished, this, &QOtaClient::updateFinished);
         connect(async, &QOtaClientAsync::rollbackFinished, this, &QOtaClient::rollbackFinished);
         connect(async, &QOtaClientAsync::updateOfflineFinished, this, &QOtaClient::updateOfflineFinished);
-        connect(async, &QOtaClientAsync::updateRemoteInfoOfflineFinished, this, &QOtaClient::updateRemoteInfoOfflineFinished);
+        connect(async, &QOtaClientAsync::updateRemoteMetadataOfflineFinished, this, &QOtaClient::updateRemoteMetadataOfflineFinished);
         connect(async, &QOtaClientAsync::errorOccurred, d, &QOtaClientPrivate::errorOccurred);
         connect(async, &QOtaClientAsync::statusStringChanged, d, &QOtaClientPrivate::statusStringChanged);
-        connect(async, &QOtaClientAsync::rollbackInfoChanged, d, &QOtaClientPrivate::rollbackInfoChanged);
-        connect(async, &QOtaClientAsync::remoteInfoChanged, d, &QOtaClientPrivate::remoteInfoChanged);
+        connect(async, &QOtaClientAsync::rollbackMetadataChanged, d, &QOtaClientPrivate::rollbackMetadataChanged);
+        connect(async, &QOtaClientAsync::remoteMetadataChanged, d, &QOtaClientPrivate::remoteMetadataChanged);
         connect(async, &QOtaClientAsync::defaultRevisionChanged, d, &QOtaClientPrivate::defaultRevisionChanged);
-        d->m_otaAsync->refreshInfo(d);
+        d->m_otaAsync->refreshMetadata(d);
     }
 }
 
@@ -326,7 +326,7 @@ QOtaClient& QOtaClient::instance()
 }
 
 /*!
-//! [fetchremoteinfo-description]
+//! [fetchremotemetadata-description]
     Fetches OTA metadata from a remote server and updates the local metadata
     cache. This metadata contains information on what system version is available
     on a server. The cache is persistent as it is stored on the disk.
@@ -335,17 +335,17 @@ QOtaClient& QOtaClient::instance()
     holds whether the operation was started successfully.
 
     \note This method mutates system's state/metadata.
-//! [fetchremoteinfo-description]
+//! [fetchremotemetadata-description]
 
-    \sa fetchRemoteInfoFinished(), updateAvailable, remoteInfo
+    \sa fetchRemoteMetadataFinished(), updateAvailable, remoteMetadata
 */
-bool QOtaClient::fetchRemoteInfo()
+bool QOtaClient::fetchRemoteMetadata()
 {
     Q_D(QOtaClient);
     if (!d->m_otaEnabled)
         return false;
 
-    d->m_otaAsync->fetchRemoteInfo();
+    d->m_otaAsync->fetchRemoteMetadata();
     return true;
 }
 
@@ -359,7 +359,7 @@ bool QOtaClient::fetchRemoteInfo()
     \note This method mutates system's state/metadata.
 //! [update-description]
 
-    \sa updateFinished(), fetchRemoteInfo, restartRequired, setRepositoryConfig
+    \sa updateFinished(), fetchRemoteMetadata, restartRequired, setRepositoryConfig
 */
 bool QOtaClient::update()
 {
@@ -395,7 +395,7 @@ bool QOtaClient::rollback()
 //! [update-offline]
     Uses the provided self-contained update package to update the system.
     Updates the local metadata cache, if it has not been already updated
-    by calling updateRemoteInfoOffline().
+    by calling updateRemoteMetadataOffline().
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully. The \a packagePath
@@ -425,7 +425,7 @@ bool QOtaClient::updateOffline(const QString &packagePath)
     Uses the provided self-contained update package to update local metadata cache.
     This metadata contains information on what system version is available on a server.
     The cache is persistent as it is stored on the disk. This method is an offline
-    counterpart for fetchRemoteInfo().
+    counterpart for fetchRemoteMetadata().
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully. The \a packagePath
@@ -434,9 +434,9 @@ bool QOtaClient::updateOffline(const QString &packagePath)
     \note This method mutates system's state/metadata.
 //! [update-remote-offline]
 
-    \sa remoteInfoChanged
+    \sa remoteMetadataChanged
 */
-bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
+bool QOtaClient::updateRemoteMetadataOffline(const QString &packagePath)
 {
     Q_D(QOtaClient);
     if (!d->m_otaEnabled)
@@ -449,26 +449,26 @@ bool QOtaClient::updateRemoteInfoOffline(const QString &packagePath)
         return false;
     }
 
-    d->m_otaAsync->updateRemoteInfoOffline(package.absoluteFilePath());
+    d->m_otaAsync->updateRemoteMetadataOffline(package.absoluteFilePath());
     return true;
 }
 
 /*!
-//! [refresh-info]
+//! [refresh-metadata]
     Refreshes the instances view of the system's state from the local metadata cache.
-    Returns \c true if info is refreshed successfully; otherwise returns \c false.
+    Returns \c true if metadata is refreshed successfully; otherwise returns \c false.
 
     Using this method is not required when only one process is responsible for all OTA tasks.
 
-//! [refresh-info]
+//! [refresh-metadata]
 */
-bool QOtaClient::refreshInfo()
+bool QOtaClient::refreshMetadata()
 {
     Q_D(QOtaClient);
     if (!d->m_otaEnabled)
         return false;
 
-    return d->m_otaAsync->refreshInfo();
+    return d->m_otaAsync->refreshMetadata();
 }
 
 /*!
@@ -650,7 +650,7 @@ QString QOtaClient::statusString() const
     \brief whether a system update is available.
 
     This information is cached; to update the local cache, call
-    fetchRemoteInfo().
+    fetchRemoteMetadata().
 */
 bool QOtaClient::updateAvailable() const
 {
@@ -692,7 +692,7 @@ bool QOtaClient::restartRequired() const
 
     This is a convenience method.
 
-    \sa bootedInfo
+    \sa bootedMetadata
 */
 QString QOtaClient::bootedVersion() const
 {
@@ -705,7 +705,7 @@ QString QOtaClient::bootedVersion() const
 
     This is a convenience method.
 
-    \sa bootedInfo
+    \sa bootedMetadata
 */
 QString QOtaClient::bootedDescription() const
 {
@@ -724,15 +724,15 @@ QString QOtaClient::bootedRevision() const
 }
 
 /*!
-    \property QOtaClient::bootedInfo
+    \property QOtaClient::bootedMetadata
     \brief a QByteArray containing the booted system's OTA metadata.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the booted
     system. Metadata is bundled with each system's version.
 */
-QByteArray QOtaClient::bootedInfo() const
+QByteArray QOtaClient::bootedMetadata() const
 {
-    return d_func()->m_bootedInfo;
+    return d_func()->m_bootedMetadata;
 }
 
 /*!
@@ -741,7 +741,7 @@ QByteArray QOtaClient::bootedInfo() const
 
     This is a convenience method.
 
-    \sa remoteInfo
+    \sa remoteMetadata
 */
 QString QOtaClient::remoteVersion() const
 {
@@ -754,7 +754,7 @@ QString QOtaClient::remoteVersion() const
 
     This is a convenience method.
 
-    \sa remoteInfo
+    \sa remoteMetadata
 */
 QString QOtaClient::remoteDescription() const
 {
@@ -773,17 +773,17 @@ QString QOtaClient::remoteRevision() const
 }
 
 /*!
-    \property QOtaClient::remoteInfo
+    \property QOtaClient::remoteMetadata
     \brief a QByteArray containing the system's OTA metadata on a server.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the system
     on a server. Metadata is bundled with each system's version.
 
-    \sa fetchRemoteInfo()
+    \sa fetchRemoteMetadata()
 */
-QByteArray QOtaClient::remoteInfo() const
+QByteArray QOtaClient::remoteMetadata() const
 {
-    return d_func()->m_remoteInfo;
+    return d_func()->m_remoteMetadata;
 }
 
 /*!
@@ -792,7 +792,7 @@ QByteArray QOtaClient::remoteInfo() const
 
     This is a convenience method.
 
-    \sa rollbackInfo
+    \sa rollbackMetadata
 */
 QString QOtaClient::rollbackVersion() const
 {
@@ -805,7 +805,7 @@ QString QOtaClient::rollbackVersion() const
 
     This is a convenience method.
 
-    \sa rollbackInfo
+    \sa rollbackMetadata
 */
 QString QOtaClient::rollbackDescription() const
 {
@@ -824,7 +824,7 @@ QString QOtaClient::rollbackRevision() const
 }
 
 /*!
-    \property QOtaClient::rollbackInfo
+    \property QOtaClient::rollbackMetadata
     \brief a QByteArray containing the rollback system's OTA metadata.
 
     Returns a JSON-formatted QByteArray containing OTA metadata for the rollback
@@ -832,9 +832,9 @@ QString QOtaClient::rollbackRevision() const
 
     \sa rollback()
 */
-QByteArray QOtaClient::rollbackInfo() const
+QByteArray QOtaClient::rollbackMetadata() const
 {
-    return d_func()->m_rollbackInfo;
+    return d_func()->m_rollbackMetadata;
 }
 
 QT_END_NAMESPACE
