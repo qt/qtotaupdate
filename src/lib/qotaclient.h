@@ -60,7 +60,7 @@ class Q_DECL_EXPORT QOtaClient : public QObject
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackInfoChanged)
     Q_PROPERTY(QByteArray rollbackInfo READ rollbackInfo NOTIFY rollbackInfoChanged)
 public:
-    explicit QOtaClient(QObject *parent = nullptr);
+    static QOtaClient& instance();
     virtual ~QOtaClient();
 
     bool updateAvailable() const;
@@ -113,6 +113,7 @@ Q_SIGNALS:
     void updateRemoteInfoOfflineFinished(bool success);
 
 private:
+    QOtaClient();
     Q_DISABLE_COPY(QOtaClient)
     Q_DECLARE_PRIVATE(QOtaClient)
     QOtaClientPrivate *const d_ptr;

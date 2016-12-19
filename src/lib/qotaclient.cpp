@@ -291,8 +291,7 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
     \c nullptr value).
 */
 
-QOtaClient::QOtaClient(QObject *parent) :
-    QObject(parent),
+QOtaClient::QOtaClient() :
     d_ptr(new QOtaClientPrivate(this))
 {
     Q_D(QOtaClient);
@@ -315,6 +314,15 @@ QOtaClient::QOtaClient(QObject *parent) :
 QOtaClient::~QOtaClient()
 {
     delete d_ptr;
+}
+
+/*!
+    Returns a singleton instance of QOtaClient.
+*/
+QOtaClient& QOtaClient::instance()
+{
+    static QOtaClient otaClient;
+    return otaClient;
 }
 
 /*!

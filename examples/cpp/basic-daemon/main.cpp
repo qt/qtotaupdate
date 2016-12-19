@@ -40,16 +40,18 @@ class UpdateChecker : public QObject
 {
     Q_OBJECT
 public:
-    UpdateChecker(const QString &guiUpdater) : m_guiUpdaterPath(guiUpdater)
+    UpdateChecker(const QString &guiUpdater) :
+        m_device(&QOtaClient::instance()),
+        m_guiUpdaterPath(guiUpdater)
     {
-        connect(&m_device, &QOtaClient::fetchRemoteInfoFinished, this, &UpdateChecker::fetchFinished);
-        connect(&m_device, &QOtaClient::statusStringChanged, this, &UpdateChecker::log);
-        connect(&m_device, &QOtaClient::errorOccurred, this, &UpdateChecker::logError);
+        connect(m_device, &QOtaClient::fetchRemoteInfoFinished, this, &UpdateChecker::fetchFinished);
+        connect(m_device, &QOtaClient::statusStringChanged, this, &UpdateChecker::log);
+        connect(m_device, &QOtaClient::errorOccurred, this, &UpdateChecker::logError);
         connect(&m_fetchTimer, &QTimer::timeout, this, &UpdateChecker::startFetch);
 
         m_repoConfig.setUrl(QStringLiteral("http://www.b2qtupdate.com/ostree-repo"));
-        if (!m_device.isRepositoryConfigSet(&m_repoConfig))
-            m_device.setRepositoryConfig(&m_repoConfig);
+        if (!m_device->isRepositoryConfigSet(&m_repoConfig))
+            m_device->setRepositoryConfig(&m_repoConfig);
 
         m_fetchTimer.setSingleShot(true);
         m_fetchTimer.start();
@@ -63,12 +65,12 @@ public:
     void startFetch()
     {
         log(QStringLiteral("verifying remote server for system updates..."));
-        m_device.fetchRemoteInfo();
+        m_device->fetchRemoteInfo();
     }
 
     void fetchFinished(bool success)
     {
-        if (success && m_device.updateAvailable()) {
+        if (success && m_device->updateAvailable()) {
             log(QStringLiteral("update available"));
             // Any inter-process communication mechanism could be used here. In this demo we
             // simply launch a GUI that can be used to execute the update commands (such as examples/qml/basic/).
@@ -91,7 +93,7 @@ public:
     }
 
 private:
-    QOtaClient m_device;
+    QOtaClient *m_device;
     QOtaRepositoryConfig m_repoConfig;
     QTimer m_fetchTimer;
     QString m_guiUpdaterPath;

@@ -472,8 +472,9 @@ static QObject *otaClientSingleton(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 {
     Q_UNUSED(qmlEngine);
     Q_UNUSED(jsEngine);
-    return new QOtaClient;
+    return &QOtaClient::instance();
 }
+
 class QOTAUpdatePlugin : public QQmlExtensionPlugin
 {
     Q_OBJECT
