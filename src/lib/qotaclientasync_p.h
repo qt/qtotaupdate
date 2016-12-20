@@ -64,15 +64,15 @@ signals:
     void updateOfflineFinished(bool success);
     void updateRemoteMetadataOffline(const QString &packagePath);
     void updateRemoteMetadataOfflineFinished(bool success);
-    void rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QString &rollbackMetadata, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
-    void remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata);
+    void remoteMetadataChanged(const QString &remoteRev, const QString &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
     OstreeSysroot* defaultSysroot();
-    QByteArray metadataFromRev(const QString &rev, bool *ok);
+    QString metadataFromRev(const QString &rev, bool *ok);
     int rollbackIndex(OstreeSysroot *sysroot);
     bool handleRevisionChanges(OstreeSysroot *sysroot, bool reloadSysroot = false);
     void emitGError(GError *error);

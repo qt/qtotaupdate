@@ -88,7 +88,7 @@ void QOtaClientPrivate::handleStateChanges()
     }
 }
 
-void QOtaClientPrivate::setBootedMetadata(QString &bootedRev, const QByteArray &bootedMetadata)
+void QOtaClientPrivate::setBootedMetadata(const QString &bootedRev, const QString &bootedMetadata)
 {
     Q_Q(QOtaClient);
     m_bootedRev = bootedRev;
@@ -118,7 +118,7 @@ bool QOtaClientPrivate::verifyPathExist(const QString &path)
     return true;
 }
 
-void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount)
+void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, const QString &rollbackMetadata, int treeCount)
 {
     Q_Q(QOtaClient);
     if (m_rollbackRev == rollbackRev)
@@ -135,7 +135,7 @@ void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, cons
     q->rollbackMetadataChanged();
 }
 
-void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata)
+void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QString &remoteMetadata)
 {
     Q_Q(QOtaClient);
     if (m_remoteRev == remoteRev)
@@ -694,12 +694,12 @@ QString QOtaClient::bootedRevision() const
 
 /*!
     \property QOtaClient::bootedMetadata
-    \brief a QByteArray containing the booted system's OTA metadata.
+    \brief a QString containing the booted system's OTA metadata.
 
-    Returns a JSON-formatted QByteArray containing OTA metadata for the booted
+    Returns a JSON-formatted QString containing OTA metadata for the booted
     system. Metadata is bundled with each system's version.
 */
-QByteArray QOtaClient::bootedMetadata() const
+QString QOtaClient::bootedMetadata() const
 {
     return d_func()->m_bootedMetadata;
 }
@@ -717,14 +717,14 @@ QString QOtaClient::remoteRevision() const
 
 /*!
     \property QOtaClient::remoteMetadata
-    \brief a QByteArray containing the system's OTA metadata on a server.
+    \brief a QString containing the system's OTA metadata on a server.
 
-    Returns a JSON-formatted QByteArray containing OTA metadata for the system
+    Returns a JSON-formatted QString containing OTA metadata for the system
     on a server. Metadata is bundled with each system's version.
 
     \sa fetchRemoteMetadata()
 */
-QByteArray QOtaClient::remoteMetadata() const
+QString QOtaClient::remoteMetadata() const
 {
     return d_func()->m_remoteMetadata;
 }
@@ -742,14 +742,14 @@ QString QOtaClient::rollbackRevision() const
 
 /*!
     \property QOtaClient::rollbackMetadata
-    \brief a QByteArray containing the rollback system's OTA metadata.
+    \brief a QString containing the rollback system's OTA metadata.
 
-    Returns a JSON-formatted QByteArray containing OTA metadata for the rollback
+    Returns a JSON-formatted QString containing OTA metadata for the rollback
     system. Metadata is bundled with each system's version.
 
     \sa rollback()
 */
-QByteArray QOtaClient::rollbackMetadata() const
+QString QOtaClient::rollbackMetadata() const
 {
     return d_func()->m_rollbackMetadata;
 }

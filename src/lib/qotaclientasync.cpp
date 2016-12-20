@@ -125,15 +125,15 @@ OstreeSysroot* QOtaClientAsync::defaultSysroot()
     return sysroot;
 }
 
-QByteArray QOtaClientAsync::metadataFromRev(const QString &rev, bool *ok)
+QString QOtaClientAsync::metadataFromRev(const QString &rev, bool *ok)
 {
     QString jsonData;
     jsonData = ostree(QString(QStringLiteral("ostree cat %1 /usr/etc/qt-ota.json")).arg(rev), ok);
     if (jsonData.isEmpty())
-        return QByteArray();
+        return jsonData;
 
     QJsonParseError parseError;
-    QJsonDocument jsonMetadata = QJsonDocument::fromJson(jsonData.toLatin1(), &parseError);
+    QJsonDocument jsonMetadata = QJsonDocument::fromJson(jsonData.toUtf8(), &parseError);
     if (jsonMetadata.isNull()) {
         *ok = false;
         QString error = QString(QStringLiteral("failed to parse JSON file, error: %1, data: %2"))
@@ -141,7 +141,8 @@ QByteArray QOtaClientAsync::metadataFromRev(const QString &rev, bool *ok)
         emit errorOccurred(error);
     }
 
-    return jsonMetadata.toJson();
+    QByteArray ba = jsonMetadata.toJson();
+    return QString::fromUtf8(ba);
 }
 
 bool QOtaClientAsync::refreshMetadata(QOtaClientPrivate *d)
@@ -156,7 +157,7 @@ bool QOtaClientAsync::refreshMetadata(QOtaClientPrivate *d)
         // Booted revision can change only when a device is rebooted.
         OstreeDeployment *bootedDeployment = (OstreeDeployment*)ostree_sysroot_get_booted_deployment (sysroot);
         QString bootedRev = QLatin1String(ostree_deployment_get_csum (bootedDeployment));
-        QByteArray bootedMetadata = metadataFromRev(bootedRev, &ok);
+        QString bootedMetadata = metadataFromRev(bootedRev, &ok);
         if (!ok)
             return false;
         d->setBootedMetadata(bootedRev, bootedMetadata);
@@ -164,7 +165,7 @@ bool QOtaClientAsync::refreshMetadata(QOtaClientPrivate *d)
 
     // prepopulate with what we think is on the remote server (head of the local repo)
     QString remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
-    QByteArray remoteMetadata;
+    QString remoteMetadata;
     if (ok) remoteMetadata = metadataFromRev(remoteRev, &ok);
     if (!ok)
         return false;
@@ -177,7 +178,7 @@ bool QOtaClientAsync::refreshMetadata(QOtaClientPrivate *d)
 void QOtaClientAsync::_fetchRemoteMetadata()
 {
     QString remoteRev;
-    QByteArray remoteMetadata;
+    QString remoteMetadata;
     bool ok = true;
     ostree(QStringLiteral("ostree pull --commit-metadata-only --disable-static-deltas qt-os linux/qt"), &ok);
     if (ok) remoteRev = ostree(QStringLiteral("ostree rev-parse linux/qt"), &ok);
@@ -265,7 +266,7 @@ bool QOtaClientAsync::handleRevisionChanges(OstreeSysroot *sysroot, bool reloadS
         OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
         QString rollbackRev(QLatin1String(ostree_deployment_get_csum (rollbackDeployment)));
         bool ok = true;
-        QByteArray rollbackMetadata = metadataFromRev(rollbackRev, &ok);
+        QString rollbackMetadata = metadataFromRev(rollbackRev, &ok);
         if (!ok)
             return false;
         emit rollbackMetadataChanged(rollbackRev, rollbackMetadata, deployments->len);
@@ -378,7 +379,7 @@ bool QOtaClientAsync::extractPackage(const QString &packagePath, OstreeSysroot *
     g_autofree char *toCsum = ostree_checksum_from_bytes_v (toCsumV);
     *updateToRev = QString::fromLatin1(toCsum);
 
-    QByteArray remoteMetadata;
+    QString remoteMetadata;
     ostree(QString(QStringLiteral("ostree reset qt-os:linux/qt %1")).arg(*updateToRev), &ok);
     if (ok) remoteMetadata = metadataFromRev(*updateToRev, &ok);
     if (ok) emit remoteMetadataChanged(*updateToRev, remoteMetadata);

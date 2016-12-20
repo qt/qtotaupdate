@@ -31,7 +31,6 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QLoggingCategory>
-#include <QtCore/QByteArray>
 #include <QtCore/QScopedPointer>
 
 QT_BEGIN_NAMESPACE
@@ -55,9 +54,9 @@ public:
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     bool verifyPathExist(const QString &path);
-    void setBootedMetadata(QString &bootedRev, const QByteArray &bootedMetadata);
-    void rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount);
-    void remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata);
+    void setBootedMetadata(const QString &bootedRev, const QString &bootedMetadata);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QString &rollbackMetadata, int treeCount);
+    void remoteMetadataChanged(const QString &remoteRev, const QString &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
     // members
@@ -73,11 +72,11 @@ public:
     QString m_defaultRev;
 
     QString m_bootedRev;
-    QByteArray m_bootedMetadata;
+    QString m_bootedMetadata;
     QString m_remoteRev;
-    QByteArray m_remoteMetadata;
+    QString m_remoteMetadata;
     QString m_rollbackRev;
-    QByteArray m_rollbackMetadata;
+    QString m_rollbackMetadata;
 };
 
 QT_END_NAMESPACE

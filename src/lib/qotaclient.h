@@ -31,7 +31,6 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
-#include <QtCore/QByteArray>
 
 QT_BEGIN_NAMESPACE
 
@@ -48,11 +47,11 @@ class Q_DECL_EXPORT QOtaClient : public QObject
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
     Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
     Q_PROPERTY(QString bootedRevision READ bootedRevision)
-    Q_PROPERTY(QByteArray bootedMetadata READ bootedMetadata)
+    Q_PROPERTY(QString bootedMetadata READ bootedMetadata)
     Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteMetadataChanged)
-    Q_PROPERTY(QByteArray remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
+    Q_PROPERTY(QString remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackMetadataChanged)
-    Q_PROPERTY(QByteArray rollbackMetadata READ rollbackMetadata NOTIFY rollbackMetadataChanged)
+    Q_PROPERTY(QString rollbackMetadata READ rollbackMetadata NOTIFY rollbackMetadataChanged)
 public:
     static QOtaClient& instance();
     virtual ~QOtaClient();
@@ -76,11 +75,11 @@ public:
     Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
 
     QString bootedRevision() const;
-    QByteArray bootedMetadata() const;
+    QString bootedMetadata() const;
     QString remoteRevision() const;
-    QByteArray remoteMetadata() const;
+    QString remoteMetadata() const;
     QString rollbackRevision() const;
-    QByteArray rollbackMetadata() const;
+    QString rollbackMetadata() const;
 
 Q_SIGNALS:
     void remoteMetadataChanged();

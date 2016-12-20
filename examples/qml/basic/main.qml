@@ -88,13 +88,11 @@ Window {
     }
 
     function updateMetadataLabel(label, metadata, rev) {
-        // QByteArray to JS string.
-        var metadataString = metadata.toString()
-        if (metadataString.length === 0) {
+        if (metadata.length === 0) {
             label.text = "<b>No metadata available</b>"
             return
         }
-        var metadataObj = JSON.parse(metadataString)
+        var metadataObj = JSON.parse(metadata)
         label.text = ""
         for (var property in metadataObj)
             label.text += "<b>" + property.charAt(0).toUpperCase()
