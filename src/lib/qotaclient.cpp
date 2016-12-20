@@ -71,17 +71,6 @@ QOtaClientPrivate::~QOtaClientPrivate()
     }
 }
 
-static void setMetadataMembers(const QJsonDocument &json, QByteArray *metadata, QString *version, QString *description)
-{
-    if (json.isNull())
-        return;
-
-    *metadata = json.toJson();
-    QJsonObject root = json.object();
-    *version = root.value(QStringLiteral("version")).toString(QStringLiteral("unknown"));
-    *description = root.value(QStringLiteral("description")).toString(QStringLiteral("unknown"));
-}
-
 void QOtaClientPrivate::handleStateChanges()
 {
     Q_Q(QOtaClient);
@@ -99,11 +88,11 @@ void QOtaClientPrivate::handleStateChanges()
     }
 }
 
-void QOtaClientPrivate::setBootedMetadata(QString &bootedRev, const QJsonDocument &bootedMetadata)
+void QOtaClientPrivate::setBootedMetadata(QString &bootedRev, const QByteArray &bootedMetadata)
 {
     Q_Q(QOtaClient);
     m_bootedRev = bootedRev;
-    setMetadataMembers(bootedMetadata, &m_bootedMetadata, &m_bootedVersion, &m_bootedDescription);
+    m_bootedMetadata = bootedMetadata;
 }
 
 void QOtaClientPrivate::statusStringChanged(const QString &status)
@@ -129,26 +118,31 @@ bool QOtaClientPrivate::verifyPathExist(const QString &path)
     return true;
 }
 
-void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount)
+void QOtaClientPrivate::rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount)
 {
     Q_Q(QOtaClient);
+    if (m_rollbackRev == rollbackRev)
+        return;
+
     if (!m_rollbackAvailable && treeCount > 1) {
         m_rollbackAvailable = true;
         emit q->rollbackAvailableChanged();
     }
+
     m_rollbackRev = rollbackRev;
-    setMetadataMembers(rollbackMetadata, &m_rollbackMetadata, &m_rollbackVersion, &m_rollbackDescription);
+    m_rollbackMetadata = rollbackMetadata;
+
     q->rollbackMetadataChanged();
 }
 
-void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata)
+void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata)
 {
     Q_Q(QOtaClient);
     if (m_remoteRev == remoteRev)
         return;
 
     m_remoteRev = remoteRev;
-    setMetadataMembers(remoteMetadata, &m_remoteMetadata, &m_remoteVersion, &m_remoteDescription);
+    m_remoteMetadata = remoteMetadata;
     handleStateChanges();
 
     emit q->remoteMetadataChanged();
@@ -456,6 +450,7 @@ bool QOtaClient::updateRemoteMetadataOffline(const QString &packagePath)
 /*!
 //! [refresh-metadata]
     Refreshes the instances view of the system's state from the local metadata cache.
+    Notifier signals are emitted for properties that depend on changed metadata.
     Returns \c true if metadata is refreshed successfully; otherwise returns \c false.
 
     Using this method is not required when only one process is responsible for all OTA tasks.
@@ -687,32 +682,6 @@ bool QOtaClient::restartRequired() const
 }
 
 /*!
-    \property QOtaClient::bootedVersion
-    \brief a QString containing the booted system's version.
-
-    This is a convenience method.
-
-    \sa bootedMetadata
-*/
-QString QOtaClient::bootedVersion() const
-{
-    return d_func()->m_bootedVersion;
-}
-
-/*!
-    \property QOtaClient::bootedDescription
-    \brief a QString containing the booted system's description.
-
-    This is a convenience method.
-
-    \sa bootedMetadata
-*/
-QString QOtaClient::bootedDescription() const
-{
-    return d_func()->m_bootedDescription;
-}
-
-/*!
     \property QOtaClient::bootedRevision
     \brief a QString containing the booted system's revision.
 
@@ -733,32 +702,6 @@ QString QOtaClient::bootedRevision() const
 QByteArray QOtaClient::bootedMetadata() const
 {
     return d_func()->m_bootedMetadata;
-}
-
-/*!
-    \property QOtaClient::remoteVersion
-    \brief a QString containing the system's version on a server.
-
-    This is a convenience method.
-
-    \sa remoteMetadata
-*/
-QString QOtaClient::remoteVersion() const
-{
-    return d_func()->m_remoteVersion;
-}
-
-/*!
-    \property QOtaClient::remoteDescription
-    \brief a QString containing the system's description on a server.
-
-    This is a convenience method.
-
-    \sa remoteMetadata
-*/
-QString QOtaClient::remoteDescription() const
-{
-    return d_func()->m_remoteDescription;
 }
 
 /*!
@@ -784,32 +727,6 @@ QString QOtaClient::remoteRevision() const
 QByteArray QOtaClient::remoteMetadata() const
 {
     return d_func()->m_remoteMetadata;
-}
-
-/*!
-    \property QOtaClient::rollbackVersion
-    \brief a QString containing the rollback system's version.
-
-    This is a convenience method.
-
-    \sa rollbackMetadata
-*/
-QString QOtaClient::rollbackVersion() const
-{
-    return d_func()->m_rollbackVersion;
-}
-
-/*!
-    \property QOtaClient::rollbackDescription
-    \brief a QString containing the rollback system's description.
-
-    This is a convenience method.
-
-    \sa rollbackMetadata
-*/
-QString QOtaClient::rollbackDescription() const
-{
-    return d_func()->m_rollbackDescription;
 }
 
 /*!

@@ -47,16 +47,10 @@ class Q_DECL_EXPORT QOtaClient : public QObject
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
     Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
-    Q_PROPERTY(QString bootedVersion READ bootedVersion)
-    Q_PROPERTY(QString bootedDescription READ bootedDescription)
     Q_PROPERTY(QString bootedRevision READ bootedRevision)
     Q_PROPERTY(QByteArray bootedMetadata READ bootedMetadata)
-    Q_PROPERTY(QString remoteVersion READ remoteVersion NOTIFY remoteMetadataChanged)
-    Q_PROPERTY(QString remoteDescription READ remoteDescription NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QByteArray remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
-    Q_PROPERTY(QString rollbackVersion READ rollbackVersion NOTIFY rollbackMetadataChanged)
-    Q_PROPERTY(QString rollbackDescription READ rollbackDescription NOTIFY rollbackMetadataChanged)
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackMetadataChanged)
     Q_PROPERTY(QByteArray rollbackMetadata READ rollbackMetadata NOTIFY rollbackMetadataChanged)
 public:
@@ -81,18 +75,10 @@ public:
     Q_INVOKABLE bool isRepositoryConfigSet(QOtaRepositoryConfig *config) const;
     Q_INVOKABLE QOtaRepositoryConfig *repositoryConfig() const;
 
-    QString bootedVersion() const;
-    QString bootedDescription() const;
     QString bootedRevision() const;
     QByteArray bootedMetadata() const;
-
-    QString remoteVersion() const;
-    QString remoteDescription() const;
     QString remoteRevision() const;
     QByteArray remoteMetadata() const;
-
-    QString rollbackVersion() const;
-    QString rollbackDescription() const;
     QString rollbackRevision() const;
     QByteArray rollbackMetadata() const;
 

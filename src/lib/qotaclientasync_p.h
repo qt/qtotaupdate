@@ -33,7 +33,6 @@
 #include "qotaclient_p.h"
 
 #include <QtCore/QObject>
-#include <QtCore/QJsonDocument>
 #include <QtCore/QProcess>
 
 QT_BEGIN_NAMESPACE
@@ -65,15 +64,15 @@ signals:
     void updateOfflineFinished(bool success);
     void updateRemoteMetadataOffline(const QString &packagePath);
     void updateRemoteMetadataOfflineFinished(bool success);
-    void rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount);
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
-    void remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata);
+    void remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
 protected:
     OstreeSysroot* defaultSysroot();
-    QJsonDocument metadataFromRev(const QString &rev, bool *ok);
+    QByteArray metadataFromRev(const QString &rev, bool *ok);
     int rollbackIndex(OstreeSysroot *sysroot);
     bool handleRevisionChanges(OstreeSysroot *sysroot, bool reloadSysroot = false);
     void emitGError(GError *error);

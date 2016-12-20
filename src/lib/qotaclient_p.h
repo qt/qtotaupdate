@@ -33,7 +33,6 @@
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QByteArray>
 #include <QtCore/QScopedPointer>
-#include <QtCore/QJsonDocument>
 
 QT_BEGIN_NAMESPACE
 
@@ -56,9 +55,9 @@ public:
     void statusStringChanged(const QString &status);
     void errorOccurred(const QString &error);
     bool verifyPathExist(const QString &path);
-    void setBootedMetadata(QString &bootedRev, const QJsonDocument &bootedMetadata);
-    void rollbackMetadataChanged(const QString &rollbackRev, const QJsonDocument &rollbackMetadata, int treeCount);
-    void remoteMetadataChanged(const QString &remoteRev, const QJsonDocument &remoteMetadata);
+    void setBootedMetadata(QString &bootedRev, const QByteArray &bootedMetadata);
+    void rollbackMetadataChanged(const QString &rollbackRev, const QByteArray &rollbackMetadata, int treeCount);
+    void remoteMetadataChanged(const QString &remoteRev, const QByteArray &remoteMetadata);
     void defaultRevisionChanged(const QString &defaultRevision);
 
     // members
@@ -73,18 +72,10 @@ public:
     QScopedPointer<QOtaClientAsync> m_otaAsync;
     QString m_defaultRev;
 
-    QString m_bootedVersion;
-    QString m_bootedDescription;
     QString m_bootedRev;
     QByteArray m_bootedMetadata;
-
-    QString m_remoteVersion;
-    QString m_remoteDescription;
     QString m_remoteRev;
     QByteArray m_remoteMetadata;
-
-    QString m_rollbackVersion;
-    QString m_rollbackDescription;
     QString m_rollbackRev;
     QByteArray m_rollbackMetadata;
 };

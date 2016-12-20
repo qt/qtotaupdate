@@ -43,26 +43,6 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OtaClient::bootedVersion
-    \readonly
-
-    This is a convenience property that holds a string containing the booted
-    system's version.
-
-    \sa bootedMetadata
-*/
-
-/*!
-    \qmlproperty string OtaClient::bootedDescription
-    \readonly
-
-    This is a convenience property that holds a string containing the booted
-    system's description.
-
-    \sa bootedMetadata
-*/
-
-/*!
     \qmlproperty string OtaClient::bootedRevision
     \readonly
 
@@ -79,26 +59,6 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty string OtaClient::remoteVersion
-    \readonly
-
-    This is a convenience property that holds a string containing the system's
-    version on a server.
-
-    \sa remoteMetadata
-*/
-
-/*!
-    \qmlproperty string OtaClient::remoteDescription
-    \readonly
-
-    This is a convenience property that holds a string containing the system's
-    description on a server.
-
-    \sa remoteMetadata
-*/
-
-/*!
     \qmlproperty string OtaClient::remoteRevision
     \readonly
 
@@ -112,26 +72,6 @@ QT_BEGIN_NAMESPACE
 
     This property holds a JSON-formatted string containing OTA metadata for the
     system on a server. Metadata is bundled with each system's version.
-*/
-
-/*!
-    \qmlproperty string OtaClient::rollbackVersion
-    \readonly
-
-    This is a convenience property that holds a string containing the rollback
-    system's version.
-
-    \sa rollbackMetadata
-*/
-
-/*!
-    \qmlproperty string OtaClient::rollbackDescription
-    \readonly
-
-    This is a convenience property that holds a string containing the rollback
-    system's description.
-
-    \sa rollbackMetadata
 */
 
 /*!
