@@ -108,6 +108,9 @@ Window {
     function updateRollbackMetadataLabel() {
         updateMetadataLabel(rollbackMetadataLabel, OtaClient.rollbackMetadata, OtaClient.rollbackRevision)
     }
+    function updateDefaultMetadataLabel() {
+        updateMetadataLabel(defaultMetadataLabel, OtaClient.defaultMetadata, OtaClient.defaultRevision)
+    }
 
     Flickable {
         anchors.fill: parent
@@ -128,6 +131,9 @@ Window {
 
             Label { text: "ROLLBACK"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
             Label { id: rollbackMetadataLabel; lineHeight : 1.3 }
+
+            Label { text: "DEFAULT"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
+            Label { id: defaultMetadataLabel; lineHeight : 1.3 }
 
             Label { text: "REPOSITORY CONFIGURATION"; Layout.bottomMargin: 14; Layout.topMargin: 14; font.underline: true }
             Label { id: repoConfigLabel; lineHeight : 1.3 }
@@ -255,6 +261,7 @@ Window {
         onRepositoryConfigChanged: updateConfigView(config)
         onRemoteMetadataChanged: updateRemoteMetadataLabel()
         onRollbackMetadataChanged: updateRollbackMetadataLabel()
+        onDefaultMetadataChanged: updateDefaultMetadataLabel()
     }
 
     Component.onCompleted: {
@@ -272,5 +279,6 @@ Window {
         updateBootedMetadataLabel()
         updateRemoteMetadataLabel()
         updateRollbackMetadataLabel()
+        updateDefaultMetadataLabel()
     }
 }

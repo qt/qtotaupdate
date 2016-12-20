@@ -57,7 +57,7 @@ public:
     void setBootedMetadata(const QString &bootedRev, const QString &bootedMetadata);
     void rollbackMetadataChanged(const QString &rollbackRev, const QString &rollbackMetadata, int treeCount);
     void remoteMetadataChanged(const QString &remoteRev, const QString &remoteMetadata);
-    void defaultRevisionChanged(const QString &defaultRevision);
+    void defaultRevisionChanged(const QString &defaultRevision, const QString &defaultMetadata);
 
     // members
     QOtaClient *const q_ptr;
@@ -69,7 +69,6 @@ public:
     QString m_error;
     QThread *m_otaAsyncThread;
     QScopedPointer<QOtaClientAsync> m_otaAsync;
-    QString m_defaultRev;
 
     QString m_bootedRev;
     QString m_bootedMetadata;
@@ -77,6 +76,8 @@ public:
     QString m_remoteMetadata;
     QString m_rollbackRev;
     QString m_rollbackMetadata;
+    QString m_defaultRev;
+    QString m_defaultMetadata;
 };
 
 QT_END_NAMESPACE

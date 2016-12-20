@@ -258,14 +258,17 @@ bool QOtaClientAsync::handleRevisionChanges(OstreeSysroot *sysroot, bool reloadS
 
     g_autoptr(GPtrArray) deployments = ostree_sysroot_get_deployments (sysroot);
     OstreeDeployment *firstDeployment = (OstreeDeployment*)deployments->pdata[0];
+    bool ok = true;
     QString defaultRev(QLatin1String(ostree_deployment_get_csum (firstDeployment)));
-    emit defaultRevisionChanged(defaultRev);
+    QString defaultMetadata = metadataFromRev(defaultRev, &ok);
+    if (!ok)
+        return false;
+    emit defaultRevisionChanged(defaultRev, defaultMetadata);
 
     int index = rollbackIndex(sysroot);
     if (index != -1) {
         OstreeDeployment *rollbackDeployment = (OstreeDeployment*)deployments->pdata[index];
         QString rollbackRev(QLatin1String(ostree_deployment_get_csum (rollbackDeployment)));
-        bool ok = true;
         QString rollbackMetadata = metadataFromRev(rollbackRev, &ok);
         if (!ok)
             return false;

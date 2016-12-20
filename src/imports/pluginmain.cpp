@@ -100,6 +100,27 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty string OtaClient::defaultRevision
+    \readonly
+
+    This property holds a string containing the default system's revision (a
+    checksum in the OSTree repository).
+*/
+
+/*!
+    \qmlproperty string OtaClient::defaultMetadata
+    \readonly
+
+    \include qotaclient.cpp default-metadata
+*/
+
+/*!
+    \qmlsignal OtaClient::defaultMetadataChanged()
+
+    This signal is emitted when the default metadata changes.
+*/
+
+/*!
     \qmlmethod bool OtaClient::fetchRemoteMetadata()
 
     \include qotaclient.cpp fetchremotemetadata-description
@@ -137,14 +158,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlmethod bool OtaClient::rollback()
-
-    Rollback to the previous system version.
-
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
-
-    \note This method mutates system's state/metadata.
-    \sa rollbackFinished(), restartRequired
+    \include qotaclient.cpp rollback-description
 */
 
 /*!
@@ -229,10 +243,9 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool OtaClient::updateAvailable
     \readonly
 
-    Holds a bool indicating the availability of a system update. This
-    information is cached; to update the local cache, call fetchRemoteMetadata().
+    Holds a bool indicating the availability of a system update.
 
-    \sa update()
+    \include qotaclient.cpp update-available-description
 */
 
 /*!
@@ -263,9 +276,8 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool OtaClient::restartRequired
     \readonly
 
-    Holds a bool indicating whether a reboot is required. Reboot is required
-    after update(), updateOffline() and rollback(), to boot into the new default
-    system.
+    Holds a bool indicating whether a reboot is required.
+    Reboot is required when the default system differ from the booted system.
 */
 
 /*!

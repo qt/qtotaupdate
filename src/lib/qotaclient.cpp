@@ -75,7 +75,9 @@ void QOtaClientPrivate::handleStateChanges()
 {
     Q_Q(QOtaClient);
 
-    bool updateAvailable = m_defaultRev != m_remoteRev && m_remoteRev != m_bootedRev;
+    // The default system is used as the configuration merge source
+    // when performing a system update.
+    bool updateAvailable = m_defaultRev != m_remoteRev;
     if (m_updateAvailable != updateAvailable) {
         m_updateAvailable = updateAvailable;
         emit q->updateAvailableChanged(m_updateAvailable);
@@ -148,13 +150,17 @@ void QOtaClientPrivate::remoteMetadataChanged(const QString &remoteRev, const QS
     emit q->remoteMetadataChanged();
 }
 
-void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
+void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, const QString &defaultMetadata)
 {
+    Q_Q(QOtaClient);
     if (m_defaultRev == defaultRevision)
         return;
 
     m_defaultRev = defaultRevision;
+    m_defaultMetadata = defaultMetadata;
     handleStateChanges();
+
+    emit q->defaultMetadataChanged();
 }
 
 /*!
@@ -237,6 +243,12 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision)
 
     This signal is emitted when rollback metadata changes. Rollback metadata changes
     when calling rollback().
+*/
+
+/*!
+    \fn void QOtaClient::defaultMetadataChanged()
+
+    This signal is emitted when the default metadata changes.
 */
 
 /*!
@@ -367,13 +379,16 @@ bool QOtaClient::update()
 }
 
 /*!
-    Rollback to the previous system version.
+//! [rollback-description]
+    Rollback to the previous system version. The currently booted system
+    becomes the new rollback system.
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
     \note This method mutates system's state/metadata.
     \sa rollbackFinished(), restartRequired
+//! [rollback-description]
 */
 bool QOtaClient::rollback()
 {
@@ -644,8 +659,12 @@ QString QOtaClient::statusString() const
     \property QOtaClient::updateAvailable
     \brief whether a system update is available.
 
-    This information is cached; to update the local cache, call
-    fetchRemoteMetadata().
+//! [update-available-description]
+    This information is cached; to update the local cache, call fetchRemoteMetadata().
+    The return value holds whether a system update is available for the default system.
+
+    \sa update()
+//! [update-available-description]
 */
 bool QOtaClient::updateAvailable() const
 {
@@ -671,9 +690,9 @@ bool QOtaClient::rollbackAvailable() const
     \property QOtaClient::restartRequired
     \brief whether a reboot is required.
 
-    Reboot is required after update(), updateOffline() and rollback(),
-    to boot into the new default system.
+    Reboot is required when the default system differ from the booted system.
 
+    \sa defaultRevision, defaultMetadata
 */
 bool QOtaClient::restartRequired() const
 {
@@ -685,7 +704,7 @@ bool QOtaClient::restartRequired() const
     \property QOtaClient::bootedRevision
     \brief a QString containing the booted system's revision.
 
-    A booted revision is a checksum in the OSTree repository.
+    A checksum in the OSTree repository.
 */
 QString QOtaClient::bootedRevision() const
 {
@@ -752,6 +771,34 @@ QString QOtaClient::rollbackRevision() const
 QString QOtaClient::rollbackMetadata() const
 {
     return d_func()->m_rollbackMetadata;
+}
+
+/*!
+    \property QOtaClient::defaultRevision
+    \brief a QString containing the default system's revision.
+
+    A checksum in the OSTree repository.
+*/
+QString QOtaClient::defaultRevision() const
+{
+    return d_func()->m_defaultRev;
+}
+
+/*!
+    \property QOtaClient::defaultMetadata
+    \brief a QString containing the default system's OTA metadata.
+
+//! [default-metadata]
+    A default system represents what the host will boot into the next time
+    system is rebooted. A default system changes after system updates or rollbacks.
+
+    Returns a JSON-formatted QString containing OTA metadata for the default
+    system. Metadata is bundled with each system's version.
+//! [default-metadata]
+*/
+QString QOtaClient::defaultMetadata() const
+{
+    return d_func()->m_defaultMetadata;
 }
 
 QT_END_NAMESPACE

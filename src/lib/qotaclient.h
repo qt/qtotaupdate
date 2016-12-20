@@ -52,6 +52,8 @@ class Q_DECL_EXPORT QOtaClient : public QObject
     Q_PROPERTY(QString remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackMetadataChanged)
     Q_PROPERTY(QString rollbackMetadata READ rollbackMetadata NOTIFY rollbackMetadataChanged)
+    Q_PROPERTY(QString defaultRevision READ defaultRevision NOTIFY defaultMetadataChanged)
+    Q_PROPERTY(QString defaultMetadata READ defaultMetadata NOTIFY defaultMetadataChanged)
 public:
     static QOtaClient& instance();
     virtual ~QOtaClient();
@@ -80,10 +82,13 @@ public:
     QString remoteMetadata() const;
     QString rollbackRevision() const;
     QString rollbackMetadata() const;
+    QString defaultRevision() const;
+    QString defaultMetadata() const;
 
 Q_SIGNALS:
     void remoteMetadataChanged();
     void rollbackMetadataChanged();
+    void defaultMetadataChanged();
     void updateAvailableChanged(bool available);
     void rollbackAvailableChanged();
     void restartRequiredChanged(bool required);

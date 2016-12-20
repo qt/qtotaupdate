@@ -68,7 +68,7 @@ signals:
     void errorOccurred(const QString &error);
     void statusStringChanged(const QString &status);
     void remoteMetadataChanged(const QString &remoteRev, const QString &remoteMetadata);
-    void defaultRevisionChanged(const QString &defaultRevision);
+    void defaultRevisionChanged(const QString &defaultRevision, const QString &defaultMetadata);
 
 protected:
     OstreeSysroot* defaultSysroot();
