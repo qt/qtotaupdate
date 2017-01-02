@@ -68,11 +68,10 @@ generate_initramfs()
 {
     MODULE_PATH=/usr/lib/dracut/modules.d/
 
-    substring="No such file or directory"
-    output=$("${ADB}" shell ls /lib/systemd/systemd)
-    systemd=false
-    if [[ $output != *${substring}* ]] ; then
-        systemd=true
+    init_system=$(basename $("${ADB}" shell readlink -f /sbin/init) | tr -d '\r')
+    if [ "$init_system" != "systemd" ] ; then
+        echo "error: Failed to detected systemd init support on the image"
+        exit 1
     fi
 
     options='/boot/initramfs.img
@@ -82,18 +81,11 @@ generate_initramfs()
             --stdlog 3
             --force'
 
-    if [ ${systemd} = true ] ; then
-        # OSTree ships with a dracut module for systemd based images.
-        echo "Generating initramfs for systemd based image ..."
-        "${ADB}" push "${ROOT}"/systemd/01-qt.conf /etc/dracut.conf.d/
-        "${ADB}" push "${ROOT}"/systemd/e2fsck.conf /etc/
-        custom_options="--add systemd --install /etc/e2fsck.conf"
-    else
-        # Deploy our custom dracut module for systemd-less images.
-        echo "WARNING: Failed to detect systemd init support. Using System V as a fallback init system ..."
-        "${ADB}" push "${ROOT}"/systemv/ "${MODULE_PATH}"/98ostree/
-        custom_options="--omit systemd"
-    fi
+    # OSTree ships with a dracut module for systemd based images.
+    echo "Generating initramfs for systemd based image ..."
+    "${ADB}" push "${ROOT}"/systemd/01-qt.conf /etc/dracut.conf.d/
+    "${ADB}" push "${ROOT}"/systemd/e2fsck.conf /etc/
+    custom_options="--add systemd --install /etc/e2fsck.conf"
 
     # Recovery module parts
     #"${ADB}" push "${ROOT}"/recovery/ "${MODULE_PATH}"/98recovery/

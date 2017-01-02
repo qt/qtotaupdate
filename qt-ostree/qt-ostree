@@ -723,26 +723,9 @@ convert_to_ostree_sysroot()
         echo "PRETTY_NAME=\"${OS_NAME}\"" > ${GENERATED_TREE}/etc/os-release
     fi
 
-    systemd=false
-    cd ${GENERATED_TREE}
-    if [ -e lib/systemd/systemd ] ; then
-        systemd=true
-        qt_ostree_info "Detected systemd init support on the image"
-    fi
-
-    if [ ${systemd} = false ] ; then
-        qt_ostree_warning "Failed to detect systemd init support. Using System V as a fallback init system."
-        # Run ostree-remount on startup. This makes sure that
-        # rw/ro mounts are set correctly for ostree to work.
-        cp ${ROOT}/ostree-remount.sh etc/init.d/
-        chmod +x etc/init.d/ostree-remount.sh
-        # System V init services are started in alphanumeric order. We want to remount
-        # things as early as possible so we prepend 'a' in S01[a]ostree-remount.sh
-        ln -fs ../init.d/ostree-remount.sh etc/rc1.d/S01aostree-remount.sh
-        ln -fs ../init.d/ostree-remount.sh etc/rc2.d/S01aostree-remount.sh
-        ln -fs ../init.d/ostree-remount.sh etc/rc3.d/S01aostree-remount.sh
-        ln -fs ../init.d/ostree-remount.sh etc/rc4.d/S01aostree-remount.sh
-        ln -fs ../init.d/ostree-remount.sh etc/rc5.d/S01aostree-remount.sh
+    init_system=$(basename $(readlink -f ${GENERATED_TREE}/sbin/init))
+    if [ "$init_system" != "systemd" ] ; then
+        qt_ostree_error "Failed to detected systemd init support on the image"
     fi
 
     adjust_sysroot_layout
