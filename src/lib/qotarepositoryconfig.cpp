@@ -87,23 +87,48 @@ QOtaRepositoryConfig *QOtaRepositoryConfigPrivate::repositoryConfigFromFile(cons
 }
 
 /*!
+    \inqmlmodule QtOtaUpdate
+    \qmltype OtaRepositoryConfig
+    \instantiates QOtaRepositoryConfig
+    \brief Used to configure the OSTree repository.
+
+    OtaRepositoryConfig
+    \include qotarepositoryconfig.cpp repository-config-description
+*/
+
+/*!
     \class QOtaRepositoryConfig
     \inmodule qtotaupdate
     \brief Used to configure the OSTree repository.
 
     QOtaRepositoryConfig
 //! [repository-config-description]
-    provides an API to configure an OSTree repository. The repository
-    on client devices is located in \c {/ostree/repo}. The update process involves client
-    devices replicating an OSTree repository from a remote sever. Use this class to describe
-    the remote repository location and enable/disable security features.
+    provides an API to configure the OSTree repository (located in \c {/ostree/repo}). The
+    update process synchronizes the local repository with the remote repository (see \l url).
+    The local repository keeps history for the current and the previous snapshot of the system.
+
+    This class is used to configure TLS authentication and whether to utilize GPG for update
+    integrity verification.
+
 //! [repository-config-description]
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::urlChanged()
+
+    This signal is emitted when the value of \l url changes.
 */
 
 /*!
     \fn void QOtaRepositoryConfig::urlChanged()
 
-    This signal is emitted when the value of url changes.
+    This signal is emitted when the value of \l url changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::gpgVerifyChanged()
+
+    This signal is emitted when the value of gpgVerify changes.
 */
 
 /*!
@@ -113,9 +138,21 @@ QOtaRepositoryConfig *QOtaRepositoryConfigPrivate::repositoryConfigFromFile(cons
 */
 
 /*!
+    \qmlsignal OtaRepositoryConfig::tlsClientCertPathChanged()
+
+    This signal is emitted when the value of tlsClientCertPath changes.
+*/
+
+/*!
     \fn void QOtaRepositoryConfig::tlsClientCertPathChanged()
 
     This signal is emitted when the value of tlsClientCertPath changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsClientKeyPathChanged()
+
+    This signal is emitted when the value of tlsClientKeyPath changes.
 */
 
 /*!
@@ -125,9 +162,21 @@ QOtaRepositoryConfig *QOtaRepositoryConfigPrivate::repositoryConfigFromFile(cons
 */
 
 /*!
+    \qmlsignal OtaRepositoryConfig::tlsPermissiveChanged()
+
+    This signal is emitted when the value of tlsPermissive changes.
+*/
+
+/*!
     \fn void QOtaRepositoryConfig::tlsPermissiveChanged()
 
     This signal is emitted when the value of tlsPermissive changes.
+*/
+
+/*!
+    \qmlsignal OtaRepositoryConfig::tlsCaPathChanged()
+
+    This signal is emitted when the value of tlsCaPath changes.
 */
 
 /*!
@@ -158,9 +207,16 @@ void QOtaRepositoryConfig::setUrl(const QString &url)
 }
 
 /*!
-    \property QOtaRepositoryConfig::url
-    \brief a URL for accessing remote OSTree repository.
+    \qmlproperty string OtaRepositoryConfig::url
 
+    Holds a URL to a remote OSTree repository.
+    The supported schemes are \c http and \c https.
+*/
+
+/*!
+    \property QOtaRepositoryConfig::url
+
+    Holds a URL to a remote OSTree repository.
     The supported schemes are \c http and \c https.
 */
 QString QOtaRepositoryConfig::url() const
@@ -179,8 +235,17 @@ void QOtaRepositoryConfig::setGpgVerify(bool verify)
 }
 
 /*!
+    \qmlproperty bool OtaRepositoryConfig::gpgVerify
+
+    Holds whether OSTree will require system updates to be signed by a known GPG key.
+
+    Default is \c false.
+*/
+
+/*!
     \property QOtaRepositoryConfig::gpgVerify
-    \brief whether or not OSTree will require commits to be signed by a known GPG key.
+
+    Holds whether OSTree will require system updates to be signed by a known GPG key.
 
     Default is \c false.
 */
@@ -200,11 +265,17 @@ void QOtaRepositoryConfig::setTlsClientCertPath(const QString &certPath)
 }
 
 /*!
-    \property QOtaRepositoryConfig::tlsClientCertPath
-    \brief a path to a file for the client-side certificate.
+    \qmlproperty string OtaRepositoryConfig::tlsClientCertPath
 
-    A path to a file for the client-side certificate, to present when making requests
-    to the remote repository.
+    Holds a path to a client-side certificate, to present when making requests
+    to the remote server.
+*/
+
+/*!
+    \property QOtaRepositoryConfig::tlsClientCertPath
+
+    Holds a path to a client-side certificate, to present when making requests
+    to the remote server.
 */
 QString QOtaRepositoryConfig::tlsClientCertPath() const
 {
@@ -222,11 +293,17 @@ void QOtaRepositoryConfig::setTlsClientKeyPath(const QString &keyPath)
 }
 
 /*!
-    \property QOtaRepositoryConfig::tlsClientKeyPath
-    \brief a path to a file containing the client-side certificate key.
+    \qmlproperty string OtaRepositoryConfig::tlsClientKeyPath
 
-    A path to a file containing the client-side certificate key, to present when making
-    requests to the remote repository.
+    Holds a path to a client-side certificate's key, to present when making requests
+    to the remote server.
+*/
+
+/*!
+    \property QOtaRepositoryConfig::tlsClientKeyPath
+
+    Holds a path to a client-side certificate's key, to present when making requests
+    to the remote server.
 */
 QString QOtaRepositoryConfig::tlsClientKeyPath() const
 {
@@ -244,10 +321,17 @@ void QOtaRepositoryConfig::setTlsPermissive(bool permissive)
 }
 
 /*!
-    \property QOtaRepositoryConfig::tlsPermissive
-    \brief whether to check the server's TLS certificates against the system's certificate store.
+    \qmlproperty bool OtaRepositoryConfig::tlsPermissive
 
-    If this variable is set to \c true, any certificate will be accepted.
+    Holds whether to check the server's TLS certificates against the system's certificate store.
+
+    Default is \c false.
+*/
+
+/*!
+    \property QOtaRepositoryConfig::tlsPermissive
+
+    Holds whether to check the server's TLS certificates against the system's certificate store.
 
     Default is \c false.
 */
@@ -267,8 +351,15 @@ void QOtaRepositoryConfig::setTlsCaPath(const QString &caPath)
 }
 
 /*!
+    \qmlproperty string OtaRepositoryConfig::tlsCaPath
+
+    Holds a path to a file containing trusted anchors instead of the system's CA database.
+*/
+
+/*!
     \property QOtaRepositoryConfig::tlsCaPath
-    \brief a path to a file containing trusted anchors instead of the system's CA database.
+
+    Holds a path to a file containing trusted anchors instead of the system's CA database.
 */
 QString QOtaRepositoryConfig::tlsCaPath() const
 {

@@ -163,34 +163,52 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 }
 
 /*!
+    \inqmlmodule QtOtaUpdate
+    \qmltype OtaClient
+    \instantiates QOtaClient
+    \brief Main interface to the OTA functionality.
+
+    OtaClient
+    \include qotaclient.cpp client-description
+*/
+
+/*!
     \class QOtaClient
     \inmodule qtotaupdate
     \brief Main interface to the OTA functionality.
 
     QOtaClient
 //! [client-description]
-    provides an API to execute Over-the-Air update tasks. Offline
-    operations include querying the booted and rollback system version details,
-    and atomically performing rollbacks. Online operations include fetching a
-    new system version from a remote server, and atomically performing system
-    updates. Using this API is safe and won't leave the system in an inconsistent
-    state, even if the power fails half-way through.
+    provides an API to administer the system's update routines. Offline operations
+    include querying the booted, the default and the rollback system metadata,
+    atomically updating the system from self-contained update packages and atomically
+    performing system rollbacks. Online operations include fetching metadata
+    for the system on a remote server and atomically performing system updates
+    by fetching the update via http(s).
 
-    A remote needs to be configured for a device to be able to locate a server
-    that is hosting an OTA update, see setRepositoryConfig().
+    Using this API is safe and won't leave the system in an inconsistent state,
+    even if the power fails half-way through. A device needs to be configured for
+    it to be able to locate a server that is hosting a system update, see setRepositoryConfig().
 
     When utilizing this API from several processes, precautions need to be taken
-    to ensure that the processes' view of the system state and metadata is up to date.
-    This can be achieved by using any IPC mechanism of choice to ensure that this
-    information is being modified by only a single process at a time.
+    to ensure that the processes' view of the system's state is up to date, see
+    refreshMetadata(). A typical example would be a daemon that periodically
+    checks a remote server (with fetchRemoteMetadata()) for system updates, and
+    then uses IPC (such as a push notification) to let the system's main GUI know
+    when a new version is available.
 
-    Methods that modify the system's state and/or metadata are marked as such. In a
-    multi-process scenario, refreshMetadata() updates the processes' view of the system state
-    and metadata. A typical example would be a daemon that periodically checks a remote
-    server (with fetchRemoteMetadata()) for system updates, and then uses IPC (such as a push
-    notification) to let the system's main GUI know when a new version is available.
+    Any IPC mechanism of choice can be used to ensure that system's state is being
+    modified by only a single process at a time. Methods that modify the system's
+    state are marked as such.
 
 //! [client-description]
+*/
+
+/*!
+    \qmlsignal OtaClient::fetchRemoteMetadataFinished(bool success)
+
+    A notifier signal for fetchRemoteMetadata(). The \a success argument indicates
+    whether the operation was successful.
 */
 
 /*!
@@ -201,6 +219,13 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 */
 
 /*!
+    \qmlsignal OtaClient::updateFinished(bool success)
+
+    A notifier signal for update(). The \a success argument indicates whether
+    the operation was successful.
+*/
+
+/*!
     \fn void QOtaClient::updateFinished(bool success)
 
     A notifier signal for update(). The \a success argument indicates whether
@@ -208,46 +233,98 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 */
 
 /*!
+    \qmlsignal OtaClient::rollbackFinished(bool success)
+
+    A notifier signal for rollback(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
     \fn void QOtaClient::rollbackFinished(bool success)
 
-    This is a notifier signal for rollback(). The \a success argument
+    A notifier signal for rollback(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
+    \qmlsignal OtaClient::updateOfflineFinished(bool success)
+
+    A notifier signal for updateOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
     \fn void QOtaClient::updateOfflineFinished(bool success)
 
-    This is a notifier signal for updateOffline(). The \a success argument
+    A notifier signal for updateOffline(). The \a success argument
+    indicates whether the operation was successful.
+*/
+
+/*!
+    \qmlsignal OtaClient::updateRemoteMetadataOfflineFinished(bool success)
+
+    A notifier signal for updateRemoteMetadataOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
     \fn void QOtaClient::updateRemoteMetadataOfflineFinished(bool success)
 
-    This is a notifier signal for updateRemoteMetadataOffline(). The \a success argument
+    A notifier signal for updateRemoteMetadataOffline(). The \a success argument
     indicates whether the operation was successful.
 */
 
 /*!
+    \qmlsignal OtaClient::remoteMetadataChanged()
+
+     This signal is emitted when remoteMetadata changes.
+    \include qotaclient.cpp remotemetadatachanged-description
+*/
+
+/*!
     \fn void QOtaClient::remoteMetadataChanged()
+    This signal is emitted when remoteMetadata() changes.
 //! [remotemetadatachanged-description]
-    Remote metadata can change when calling fetchRemoteMetadata() or updateRemoteMetadataOffline().
-    If OTA metadata on the remote server is different from the local cache, the local
-    cache is updated and this signal is emitted.
+    This may happen when calling fetchRemoteMetadata() or updateRemoteMetadataOffline().
+    This signal may also be emitted when calling updateOffline(), if updateRemoteMetadataOffline()
+    haven't been called for the same package as used in updateOffline().
 //! [remotemetadatachanged-description]
+*/
+
+/*!
+    \qmlsignal OtaClient::rollbackMetadataChanged()
+
+    This signal is emitted when rollbackMetadata changes. This metadata changes
+    after system updates or rollbacks.
 */
 
 /*!
     \fn void QOtaClient::rollbackMetadataChanged()
 
-    This signal is emitted when rollback metadata changes. Rollback metadata changes
-    when calling rollback().
+    This signal is emitted when rollbackMetadata() changes. This metadata changes
+    after system updates or rollbacks.
+*/
+
+/*!
+    \qmlsignal OtaClient::defaultMetadataChanged()
+
+    This signal is emitted when defaultMetadata changes. This metadata changes
+    after system updates or rollbacks.
 */
 
 /*!
     \fn void QOtaClient::defaultMetadataChanged()
 
-    This signal is emitted when the default metadata changes.
+    This signal is emitted when defaultMetadata() changes. This metadata changes
+    after system updates or rollbacks.
+*/
+
+/*!
+    \qmlsignal OtaClient::updateAvailableChanged(bool available)
+
+    This signal is emitted when the value of updateAvailable changes. The
+    \a available argument holds whether a system update is available for
+    the default system.
 */
 
 /*!
@@ -259,10 +336,24 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 */
 
 /*!
+    \qmlsignal OtaClient::rollbackAvailableChanged()
+
+    This signal is emitted when the value of rollbackAvailable changes. The rollback
+    system becomes available when a device has performed at least one system update.
+*/
+
+/*!
     \fn void QOtaClient::rollbackAvailableChanged()
 
-    This signal is emitted when the value of rollbackAvailable changes. A rollback
+    This signal is emitted when the value of rollbackAvailable changes. The rollback
     system becomes available when a device has performed at least one system update.
+*/
+
+/*!
+    \qmlsignal OtaClient::restartRequiredChanged(bool required)
+
+    This signal is emitted when the value of restartRequired changes. The
+    \a required argument holds whether a reboot is required.
 */
 
 /*!
@@ -273,12 +364,24 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 */
 
 /*!
+    \qmlsignal OtaClient::statusChanged(string status);
+
+    \include qotaclient.cpp statusstringchanged-description
+*/
+
+/*!
     \fn void QOtaClient::statusStringChanged(const QString &status)
 //! [statusstringchanged-description]
-    This signal is emitted when an additional status information is available
-    (for example, when a program is busy performing a long operation). The
+    This signal is emitted when new status information is available. The
     \a status argument holds the status message.
 //! [statusstringchanged-description]
+*/
+
+/*!
+    \qmlsignal OtaClient::errorOccurred(string error);
+
+    This signal is emitted when an error occurs. The \a error argument holds
+    the error message.
 */
 
 /*!
@@ -289,11 +392,19 @@ void QOtaClientPrivate::defaultRevisionChanged(const QString &defaultRevision, c
 */
 
 /*!
-    \fn void QOtaClient::repositoryConfigChanged(QOtaRepositoryConfig *repository)
+    \qmlsignal OtaClient::repositoryConfigChanged(OtaRepositoryConfig config)
 
-    This signal is emitted when the configuration file was updated (\a repository
-    holds a pointer to the new configuration) or removed (\a repository holds the
-    \c nullptr value).
+    This signal is emitted when the configuration file was successfully changed
+    (\a config holds the new configuration) or removed (\a config holds the \c
+    null value).
+*/
+
+/*!
+    \fn void QOtaClient::repositoryConfigChanged(QOtaRepositoryConfig *config)
+
+    This signal is emitted when the configuration file was successfully changed
+    (\a config holds a pointer to the new configuration) or removed (\a config
+    holds the \c nullptr value).
 */
 
 QOtaClient::QOtaClient() :
@@ -331,18 +442,25 @@ QOtaClient& QOtaClient::instance()
 }
 
 /*!
-//! [fetchremotemetadata-description]
-    Fetches OTA metadata from a remote server and updates the local metadata
-    cache. This metadata contains information on what system version is available
-    on a server. The cache is persistent as it is stored on the disk.
+    \qmlmethod bool OtaClient::fetchRemoteMetadata()
 
+    Fetches metadata from a remote server and updates remoteMetadata.
+
+    \include qotaclient.cpp is-async-and-mutating
+    \sa remoteMetadataChanged(), fetchRemoteMetadataFinished(), updateAvailable
+*/
+
+/*!
+    Fetches metadata from a remote server and updates remoteMetadata().
+
+//! [is-async-and-mutating]
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully.
 
-    \note This method mutates system's state/metadata.
-//! [fetchremotemetadata-description]
+    \note This method mutates system's state.
+//! [is-async-and-mutating]
 
-    \sa fetchRemoteMetadataFinished(), updateAvailable, remoteMetadata
+    \sa remoteMetadataChanged(), fetchRemoteMetadataFinished(), updateAvailable()
 */
 bool QOtaClient::fetchRemoteMetadata()
 {
@@ -355,16 +473,20 @@ bool QOtaClient::fetchRemoteMetadata()
 }
 
 /*!
+    \qmlmethod bool OtaClient::update()
+    \include qotaclient.cpp update-description
+
+    \sa updateFinished(), fetchRemoteMetadata(), setRepositoryConfig(), restartRequired
+*/
+
+/*!
 //! [update-description]
-    Fetches an OTA update from a remote and performs the system update.
+    Fetches an OTA update from a remote server and performs the system update.
 
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
-
-    \note This method mutates system's state/metadata.
+    \include qotaclient.cpp is-async-and-mutating
 //! [update-description]
 
-    \sa updateFinished(), fetchRemoteMetadata, restartRequired, setRepositoryConfig
+    \sa updateFinished(), fetchRemoteMetadata(), setRepositoryConfig(), restartRequired()
 */
 bool QOtaClient::update()
 {
@@ -377,16 +499,21 @@ bool QOtaClient::update()
 }
 
 /*!
+    \qmlmethod bool OtaClient::rollback()
+    \include qotaclient.cpp rollback-description
+
+    \sa rollbackFinished(), restartRequired
+*/
+
+/*!
 //! [rollback-description]
-    Rollback to the previous system version. The currently booted system
+    Rollback to the previous snapshot of the system. The currently booted system
     becomes the new rollback system.
 
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully.
-
-    \note This method mutates system's state/metadata.
-    \sa rollbackFinished(), restartRequired
+    \include qotaclient.cpp is-async-and-mutating
 //! [rollback-description]
+
+    \sa rollbackFinished(), restartRequired()
 */
 bool QOtaClient::rollback()
 {
@@ -399,20 +526,20 @@ bool QOtaClient::rollback()
 }
 
 /*!
+    \qmlmethod bool OtaClient::updateOffline(string packagePath)
+    \include qotaclient.cpp update-offline
+*/
+
+/*!
 //! [update-offline]
     Uses the provided self-contained update package to update the system.
-    Updates the local metadata cache, if it has not been already updated
-    by calling updateRemoteMetadataOffline(). This method is an offline
-    counterpart for update().
-
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully. The \a packagePath
+    This method is an offline counterpart for update(). The \a packagePath
     argument holds a path to the update package.
 
-    \note This method mutates system's state/metadata.
-//! [update-offline]
+    \include qotaclient.cpp is-async-and-mutating
 
-    \sa updateOfflineFinished()
+    \sa updateOfflineFinished(), updateRemoteMetadataOffline()
+//! [update-offline]
 */
 bool QOtaClient::updateOffline(const QString &packagePath)
 {
@@ -429,20 +556,20 @@ bool QOtaClient::updateOffline(const QString &packagePath)
 }
 
 /*!
-//! [update-remote-offline]
-    Uses the provided self-contained update package to update local metadata cache.
-    This metadata contains information on what system version is available on a server.
-    The cache is persistent as it is stored on the disk. This method is an offline
-    counterpart for fetchRemoteMetadata().
+    \qmlmethod bool OtaClient::updateRemoteMetadataOffline(string packagePath)
+    Uses the provided self-contained update package to update remoteMetadata.
+    \include qotaclient.cpp update-remote-offline
+*/
 
-    This method is asynchronous and returns immediately. The return value
-    holds whether the operation was started successfully. The \a packagePath
+/*!
+    Uses the provided self-contained update package to update remoteMetadata().
+//! [update-remote-offline]
+    This method is an offline counterpart for fetchRemoteMetadata(). The \a packagePath
     argument holds a path to the update package.
 
-    \note This method mutates system's state/metadata.
+    \include qotaclient.cpp is-async-and-mutating
+    \sa remoteMetadataChanged(), updateRemoteMetadataOfflineFinished(), updateOffline()
 //! [update-remote-offline]
-
-    \sa remoteMetadataChanged
 */
 bool QOtaClient::updateRemoteMetadataOffline(const QString &packagePath)
 {
@@ -462,13 +589,17 @@ bool QOtaClient::updateRemoteMetadataOffline(const QString &packagePath)
 }
 
 /*!
+    \qmlmethod bool OtaClient::refreshMetadata()
+    \include qotaclient.cpp refresh-metadata
+*/
+
+/*!
 //! [refresh-metadata]
-    Refreshes the instances view of the system's state from the local metadata cache.
+    In a multi-process scenario, refreshMetadata() updates the instances' view of the system.
     Notifier signals are emitted for properties that depend on changed metadata.
     Returns \c true if metadata is refreshed successfully; otherwise returns \c false.
 
     Using this method is not required when only one process is responsible for all OTA tasks.
-
 //! [refresh-metadata]
 */
 bool QOtaClient::refreshMetadata()
@@ -481,17 +612,23 @@ bool QOtaClient::refreshMetadata()
 }
 
 /*!
+    \qmlmethod bool OtaClient::removeRepositoryConfig()
+    \include qotaclient.cpp remove-repository-config
+*/
+
+/*!
 //! [remove-repository-config]
     Remove a configuration file for the repository.
 
-    The repository configuration is stored on a file system in \c {/etc/ostree/remotes.d/*.conf}
+    The repository configuration is stored on a file system in
+    \c {/etc/ostree/remotes.d/}\unicode {0x002A}\c{.conf}
 
     If the configuration file does not exist, this function returns \c true.
     If the configuration file exists, this function returns \c true if the file
     is removed successfully; otherwise returns \c false.
-//! [remove-repository-config]
 
-    \sa setRepositoryConfig(), repositoryConfigChanged
+    \sa setRepositoryConfig(), repositoryConfigChanged()
+//! [remove-repository-config]
 */
 bool QOtaClient::removeRepositoryConfig()
 {
@@ -509,10 +646,14 @@ bool QOtaClient::removeRepositoryConfig()
 }
 
 /*!
+    \qmlmethod bool OtaClient::isRepositoryConfigSet(OtaRepositoryConfig config)
+    \include qotaclient.cpp is-repository-config-set
+*/
+
+/*!
 //! [is-repository-config-set]
-
     Returns \c true if the configuration \a config is already set; otherwise returns \c false.
-
+    Configurations are compared by comparing all properties.
 //! [is-repository-config-set]
 */
 bool QOtaClient::isRepositoryConfigSet(QOtaRepositoryConfig *config) const
@@ -530,17 +671,27 @@ bool QOtaClient::isRepositoryConfigSet(QOtaRepositoryConfig *config) const
 }
 
 /*!
-//! [set-repository-config]
-    Change the configuration for the repository. The repository configuration
-    is stored on a file system in \c {/etc/ostree/remotes.d/*.conf}
+    \qmlmethod bool OtaClient::setRepositoryConfig(OtaRepositoryConfig config)
+    \include qotaclient.cpp set-repository-config
 
-    Returns \c true if the configuration file is changed successfully;
-    otherwise returns \c false.
+    The \a config argument is documented in OtaRepositoryConfig.
+
+    \sa isRepositoryConfigSet(), removeRepositoryConfig(), repositoryConfigChanged
+*/
+
+/*!
+//! [set-repository-config]
+    Set the configuration for the repository. The repository configuration
+    is stored on a file system in \c {/etc/ostree/remotes.d/}\unicode {0x002A}\c{.conf}.
+    If a configuration already exists, it needs to be removed before a new configuration
+    can be set.
+
+    Returns \c true if the configuration file is set successfully; otherwise returns \c false.
 //! [set-repository-config]
 
     The \a config argument is documented in QOtaRepositoryConfig.
 
-    \sa removeRepositoryConfig(), repositoryConfigChanged
+    \sa isRepositoryConfigSet(), removeRepositoryConfig(), repositoryConfigChanged
 */
 bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 {
@@ -609,6 +760,15 @@ bool QOtaClient::setRepositoryConfig(QOtaRepositoryConfig *config)
 }
 
 /*!
+    \qmlmethod OtaRepositoryConfig OtaClient::repositoryConfig()
+
+    Returns a configuration object for the repository or \c null if the
+    configuration file does not exist or could not be read.
+
+    \sa setRepositoryConfig(), removeRepositoryConfig()
+*/
+
+/*!
     Returns a configuration object for the repository or \c nullptr if the
     configuration file does not exist or could not be read. The caller is
     responsible for deleting the returned object.
@@ -623,8 +783,15 @@ QOtaRepositoryConfig *QOtaClient::repositoryConfig() const
 }
 
 /*!
+    \qmlproperty bool OtaClient::otaEnabled
+    \readonly
+
+    Holds whether a device supports OTA updates.
+*/
+
+/*!
     \property QOtaClient::otaEnabled
-    \brief whether a device supports OTA updates.
+    Holds whether a device supports OTA updates.
 */
 bool QOtaClient::otaEnabled() const
 {
@@ -633,8 +800,18 @@ bool QOtaClient::otaEnabled() const
 }
 
 /*!
+    \qmlproperty string OtaClient::error
+    \readonly
+
+    Holds the last error occurred.
+    \sa errorOccurred()
+*/
+
+/*!
     \property QOtaClient::error
-    \brief a string containing the last error occurred.
+
+    Holds the last error occurred.
+    \sa errorOccurred()
 */
 QString QOtaClient::errorString() const
 {
@@ -643,10 +820,22 @@ QString QOtaClient::errorString() const
 }
 
 /*!
-    \property QOtaClient::status
-    \brief a string containing the last status message.
+    \qmlproperty string OtaClient::status
+    \readonly
 
-    Only selected operations update this property.
+    Holds the last status message. Lengthy asynchronous operations use this property
+    to notify of status changes.
+
+    \sa statusChanged()
+*/
+
+/*!
+    \property QOtaClient::status
+
+    Holds the last status message. Lengthy asynchronous operations use this property
+    to notify of status changes.
+
+    \sa statusStringChanged()
 */
 QString QOtaClient::statusString() const
 {
@@ -655,14 +844,20 @@ QString QOtaClient::statusString() const
 }
 
 /*!
+    \qmlproperty bool OtaClient::updateAvailable
+    \readonly
+
+    \include qotaclient.cpp update-available-description
+*/
+
+/*!
     \property QOtaClient::updateAvailable
-    \brief whether a system update is available.
 
 //! [update-available-description]
-    This information is cached; to update the local cache, call fetchRemoteMetadata().
-    The return value holds whether a system update is available for the default system.
+    Holds whether a system update is available for the default system. An update is
+    available when the default system differ from the remote system.
 
-    \sa update()
+    \sa fetchRemoteMetadata(), updateAvailableChanged(), update()
 //! [update-available-description]
 */
 bool QOtaClient::updateAvailable() const
@@ -674,10 +869,20 @@ bool QOtaClient::updateAvailable() const
 }
 
 /*!
+    \qmlproperty bool OtaClient::rollbackAvailable
+    \readonly
+
+    \include qotaclient.cpp rollback-available-description
+*/
+
+/*!
     \property QOtaClient::rollbackAvailable
-    \brief whether a rollback system is available.
+
+//! [rollback-available-description]
+    Holds whether the rollback system is available.
 
     \sa rollbackAvailableChanged()
+//! [rollback-available-description]
 */
 bool QOtaClient::rollbackAvailable() const
 {
@@ -686,12 +891,21 @@ bool QOtaClient::rollbackAvailable() const
 }
 
 /*!
+    \qmlproperty bool OtaClient::restartRequired
+    \readonly
+
+    \include qotaclient.cpp restart-required-description
+*/
+
+/*!
     \property QOtaClient::restartRequired
-    \brief whether a reboot is required.
 
-    Reboot is required when the default system differ from the booted system.
+//! [restart-required-description]
+    Holds whether a reboot is required. Reboot is required when the default system
+    differ from the booted system.
 
-    \sa defaultRevision, defaultMetadata
+    \sa restartRequiredChanged()
+//! [restart-required-description]
 */
 bool QOtaClient::restartRequired() const
 {
@@ -700,22 +914,42 @@ bool QOtaClient::restartRequired() const
 }
 
 /*!
-    \property QOtaClient::bootedRevision
-    \brief a QString containing the booted system's revision.
+    \qmlproperty string OtaClient::bootedRevision
+    \readonly
 
-    A checksum in the OSTree repository.
+    Holds the booted system's revision
+//! [what-is-revision]
+    (a checksum in the OSTree repository representing a snapshot of the system).
+//! [what-is-revision]
+
+    \sa bootedMetadata
 */
+
+/*!
+    \property QOtaClient::bootedRevision
+
+    Holds the booted system's revision
+    \include qotaclient.cpp what-is-revision
+
+    \sa bootedMetadata()
+*/
+
 QString QOtaClient::bootedRevision() const
 {
     return d_func()->m_bootedRev;
 }
 
 /*!
-    \property QOtaClient::bootedMetadata
-    \brief a QString containing the booted system's OTA metadata.
+    \qmlproperty string OtaClient::bootedMetadata
+    \readonly
 
-    Returns a JSON-formatted QString containing OTA metadata for the booted
-    system. Metadata is bundled with each system's version.
+    Holds JSON-formatted metadata for the booted system.
+*/
+
+/*!
+    \property QOtaClient::bootedMetadata
+
+    Holds JSON-formatted metadata for the snapshot of the booted system.
 */
 QString QOtaClient::bootedMetadata() const
 {
@@ -723,10 +957,22 @@ QString QOtaClient::bootedMetadata() const
 }
 
 /*!
-    \property QOtaClient::remoteRevision
-    \brief a QString containing the system's revision on a server.
+    \qmlproperty string OtaClient::remoteRevision
+    \readonly
 
-    A checksum in the OSTree repository.
+    Holds the system's revision on a server
+    \include qotaclient.cpp what-is-revision
+
+    \sa remoteMetadata
+*/
+
+/*!
+    \property QOtaClient::remoteRevision
+
+    Holds the system's revision on a server
+    \include qotaclient.cpp what-is-revision
+
+    \sa remoteMetadata()
 */
 QString QOtaClient::remoteRevision() const
 {
@@ -734,13 +980,18 @@ QString QOtaClient::remoteRevision() const
 }
 
 /*!
+    \qmlproperty string OtaClient::remoteMetadata
+    \readonly
+    \include qotaclient.cpp remote-metadata
+*/
+
+/*!
     \property QOtaClient::remoteMetadata
-    \brief a QString containing the system's OTA metadata on a server.
+//! [remote-metadata]
+    Holds JSON-formatted metadata for the latest snapshot of the system on a server.
 
-    Returns a JSON-formatted QString containing OTA metadata for the system
-    on a server. Metadata is bundled with each system's version.
-
-    \sa fetchRemoteMetadata()
+    \sa fetchRemoteMetadata(), remoteMetadataChanged()
+//! [remote-metadata]
 */
 QString QOtaClient::remoteMetadata() const
 {
@@ -748,10 +999,22 @@ QString QOtaClient::remoteMetadata() const
 }
 
 /*!
-    \property QOtaClient::rollbackRevision
-    \brief a QString containing the rollback system's revision.
+    \qmlproperty string OtaClient::rollbackRevision
+    \readonly
 
-    A checksum in the OSTree repository.
+    Holds the rollback system's revision
+    \include qotaclient.cpp what-is-revision
+
+    \sa rollbackMetadata
+*/
+
+/*!
+    \property QOtaClient::rollbackRevision
+
+    Holds the rollback system's revision
+    \include qotaclient.cpp what-is-revision
+
+    \sa rollbackMetadata()
 */
 QString QOtaClient::rollbackRevision() const
 {
@@ -759,13 +1022,18 @@ QString QOtaClient::rollbackRevision() const
 }
 
 /*!
+    \qmlproperty string OtaClient::rollbackMetadata
+    \readonly
+    \include qotaclient.cpp rollback-metadata
+*/
+
+/*!
     \property QOtaClient::rollbackMetadata
-    \brief a QString containing the rollback system's OTA metadata.
+//! [rollback-metadata]
+    Holds JSON-formatted metadata for the snapshot of the rollback system.
 
-    Returns a JSON-formatted QString containing OTA metadata for the rollback
-    system. Metadata is bundled with each system's version.
-
-    \sa rollback()
+    \sa rollback(), rollbackMetadataChanged()
+//! [rollback-metadata]
 */
 QString QOtaClient::rollbackMetadata() const
 {
@@ -773,10 +1041,22 @@ QString QOtaClient::rollbackMetadata() const
 }
 
 /*!
-    \property QOtaClient::defaultRevision
-    \brief a QString containing the default system's revision.
+    \qmlproperty string OtaClient::defaultRevision
+    \readonly
 
-    A checksum in the OSTree repository.
+    Holds the default system's revision
+    \include qotaclient.cpp what-is-revision
+
+    \sa defaultMetadata
+*/
+
+/*!
+    \property QOtaClient::defaultRevision
+
+    Holds the default system's revision
+    \include qotaclient.cpp what-is-revision
+
+    \sa defaultMetadata()
 */
 QString QOtaClient::defaultRevision() const
 {
@@ -784,15 +1064,19 @@ QString QOtaClient::defaultRevision() const
 }
 
 /*!
+    \qmlproperty string OtaClient::defaultMetadata
+    \readonly
+
+    \include qotaclient.cpp default-metadata
+*/
+
+/*!
     \property QOtaClient::defaultMetadata
-    \brief a QString containing the default system's OTA metadata.
-
 //! [default-metadata]
-    A default system represents what the host will boot into the next time
-    system is rebooted. A default system changes after system updates or rollbacks.
+    Holds JSON-formatted metadata for the snapshot of the default system.
+    A default system represents what the host will boot into the next time system is rebooted.
 
-    Returns a JSON-formatted QString containing OTA metadata for the default
-    system. Metadata is bundled with each system's version.
+    \sa defaultMetadataChanged()
 //! [default-metadata]
 */
 QString QOtaClient::defaultMetadata() const
