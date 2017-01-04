@@ -166,7 +166,8 @@ usage()
     echo
     echo "--uboot-env-file FILE"
     echo
-    echo "    OSTree boot compatible u-boot environment file."
+    echo "    OSTree boot compatible u-boot environment file. If the filename is 'uEnv.txt',"
+    echo "    then it will be appended to the OSTree's managed uEnv.txt"
     echo
     echo "--grub2-cfg-generator FILE"
     echo
@@ -1056,7 +1057,7 @@ detect_target_device()
 
     case "${DEVICE}" in
         # Intel NUC requires a special handling as it is quite different from
-        # other boot2qt-meta reference devices.
+        # other meta-boot2qt reference devices.
         *intel-corei7*|*nuc*)
             BOOTLOADER="grub2"
             BOOTFS_TYPE="vfat"

@@ -136,17 +136,28 @@
 
     Build your product on top of the \B2Q stack, or build your own custom embedded
     linux image. When the image is ready for the \e {first release}, continue to the
-    \l {Enabling OTA Functionality on a Device}.
+    \l {Enabling OTA Functionality on a Device}. Your product should also pre-integrate
+    an updater based on the Qt OTA Update module. You can find demo updater applications
+    in the \c SDK_INSTALL_DIR/Tools/ota/examples/ directory. Alternatively, you can
+    install an updater at a later point as a non-system application.
 
     \section2 Enabling OTA Functionality on a Device
 
     When preparing a device for shipping and subsequent updates are to be delivered
-    via OTA, you first need to enable this feature in the \e sysroot:
+    via OTA, you first need to enable this feature in the sysroot:
 
     \list 1
 
       \li Generate OSTree boot compatible initramfs image (skip this step if not using
           initramfs for booting).
+
+          The device should be powered on, booted into your current product (the sysroot to be
+          released), and connected to a machine from which you will run the \c generate-initramfs
+          tool. The \l {https://en.wikipedia.org/wiki/Dracut_(software)} {Dracut} framework is
+          used to generate the initramfs image based on the currently running kernel. The image
+          uses systemd as an init system. You can, of course, provide your own (not necessarily
+          Dracut-based) initramfs, as long as you include the required \l {The Booting Process}
+          {OSTree boot logic}.
 
           To generate the initramfs image, run:
 
@@ -155,17 +166,8 @@
           ./generate-initramfs
           \endcode
 
-          \b {Important:} The device should be powered on, booted into your current
-          product (the sysroot to be released), and connected to a machine from
-          which you will run the \c generate-initramfs tool. \l {https://en.wikipedia.org/wiki/Dracut_(software)}
-          {Dracut} generates the initramfs image based on the currently running kernel.
-          You can, of course, provide your own (not necessarily dracut based) initramfs,
-          as long as you include the required OSTree logic from the provided dracut module
-          (installed in \c {/usr/lib/dracut/modules.d/}). The generated image uses
-          systemd as an init system.
-
           This will produce an \c initramfs-${device}-${release} file in the
-          working directory. The initramfs file will be needed in the later steps.
+          working directory. The generated initramfs file will be needed in the later steps.
 
        \target Boot loader integration.
        \li Boot loader integration.
@@ -173,7 +175,7 @@
           OSTree maintains bootloader-independent drop-in configuration files in a format
           as defined by \l {https://www.freedesktop.org/wiki/Specifications/BootLoaderSpec/}
           {The Boot Loader Specification}. Not all boot loaders support The Boot Loader
-          Specification, so OSTree contains code to generate native configurations files
+          Specification, so OSTree contains code to generate native configuration files
           from the bootloader-independent configurations.
 
           The boot script used by your device has to be changed to use the configurations that are
@@ -201,8 +203,9 @@
                 \li \c ${kernel_image}: Path to the Linux kernel image.
                 \li \c ${ramdisk_image}: Path to the initramfs image (optional).
                 \li \c ${bootargs}: Parameters passed to the kernel command line.
-                \li \c ${bootdir}: Path to other files that belong to the same release
-                       and should be accessible from U-Boot (DTBs, boot scripts).
+                \li \c ${bootdir}: Path to other files in the \c {\boot} directory
+                        that belong to the same release and should be accessible
+                        from U-Boot (DTBs, boot scripts).
               \endlist
 
               An example \c uEnv.txt when booting with initramfs:
@@ -244,12 +247,6 @@
               the path and the file name changes. If the original script uses the \c bootm command for
               loading the kernel image, then the OSTree-enabled script should use \c bootm too.
 
-              \note You should expect to find all the files that are required for the
-              boot process under the \c ${bootdir} path. Before starting to write
-              U-Boot integration code, you can run the \c qt-ostree tool without
-              providing the \c --uboot-env-file argument and \l {The generated sysroot} {examine}
-              the generated sysroot (see step 3).
-
             \li \b {GRUB 2}
 
               Whenever the boot loader configuration files need to be updated on a GRUB 2 based system,
@@ -262,8 +259,19 @@
 
           \endlist
 
+          You should expect to find all the files that are required for the boot process under the
+          \c {/boot} directory. Before starting to write the boot loader integration code, you can
+          run the \c qt-ostree tool without providing any boot loader specific files and
+          \l {The generated sysroot} {examine} the generated sysroot (see step 3). Particularly,
+          inspect what gets installed in the \c {/boot} directory, as this location is of special
+          interest to the boot loader integration code. The \c {/boot} directory may contain symbolic
+          links to files in the \c {loader/} directory (for example, \c {uEnv.txt -> loader/uEnv.txt}).
+          It is safe to read these symbolic links, as OSTree will ensure that the link target
+          changes atomically on system updates and rollbacks.
+
           For more examples refer to \l {Device Integration Examples}.
 
+          \target The Booting Process
           \b {The Booting Process}
 
           OSTree includes a special \c ostree= kernel argument that points to the corresponding tree
@@ -388,7 +396,7 @@
 
     \section2 Preparing a New Update for an OTA Enabled Device
 
-    When preparing a new update for a device that already has OTA enabled, the
+    When preparing a \e {new update} for a device that already has OTA enabled, the
     workflow is as follows:
 
     \list 1
@@ -411,8 +419,8 @@
         The above command will create a new commit in the OSTree repository at \c
         {WORKDIR/ostree-repo/}, or create a new repository if one does not exist.
         Use the \c --ostree-repo argument to provide a custom path. This repository
-        is the OTA update and can be copied to a production server at any time. OSTree
-        repositories can be served via a static HTTP server.
+        is the OTA update source and can be exported to a production server at any time.
+        OSTree repositories can be served via a static HTTP server.
 
         Notes on the arguments passed to \c {qt-ostree}:
 
@@ -429,10 +437,7 @@
 
                         It is advised to regenerate initramfs for each new
                         kernel release, so that the kernel and initramfs
-                        versions \e match. On U-Boot systems: If the new kernel/initramfs
-                        is \b {not compatible} with the boot script on a device,
-                        it \b must be updated as well (see the \c --uboot-env-file
-                        notes below).
+                        versions \e match.
                 \endlist
 
                 As before, if not using initramfs, it may be necessary to provide
@@ -442,29 +447,26 @@
                 \list
                     \li Provide a path to the \e {new version} of your sysroot.
                 \endlist
-            \li \b {\c --uboot-env-file}
-                \list
-                    \li Updating u-boot environment file is supported only for
-                        major releases - when kernel/initramfs versions change.
-
-                        The kernel/initramfs version is considered to change when
-                        \c bootcsum changes in the following expression:
-                        \badcode
-                        bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
-                        \endcode
-                \endlist
             \li \b {\c --start-trivial-httpd}
                 \list
                     \li Starts a simple web server which you can access on the
                         local host at address specified in \c WORKDIR/httpd/httpd-address
-                        file. Entering this address into a web browser lists the
-                        contents of your OSTree repository. This command line
-                        argument is useful for quick testing purposes, in production
-                        with more advanced requirements (TLS authentication) you
-                        will need to use a different web server solution, like
-                        Apache.
+                        file. This command line argument is useful for quick testing purposes,
+                        in production with more advanced requirements (for example, TLS
+                        authentication) you will need to use a different web server solution.
                 \endlist
         \endlist
+
+      Updating the contents of the \c {/boot} directory is supported only for major releases -
+      when kernel/initramfs versions change. The kernel/initramfs version is considered to
+      change when \c bootcsum changes in the following expression:
+
+      \badcode
+      bootcsum=$(cat vmlinuz initramfs | sha256sum | cut -f 1 -d ' ')
+      \endcode
+
+      \l {The generated sysroot} {Examine} the generated sysroot to see which files are installed
+      in this directory by \c {qt-ostree} and might need to be updated together with kernel/initramfs.
 
       \li Use Qt OTA APIs to update devices.
 
@@ -474,13 +476,12 @@
 
     \section2 Securing a Delivery of an Update
 
-    OTA is a component of a system and not a security framework. If handled
-    correctly (GPG and TLS are used properly, the keys are generated and handled
-    properly and the servers in question are secure to known vulnerabilies and
-    exploits) OTA is considered secure against realistic attacks.
+    OTA is a component of a system and not a security framework. It is always the final product
+    that needs to be analyzed for security implications and requirements. The Qt OTA Update module
+    supports the following security/authentication mechanisms:
 
     \list
-    \li \b {GPG Signing}
+    \li \b {GNU Privacy Guard (GPG)}
 
     GPG signing helps to ensure that the data was transmitted in-full, without
     damage or file corruption and that the data was sent by a trusted party. A
@@ -493,17 +494,16 @@
     sudo apt-get install gnupg2
     \endcode
 
-    \li \b {TLS Authentication}
+    \li \b {Transport Layer Security (TLS)}
 
-    TLS protects data from tampering and eavesdropping. System administrators use
-    this to restrict the access to the server (client authentication) and client
-    devices use this to verify the identitiy of an update server (server authentication).
+    TLS protects data from tampering and eavesdropping. TLS authentication can be used on the
+    server side to restrict the access to the server (client authentication) and on client side
+    to verify the identitiy of an update server (server authentication).
     Look for \c {--tls-*} command line arguments in the output of \c {./qt-ostree --help}.
     \endlist
 
-    It is advised to use both GPG and TLS in hostile environments. To learn more about the
-    security topics from the above list, consult dedicated resources. For the corresponding
-    client side API see OtaRepositoryConfig.
+    To learn more about the security topics from the above list, consult dedicated resources.
+    For the corresponding client side API see OtaRepositoryConfig.
 
     \section2 Offline Updates and Custom Delivery Mechanisms
 
@@ -515,7 +515,7 @@
     a self-contained update package is required when:
     \list
       \li A device has no network connection and is intended to be
-          updated via external media such as a USB drive, or
+          updated via external media such as a USB drive.
       \li Some other protocol or proprietary mechanism is used to
           deliver software to a device.
     \endlist
@@ -524,7 +524,7 @@
 
     \section1 Layout of an OTA Enabled Sysroot
 
-    There are only two directories on a device for a safe storage of local files:
+    There are two directories on a device for a safe storage of local files:
     \c {/var} and \c {/etc}.
     The sysroot generated by OTA tools adds convenience symbolic links in the
     \c {/} root directory, including symbolic links pointing to the \c {/var}.
@@ -544,7 +544,7 @@
 
          \li Everything that is part of the OS - mounted read-only to prevent
              inadvertent corruption. It's recommended that an operating system
-             ships all of its content in /usr. Contents of this directory are
+             ships all of its content in /usr. The contents of this directory are
              updated via OTA.
 
     \row \li \c {/etc}
@@ -591,11 +591,11 @@
 
     \row \li \c /sysroot
 
-         \li Physical / root directory.
+         \li Physical / root directory mount point.
 
     \row \li \c /
 
-         \li Versioned filesystem tree's root.
+         \li Versioned filesystem tree's mount point.
 
     \endtable
 

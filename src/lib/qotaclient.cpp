@@ -92,7 +92,6 @@ void QOtaClientPrivate::handleStateChanges()
 
 void QOtaClientPrivate::setBootedMetadata(const QString &bootedRev, const QString &bootedMetadata)
 {
-    Q_Q(QOtaClient);
     m_bootedRev = bootedRev;
     m_bootedMetadata = bootedMetadata;
 }
@@ -369,7 +368,6 @@ bool QOtaClient::fetchRemoteMetadata()
 */
 bool QOtaClient::update()
 {
-
     Q_D(const QOtaClient);
     if (!d->m_otaEnabled || !updateAvailable())
         return false;
@@ -404,7 +402,8 @@ bool QOtaClient::rollback()
 //! [update-offline]
     Uses the provided self-contained update package to update the system.
     Updates the local metadata cache, if it has not been already updated
-    by calling updateRemoteMetadataOffline().
+    by calling updateRemoteMetadataOffline(). This method is an offline
+    counterpart for update().
 
     This method is asynchronous and returns immediately. The return value
     holds whether the operation was started successfully. The \a packagePath

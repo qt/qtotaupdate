@@ -396,7 +396,7 @@ QT_BEGIN_NAMESPACE
     \qmlproperty string OtaRepositoryConfig::url
 
     This property holds a URL for accessing remote OSTree repository.
-    The supported schemes at the moment are \c http and \c https.
+    The supported schemes are \c http and \c https.
 */
 
 /*!

@@ -161,7 +161,7 @@ void QOtaRepositoryConfig::setUrl(const QString &url)
     \property QOtaRepositoryConfig::url
     \brief a URL for accessing remote OSTree repository.
 
-    The supported schemes at the moment are \c http and \c https.
+    The supported schemes are \c http and \c https.
 */
 QString QOtaRepositoryConfig::url() const
 {
