@@ -36,11 +36,6 @@ EXAMPLE 1 - nitrogen6x/ (Boundary Devices i.MX6)
     the copy with 'vim' editor and manually remove the u-boot header.
 
     Replace:
-        if ${fs}load ${dtype} ${disk}:1 12000000 ${bootdir}$dtbname ; then
-    With:
-        if ${fs}load ${dtype} ${disk}:1 12000000 ${bootdir}/$dtbname ; then
-
-    Replace:
         if ${fs}load ${dtype} ${disk}:1 10800000 ${bootdir}uImage ; then
             if itest.s x$havedtb == x ; then
                 bootm 10800000 ;
@@ -131,7 +126,7 @@ EXAMPLE 2 - beaglebone/ (BeagleBone Black)
     optargs=consoleblank=0 vt.global_cursor_default=0 quiet
     mmcroot=/dev/mmcblk0p2
     loaduimage=load mmc ${bootpart} ${loadaddr} ${kernel_image}
-    loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}/${fdtfile}
+    loadfdt=load mmc ${bootpart} ${fdtaddr} ${bootdir}${fdtfile}
     loadramdisk=load mmc ${bootpart} ${rdaddr} ${ramdisk_image}
     mmcargs=setenv bootargs $bootargs console=${console} ${optargs} root=${mmcroot} rootfstype=${mmcrootfstype}
     mmcboot=run loadramdisk; echo Booting from mmc ....; run mmcargs; bootz ${loadaddr} ${rdaddr} ${fdtaddr}
@@ -166,7 +161,7 @@ EXAMPLE 3 - colibri-vf/ (Toradex Colibri VF)
        bootpart=0:1
        ramdisk_addr_r=0x86000000
        loaduimage=load mmc ${bootpart} ${kernel_addr_r} ${kernel_image}
-       loadfdt=load mmc ${bootpart} ${fdt_addr_r} ${bootdir}/${soc}-colibri-${fdt_board}.dtb
+       loadfdt=load mmc ${bootpart} ${fdt_addr_r} ${bootdir}${soc}-colibri-${fdt_board}.dtb
        loadramdisk=load mmc ${bootpart} ${ramdisk_addr_r} ${ramdisk_image}
        sdboot=run setup; setenv bootargs ${bootargs} ${defargs} ${sdargs} ${mtdparts} ${setupargs} ${vidargs}; echo Booting from MMC/SD card...; run loaduimage && run loadfdt && run loadramdisk && bootz ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
 
@@ -205,7 +200,7 @@ EXAMPLE 4 - imx6qsabresd/ (Freescale SABRE SD i.MX6)
     env import -t $loadaddr $filesize
     setenv ramdisk_addr 0x24000000
     ext2load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${kernel_image}
-    ext2load mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${bootdir}/${fdt_file}
+    ext2load mmc ${mmcdev}:${mmcpart} ${fdt_addr} ${bootdir}${fdt_file}
     ext2load mmc ${mmcdev}:${mmcpart} ${ramdisk_addr} ${ramdisk_image}
     echo Booting from mmc ...
     run videoargs
