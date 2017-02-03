@@ -22,5 +22,7 @@ HEADERS += \
 
 SOURCES += \
     qotaclient.cpp \
-    qotaclientasync.cpp \
     qotarepositoryconfig.cpp
+
+NO_PCH_SOURCES += \
+    qotaclientasync.cpp
