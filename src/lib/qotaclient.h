@@ -40,14 +40,14 @@ class QOtaRepositoryConfig;
 class Q_DECL_EXPORT QOtaClient : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool otaEnabled READ otaEnabled)
+    Q_PROPERTY(bool otaEnabled READ otaEnabled CONSTANT)
     Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY updateAvailableChanged)
     Q_PROPERTY(bool rollbackAvailable READ rollbackAvailable NOTIFY rollbackAvailableChanged)
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY restartRequiredChanged)
     Q_PROPERTY(QString error READ errorString NOTIFY errorOccurred)
     Q_PROPERTY(QString status READ statusString NOTIFY statusStringChanged)
-    Q_PROPERTY(QString bootedRevision READ bootedRevision)
-    Q_PROPERTY(QString bootedMetadata READ bootedMetadata)
+    Q_PROPERTY(QString bootedRevision READ bootedRevision CONSTANT)
+    Q_PROPERTY(QString bootedMetadata READ bootedMetadata CONSTANT)
     Q_PROPERTY(QString remoteRevision READ remoteRevision NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QString remoteMetadata READ remoteMetadata NOTIFY remoteMetadataChanged)
     Q_PROPERTY(QString rollbackRevision READ rollbackRevision NOTIFY rollbackMetadataChanged)
