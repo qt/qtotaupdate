@@ -658,7 +658,7 @@ bool QOtaClient::removeRepositoryConfig()
 */
 bool QOtaClient::isRepositoryConfigSet(QOtaRepositoryConfig *config) const
 {
-    QOtaRepositoryConfig *currentConfig = repositoryConfig();
+    QScopedPointer<QOtaRepositoryConfig> currentConfig(repositoryConfig());
 
     bool isSet = currentConfig && config && currentConfig->url() == config->url() &&
                  currentConfig->gpgVerify() == config->gpgVerify() &&
